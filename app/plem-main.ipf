@@ -12,12 +12,14 @@
 //Version 7:	Created Mapper for Parameters for Map-INFO-Folder
 //Version 8:	Loading Procedure for Igor Binary files. Extract Data to ORIGINAL-Folder
 //Version 9: 	Save Files to BACKGROUND, PLEM, usw. 
+//Version 10:	Update to new output files from 2015-04-14
+
 //			ToDo. Create Panel for Map-Updates
 //			ToDo: Mapper for Global Vars in PLEMd2 Folder?
 
 #pragma rtGlobals=3		// Use modern global access method and strict wave access.
 
-static Constant PLEMd2Version = 0905
+static Constant PLEMd2Version = 1000
 static StrConstant PLEMd2PackageName = "PLEM-displayer2"
 static StrConstant PLEMd2PrefsFileName = "PLEMd2Preferences.bin"
 static StrConstant PLEMd2WorkingDir = "C:users:matthias:Meine Dokumente:Dokumente:programs:local:igor:matthias:PLEM-displayer2:"
@@ -300,6 +302,7 @@ Function PLEMd2Open()
 					strDataFolder = GetDataFolder(1)
 					wave wavIBW = $strWave					
 					strWaveNames = PLEMd2ExtractWaveList(wavIBW)
+
 					numTotalX	= DimSize(wavIBW,0)
 					numTotalY	= DimSize(wavIBW,1)
 
@@ -382,36 +385,36 @@ Function PLEMd2BuildMaps(strPLEM)
 	
 	if (PLEMd2MapExists(strPLEM))
 		//There are 3 different structures for DATA
-		//1) WAVES: wavelength_nm, background, PL_intensity ...
-		//2) WAVES: wavelength_nm, BG_498_502, PL_498_502,BG_502_506,PL_502_506 ...
-		//3) WAVES: wavelength_nm, background, PL_498_502,PL_502_506,PL_506_510,PL_510_514 ...
+		//1) WAVES: WL, BG, PL ...
+		//2) WAVES: WL, BG_498_502, PL_498_502,BG_502_506,PL_502_506 ...
+		//3) WAVES: WL, BG, PL_498_502,PL_502_506,PL_506_510,PL_510_514 ...
 		PLEMd2statsLoad(stats, strPLEM)
-		print "PLEMd2BuildMaps: Map found. Background is " + stats.strbackground		
+		print "PLEMd2BuildMaps: Map found. Background is " + num2str(stats.numBackground)
 		//Bedingungen:
 		//1)+3) stats.strbackground = single --> wavexists(background)
 		//2) stats. strBackground = multiple --> count(BG_*) = count (PL_*)
 		SetDataFolder $(gstrMapsFolder + ":" + strPLEM + ":ORIGINAL:")
-		strswitch(stats.strbackground)
-			case "single":
-				wave wavBackground = background
+		switch(stats.numbackground)
+			case 0:
+				wave wavBackground = BG
 				if (WaveExists(wavBackground))					
-					strWavePL = WaveList("PL_*",";","")
+					strWavePL = WaveList("PL*",";","") //must also match 1)condition
 					numItems = ItemsInList(strWavePL, ";")
 					strWaveBG = ""
 					for (i=0; i<numItems; i+=1)
-						strWaveBG += "background;"
+						strWaveBG += "BG;"
 					endfor
 				endif
 				wave wavBackground = $("")
 				break
-			case "multiple":
+			case 1:
 				strWaveBG = WaveList("BG_*",";","")
 				strWavePL = WaveList("PL_*",";","")				
 				break
 			default:
 				break
 		endswitch
-		wave wavWavelength = wavelength_nm
+		wave wavWavelength = WL
 		if (!WaveExists(wavWavelength))
 			print "PLEMd2BuildMaps: Wavelength Wave not found within ORIGINAL Folder"
 			return 0
@@ -471,9 +474,9 @@ Function PLEMd2BuildMaps(strPLEM)
 			stats.wavMeasure		= wavMeasure
 			stats.wavBackground	= wavBackground
 			stats.wavCorrected	= 0 //ToDo
-			stats.numPLEMDeltaY 	= stats.numExcitationStep
-			stats.numPLEMBottomY 	= stats.numExcitationStart
-			stats.numPLEMTopY 		= stats.numExcitationEnd
+			stats.numPLEMDeltaY 	= stats.numEmissionDelta
+			stats.numPLEMBottomY 	= stats.numEmissionStart
+			stats.numPLEMTopY 		= stats.numEmissionEnd
 			SetScale/I x stats.numPLEMLeftX, stats.numPLEMRightX, "", stats.wavPLEM, stats.wavMeasure, stats.wavBackground, stats.wavCorrected
 		else
 			stats.numPLEMBottomY	= (str2num(StringFromList(1,StringFromList(0,strWavePL),"_")) + str2num(StringFromList(2,StringFromList(0,strWavePL),"_"))) / 2
@@ -513,45 +516,37 @@ Function PLEMd2ExtractInfo(wavIBW, stats)
 	
 	stats.strDate 		= PLEMd2ExtractSearch(wavIBW, "Date")
 	stats.strUser 		= PLEMd2ExtractSearch(wavIBW, "User")
-	stats.strFileName 	= PLEMd2ExtractSearch(wavIBW, "File")
-	stats.numSlit 		= str2num(PLEMd2ExtractSearch(wavIBW, "Slit"))
-	stats.strGrating	= PLEMd2ExtractSearch(wavIBW, "Grating")
-	stats.strFilter		= PLEMd2ExtractSearch(wavIBW, "Filter")
-	stats.numCentralWL= str2num(PLEMd2ExtractSearch(wavIBW, "Central"))
-	stats.strDetector	= PLEMd2ExtractSearch(wavIBW, "Detector")
-	stats.strCooling	= PLEMd2ExtractSearch(wavIBW, "Cooling")
-	stats.numExposure= str2num(PLEMd2ExtractSearch(wavIBW, "Exposure"))
-	stats.strBinning	= PLEMd2ExtractSearch(wavIBW, "Binning")
-	stats.numEmissionStart = str2num(PLEMd2ExtractSearch(wavIBW, "Wavelength First Pixel"))
-	stats.numEmissionEnd	= str2num(PLEMd2ExtractSearch(wavIBW, "Wavelength Last Pixel"))
-	stats.numEmissionDelta= str2num(PLEMd2ExtractSearch(wavIBW, "Delta"))
-	stats.strOperation	= PLEMd2ExtractSearch(wavIBW, "Operation")
-	stats.strPower	= PLEMd2ExtractSearch(wavIBW, "Power")
-	strFound = PLEMd2ExtractSearch(wavIBW, "Min Central")	
-	stats.numExcitationStart = (strlen(strFound) == 0) ? str2num(PLEMd2ExtractSearch(wavIBW, "Short Wavelength")) : str2num(strFound)
-	strFound = PLEMd2ExtractSearch(wavIBW, "Max Central")		
-	stats.numExcitationEnd = (strlen(strFound) == 0) ? str2num(PLEMd2ExtractSearch(wavIBW, "Long Wavelength")) : str2num(strFound)
-	strFound = PLEMd2ExtractSearch(wavIBW, "Step")
-	stats.numExcitationStep = (strlen(strFound) == 0) ? abs(stats.numExcitationStart - stats.numExcitationEnd) : str2num(strFound)
-	stats.strWlBP		= PLEMd2ExtractSearch(wavIBW, "Bandpass")
-	stats.numNumberScans	= str2num(PLEMd2ExtractSearch(wavIBW, "Number"))
-	struct PLEMd2Background Background
-	PLEMd2ExtractBackground(wavIBW, Background)
-	
-	stats.strBackground	= Background.strBackground
-	stats.strShutter		= Background.strShutter
+	stats.strFileName = PLEMd2ExtractSearch(wavIBW, "File")
+
+	stats.numCalibrationMode = PLEMd2ExtractVariables(wavIBW,"numCalibrationMode")
+	stats.numSlit = PLEMd2ExtractVariables(wavIBW,"numSlit")
+	stats.numGrating = PLEMd2ExtractVariables(wavIBW,"numGrating")
+	stats.numFilter = PLEMd2ExtractVariables(wavIBW,"numFilter")
+	stats.numShutter = PLEMd2ExtractVariables(wavIBW,"numShutter")
+	stats.numWLcenter = PLEMd2ExtractVariables(wavIBW,"numWLcenter")
+	stats.numDetector = PLEMd2ExtractVariables(wavIBW,"numDetector")
+	stats.numCooling = PLEMd2ExtractVariables(wavIBW,"numCooling")
+	stats.numExposure = PLEMd2ExtractVariables(wavIBW,"numExposure")
+	stats.numBinning = PLEMd2ExtractVariables(wavIBW,"numBinning")
+	stats.numScans = PLEMd2ExtractVariables(wavIBW,"numScans")
+	stats.numBackground = PLEMd2ExtractVariables(wavIBW,"numBackground")
+	stats.numWLfirst = PLEMd2ExtractVariables(wavIBW,"numWLfirst")
+	stats.numWLlast = PLEMd2ExtractVariables(wavIBW,"numWLlast")
+	stats.numWLdelta = PLEMd2ExtractVariables(wavIBW,"numWLdelta")
+	stats.numEmissionMode = PLEMd2ExtractVariables(wavIBW,"numEmissionMode")
+	stats.numEmissionPower = PLEMd2ExtractVariables(wavIBW,"numEmissionPower")
+	stats.numEmissionStart = PLEMd2ExtractVariables(wavIBW,"numEmissionStart")
+	stats.numEmissionEnd = PLEMd2ExtractVariables(wavIBW,"numEmissionEnd")
+	stats.numEmissionDelta = PLEMd2ExtractVariables(wavIBW,"numEmissionDelta")
+	stats.numEmissionStep = PLEMd2ExtractVariables(wavIBW,"numEmissionStep")
 End
-
-Structure PLEMd2Background
-	String strShutter
-	String strBackground
-EndStructure
-
-Function/S PLEMd2ExtractBackground(wavIBW, Background)
+//This Function is called every time. we probably could make it more efficient. ;_(
+Function PLEMd2ExtractVariables(wavIBW, strVariableName)
 	Wave wavIBW
-	Struct PLEMd2Background &Background
+	String strVariableName
 
 	String strHeader, strReadLine, strItem
+	String strListVariableNames, strListVariables
 	Variable i, numCount
 	
 	String strReturn = ""
@@ -563,19 +558,18 @@ Function/S PLEMd2ExtractBackground(wavIBW, Background)
 	do
 		i += 1
 		strReadLine = StringFromList(i, strHeader, "\r\n")
-	while ((StringMatch(strReadLine, "*Background*") != 1) && (i<numCount))
+	while ((StringMatch(strReadLine, "*IGOR0:*") != 1) && (i<numCount))
+	strListVariableNames = StringFromList(1, strReadLine, ":")
+	do
+		i += 1
+		strReadLine = StringFromList(i, strHeader, "\r\n")
+	while ((StringMatch(strReadLine, "*IGOR1:*") != 1) && (i<numCount))
+	strListVariables = StringFromList(1, strReadLine, ":")
 
-	if (StringMatch(strReadLine, "*Multiple*"))
-		background.strBackground = "multiple"
-	else
-		background.strBackground = "single"
-	endif
+	strItem = StringFromList(WhichListItem(strVariableName, strListVariableNames), strListVariables)
+	print "for " + strVariableName + " at item number: " + num2str(WhichListItem(strVariableName, strListVariableNames)) + " found item: " + strItem
 	
-	if (StringMatch(strReadLine, "*Open*"))
-		Background.strShutter = "open"
-	else
-		Background.strShutter = "closed"
-	endif
+	return str2num(strItem)
 End
 
 
@@ -612,6 +606,8 @@ Function/S PLEMd2ExtractWaveList(wavIBW)
 	Wave wavIBW
 	
 	String strHeader, strList, strReadLine, strItem
+	String strListWaveNumbers, strListWaveNames
+	Variable numListWaveNumbers, numListWaveNames	
 	Variable i, numCount, numItem
 	
 	strHeader=note(wavIBW)
@@ -621,18 +617,28 @@ Function/S PLEMd2ExtractWaveList(wavIBW)
 	do
 		i += 1
 		strReadLine = StringFromList(i, strHeader, "\r\n")
-	while ((StringMatch(strReadLine, "*Wave Assignment:*") != 1) && (i<numCount))
-
-	strList = ""
-	for (i=i; i<numCount; i+=1)	
+	while ((StringMatch(strReadLine, "*IGOR2*") != 1) && (i<numCount))
+	strListWaveNumbers = StringFromList(1, strReadLine, ":")	
+	do
+		i += 1
 		strReadLine = StringFromList(i, strHeader, "\r\n")
-		strItem = StringFromList(1, strReadLine, " ")
-		numItem = str2num(StringFromList(0, strReadLine, " "))
-		if ((strlen(strReadLine)>0) && (strlen(strItem)>0))
+	while ((StringMatch(strReadLine, "*IGOR3*") != 1) && (i<numCount))
+	strListWaveNames = StringFromList(1, strReadLine, ":")	
+
+	numListWaveNumbers = ItemsInList(strListWaveNumbers, ";")
+	numListWaveNames = ItemsInList(strListWaveNames, ";")
+	if (numListWaveNumbers != numListWaveNames)
+		print "PLEMd2ExtractWaveList: Size Missmatch in Binary File. Check Labview Programming"
+		return ""
+	endif
+	strList = ""
+	for (i=0; i<numListWaveNames; i+=1)
+		strItem = StringFromList(i, strListWaveNames, ";")		
+		numItem = str2num(StringFromList(i, strListWaveNumbers, ";"))
+		if (strlen(strItem)>0)
 			strList=AddListItem(strItem, strList, ";", numItem)			
 		endif
 	endfor
-
 	return strList
 End
 
@@ -1165,9 +1171,9 @@ End
 
 //Function sorts two Numbers
 Function PLEMd2sort(left, right)
-variable &left,&right
+Variable &left,&right
 	if (left>right)
-		variable temp=left
+		Variable temp=left
 		left=right
 		right=temp
 		temp=0
@@ -1192,27 +1198,20 @@ Structure PLEMd2stats
 	Variable numPLEMTotalY, numPLEMBottomY, numPLEMDeltaY, numPLEMTopY
 	
 	String strDate, strUser, strFileName
-	String strGrating, strFilter, strDetector, strCooling, strBinning
-	String strOperation, strPower, strWlBP	
-	String strBackground, strShutter	
-	Variable numSlit, numCentralWL, numExposure, numEmissionStart, numEmissionEnd, numEmissionDelta
-	Variable numExcitationStart, numExcitationEnd, numExcitationStep, numNumberScans
-	Variable numCalibrationMode
+	Variable numCalibrationMode, numSlit, numGrating, numFilter, numShutter, numWLcenter, numDetector, numCooling, numExposure, numBinning, numWLfirst, numWLlast, numWLdelta, numEmissionMode, numEmissionPower, numEmissionStart, numEmissionEnd, numEmissionDelta, numEmissionStep, numScans, numBackground
 Endstructure
 
 Function PLEMd2statsCreateVar()
 	Variable/G gnumPLEM, gnumVersion
 	String/G gstrPLEM, gstrFullPath, gstrPath
+	
 	Variable/G gnumPLEMTotalX, gnumPLEMLeftX, gnumPLEMDeltaX, gnumPLEMRightX
 	Variable/G gnumPLEMTotalY, gnumPLEMBottomY, gnumPLEMDeltaY, gnumPLEMTopY
-	String/G gstrDate, gstrUser, gstrFileName, gstrGrating, gstrFilter
-	Variable/G gnumSlit, gnumCentralWL
-	String/G gstrDetector, gstrCooling, gnumExposure, gstrBinning
-	Variable/G gnumEmissionStart, gnumEmissionEnd, gnumEmissionDelta
-	String/G gstrOperation, gstrPower, gstrWlBP
-	Variable/G gnumExcitationStart, gnumExcitationEnd, gnumExcitationStep, gnumNumberScans
-	String/G gstrBackground, gstrShutter
-	Variable/G gnumCalibrationMode
+	
+	String/G gstrDate, gstrUser, gstrFileName
+	Variable/G gnumCalibrationMode, gnumSlit, gnumGrating, gnumFilter, gnumShutter, gnumWLcenter, gnumDetector, gnumCooling, gnumExposure, gnumBinning, gnumScans, gnumBackground
+	Variable/G gnumWLfirst, gnumWLlast, gnumWLdelta
+	Variable/G gnumEmissionMode, gnumEmissionPower, gnumEmissionStart, gnumEmissionEnd, gnumEmissionDelta, gnumEmissionStep	
 End
 
 Function PLEMd2statsLoad(stats, strMap)
@@ -1251,14 +1250,9 @@ Function PLEMd2statsLoad(stats, strMap)
 		NVAR/Z gnumPLEMTotalX, gnumPLEMLeftX, gnumPLEMDeltaX, gnumPLEMRightX
 		NVAR/Z gnumPLEMTotalY, gnumPLEMBottomY, gnumPLEMDeltaY, gnumPLEMTopY
 		SVAR/Z gstrDate, gstrUser, gstrFileName
-		NVAR/Z gnumSlit, gnumCentralWL, gnumExposure
-		SVAR/Z gstrGrating, gstrFilter
-		SVAR/Z gstrDetector, gstrCooling, gstrBinning
-		NVAR/Z gnumEmissionStart, gnumEmissionEnd, gnumEmissionDelta
-		SVAR/Z gstrOperation, gstrPower, gstrWlBP
-		NVAR/Z gnumExcitationStart, gnumExcitationEnd, gnumNumberScans, gnumExcitationStep
-		SVAR/Z gstrBackground, gstrShutter
-		NVAR/Z gnumCalibrationMode
+		NVAR/Z gnumCalibrationMode, gnumSlit, gnumGrating, gnumFilter, gnumShutter, gnumWLcenter, gnumDetector, gnumCooling, gnumExposure, gnumBinning, gnumScans, gnumBackground
+		NVAR/Z gnumWLfirst, gnumWLlast, gnumWLdelta
+		NVAR/Z gnumEmissionMode, gnumEmissionPower, gnumEmissionStart, gnumEmissionEnd, gnumEmissionDelta, gnumEmissionStep
 		
 		stats.numVersion = SelectNumber(NVAR_Exists(gnumVersion),0,gnumVersion)
 		
@@ -1279,32 +1273,29 @@ Function PLEMd2statsLoad(stats, strMap)
 		
 		stats.strDate 		= gstrDate
 		stats.strUser		= gstrUser
-		stats.strFileName 	= gstrFileName
+		stats.strFileName = gstrFileName
 		
-		stats.numSlit 		= gnumSlit
-		stats.strGrating 	= gstrGrating
-		stats.strFilter 		= gstrFilter
-		stats.numCentralWL	= gnumCentralWL
-		
-		stats.strDetector	= gstrDetector
-		stats.strCooling	= gstrCooling
-		stats.numExposure	= gnumExposure
-		stats.strBinning	= gstrBinning
-		stats.numEmissionStart	= gnumEmissionStart
-		stats.numEmissionEnd	= gnumEmissionEnd
-		stats.numEmissionDelta	= gnumEmissionDelta
-		
-		stats.strOperation	= gstrOperation
-		stats.strPower 	= gstrPower
-		stats.numExcitationStart	= gnumExcitationStart
-		stats.numExcitationEnd	= gnumExcitationEnd
-		stats.strWlBP		= gstrWlBP
-		stats.numExcitationStep	= gnumExcitationStep
-		stats.numNumberScans = gnumNumberScans
-		
-		stats.strBackground 	= gstrBackground
-		stats.strShutter		= SelectString(SVAR_Exists(gstrShutter),"",gstrShutter)
 		stats.numCalibrationMode = SelectNumber(NVAR_Exists(gnumCalibrationMode),-1,gnumCalibrationMode)
+		stats.numSlit = SelectNumber(NVAR_Exists(gnumSlit),-1,gnumSlit)
+		stats.numGrating = SelectNumber(NVAR_Exists(gnumGrating),-1,gnumGrating)
+		stats.numFilter = SelectNumber(NVAR_Exists(gnumFilter),-1,gnumFilter)
+		stats.numShutter = SelectNumber(NVAR_Exists(gnumShutter),-1,gnumShutter)
+		stats.numWLcenter = SelectNumber(NVAR_Exists(gnumWLcenter),-1,gnumWLcenter)
+		stats.numDetector = SelectNumber(NVAR_Exists(gnumDetector),-1,gnumDetector)
+		stats.numCooling = SelectNumber(NVAR_Exists(gnumCooling),-1,gnumCooling)
+		stats.numExposure = SelectNumber(NVAR_Exists(gnumExposure),-1,gnumExposure)
+		stats.numBinning = SelectNumber(NVAR_Exists(gnumBinning),-1,gnumBinning)
+		stats.numWLfirst = SelectNumber(NVAR_Exists(gnumWLfirst),-1,gnumWLfirst)
+		stats.numWLlast = SelectNumber(NVAR_Exists(gnumWLlast),-1,gnumWLlast)
+		stats.numWLdelta = SelectNumber(NVAR_Exists(gnumWLdelta),-1,gnumWLdelta)
+		stats.numEmissionMode = SelectNumber(NVAR_Exists(gnumEmissionMode),-1,gnumEmissionMode)
+		stats.numEmissionPower = SelectNumber(NVAR_Exists(gnumEmissionPower),-1,gnumEmissionPower)
+		stats.numEmissionStart = SelectNumber(NVAR_Exists(gnumEmissionStart),-1,gnumEmissionStart)
+		stats.numEmissionEnd = SelectNumber(NVAR_Exists(gnumEmissionEnd),-1,gnumEmissionEnd)
+		stats.numEmissionDelta = SelectNumber(NVAR_Exists(gnumEmissionDelta),-1,gnumEmissionDelta)
+		stats.numEmissionStep = SelectNumber(NVAR_Exists(gnumEmissionStep),-1,gnumEmissionStep)
+		stats.numScans = SelectNumber(NVAR_Exists(gnumScans),-1,gnumScans)
+		stats.numBackground = SelectNumber(NVAR_Exists(gnumBackground),-1,gnumBackground)
 		
 		SetDataFolder $strSaveDataFolder
 	endif
@@ -1348,14 +1339,9 @@ Function PLEMd2statsSave(stats)
 		NVAR/Z gnumPLEMTotalX, gnumPLEMLeftX, gnumPLEMDeltaX, gnumPLEMRightX
 		NVAR/Z gnumPLEMTotalY, gnumPLEMBottomY, gnumPLEMDeltaY, gnumPLEMTopY
 		SVAR/Z gstrDate, gstrUser, gstrFileName
-		NVAR/Z gnumSlit, gnumCentralWL, gnumExposure
-		SVAR/Z gstrGrating, gstrFilter
-		SVAR/Z gstrDetector, gstrCooling, gstrBinning
-		NVAR/Z gnumEmissionStart, gnumEmissionEnd, gnumEmissionDelta
-		SVAR/Z gstrOperation, gstrPower, gstrWlBP
-		NVAR/Z gnumExcitationStart, gnumExcitationEnd, gnumExcitationStep, gnumNumberScans
-		SVAR/Z gstrBackground, gstrShutter
-		NVAR/Z gnumCalibrationMode
+		NVAR/Z gnumCalibrationMode, gnumSlit, gnumGrating, gnumFilter, gnumShutter, gnumWLcenter, gnumDetector, gnumCooling, gnumExposure, gnumBinning, gnumScans, gnumBackground
+		NVAR/Z gnumWLfirst, gnumWLlast, gnumWLdelta
+		NVAR/Z gnumEmissionMode, gnumEmissionPower, gnumEmissionStart, gnumEmissionEnd, gnumEmissionDelta, gnumEmissionStep
 		
 		gnumVersion		= stats.numVersion
 		
@@ -1376,32 +1362,29 @@ Function PLEMd2statsSave(stats)
 		
 		gstrDate 		= stats.strDate
 		gstrUser			= stats.strUser
-		gstrFileName 		= stats.strFileName
+		gstrFileName 	= stats.strFileName
 		
-		gnumSlit 		= stats.numSlit
-		gstrGrating 	= stats.strGrating
-		gstrFilter 	= stats.strFilter
-		gnumCentralWL	= stats.numCentralWL
-		
-		gstrDetector	= stats.strDetector
-		gstrCooling	= stats.strCooling
-		gnumExposure	= stats.numExposure
-		gstrBinning	= stats.strBinning
-		gnumEmissionStart	= stats.numEmissionStart
-		gnumEmissionEnd	= stats.numEmissionEnd
-		gnumEmissionDelta	= stats.numEmissionDelta
-		
-		gstrOperation		= stats.strOperation
-		gstrPower 		= stats.strPower
-		gnumExcitationStart	= stats.numExcitationStart
-		gnumExcitationEnd	= stats.numExcitationEnd
-		gstrWlBP		= stats.strWlBP
-		gnumExcitationStep		= stats.numExcitationStep
-		gnumNumberScans	= stats.numNumberScans
-		
-		gstrBackground	= stats.strBackground
-		gstrShutter		= stats.strShutter
 		gnumCalibrationMode = stats.numCalibrationMode
+		gnumSlit = stats.numSlit
+		gnumGrating = stats.numGrating
+		gnumFilter = stats.numFilter
+		gnumShutter = stats.numShutter
+		gnumWLcenter = stats.numWLcenter
+		gnumDetector = stats.numDetector
+		gnumCooling = stats.numCooling
+		gnumExposure = stats.numExposure
+		gnumBinning = stats.numBinning
+		gnumScans = stats.numScans
+		gnumBackground = stats.numBackground
+		gnumWLfirst = stats.numWLfirst
+		gnumWLlast = stats.numWLlast
+		gnumWLdelta = stats.numWLdelta
+		gnumEmissionMode = stats.numEmissionMode
+		gnumEmissionPower = stats.numEmissionPower
+		gnumEmissionStart = stats.numEmissionStart
+		gnumEmissionEnd = stats.numEmissionEnd
+		gnumEmissionDelta = stats.numEmissionDelta
+		gnumEmissionStep = stats.numEmissionStep
 
 		SetDataFolder $strSaveDataFolder
 	endif
@@ -1619,7 +1602,7 @@ Function PLEMd2Display(strPLEM)
 				ModifyGraph/W=$winPLEM standoff=0
 				SetAxis/W=$winPLEM/A left
 				Label/W=$winPLEM left "intensity / a.u."
-				Label/W=$winPLEM bottom "wavelength / nm (Excitation at "+num2str(stats.numExcitationStart)+"-"+num2str(stats.numExcitationEnd)+")"
+				Label/W=$winPLEM bottom "wavelength / nm (Excitation at "+num2str(stats.numEmissionStart)+"-"+num2str(stats.numEmissionEnd)+")"
 			endif
 		else
 			Display	
