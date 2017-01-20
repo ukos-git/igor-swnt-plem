@@ -1,9 +1,14 @@
-//PLEM-displayer2_v0
 //Programmed by Matthias Kastner
-//Date 13.03.2015
+//Date 16.03.2015
 //Version 0: Skeleton
+//Version 1: Global Settings in binary file
 
 #pragma rtGlobals=3		// Use modern global access method and strict wave access.
+
+static Constant PLEMd2Version = 1
+static StrConstant PLEMd2PackageName = "PLEM-displayer2"
+static StrConstant PLEMd2PrefsFileName = "PLEMd2Preferences.bin"
+static Constant PLEMd2PrefsRecordID = 0
 
 Menu "PLE-Map", dynamic //create menu bar entry
 	"PLEMapDisplayer2", PLEMd2()
@@ -19,6 +24,7 @@ Menu "PLE-Map", dynamic //create menu bar entry
 	End
 End
 
+// Variables for current Project only
 Function PLEMd2initVar()
 	//Init Data Folder
 	String strSaveDataFolder = GetDataFolder(1)
@@ -55,6 +61,8 @@ Function/S PLEMd2Menu(numPLEM)
 	String strSaveDataFolder = GetDataFolder(1)
 	SetDataFolder root:		
 
+	//dynamic Menus are called every time the menu bar is pressed.
+	//global Variables should not automatically occur in other projects. so don't create them.
 	if (FindListItem("gnumPLEMd2IsInit",VariableList("*",";",4)) != -1)
 		NVAR gnumPLEMd2IsInit = root:gnumPLEMd2IsInit
 		SVAR gstrPLEMd2root = root:gstrPLEMd2root
@@ -73,12 +81,25 @@ Function/S PLEMd2Menu(numPLEM)
 End
 
 Function PLEMd2isInit()
-	NVAR gnumPLEMd2IsInit = root:gnumPLEMd2IsInit
-	if (gnumPLEMd2IsInit==1)
-		return 1
+	Variable numInit = 0
+	
+	String strSaveDataFolder = GetDataFolder(1)
+	SetDataFolder root:	
+	
+	if (FindListItem("gnumPLEMd2IsInit",VariableList("*",";",4)) != -1)
+		NVAR gnumPLEMd2IsInit = root:gnumPLEMd2IsInit
+		if (gnumPLEMd2IsInit==1)
+			numInit = 1
+		else
+			numInit = 0
+		endif
 	else
-		return 0
+		Variable/G gnumPLEMd2IsInit
 	endif
+	
+	gnumPLEMd2IsInit = numInit
+	SetDataFolder $strSaveDataFolder	
+	return numInit
 End
 
 //The Init and exit Function should be called before and after a menu item is called.
@@ -88,7 +109,7 @@ Function PLEMd2init()
 
 	if (PLEMd2isInit()==0)
 		PLEMd2initVar()
-		print "PLEMd2: intialization"
+		print "PLEMd2init: intialization"
 	endif
 	
 	//Change DataFolder to Project Root
@@ -100,7 +121,7 @@ Function PLEMd2init()
 End
 
 Function PLEMd2reset()
-	print "PLEMd2: reset"
+	print "PLEMd2reset: reset"
 	NVAR gnumPLEMd2IsInit = root:gnumPLEMd2IsInit //ToDo assure someHow that global NVAR was set.
 	gnumPLEMd2IsInit = 0
 	PLEMd2exit() //needed to restore old DataFolder
@@ -120,10 +141,13 @@ Function PLEMd2exit()
 End
 
 Function PLEMd2()
+	STRUCT PLEMd2Prefs prefs
+	LoadPackagePrefs(prefs)
 	//reset for testing purose
 	PLEMd2reset()
 	PLEMd2init()
 	PLEMd2exit()
+	SavePackagePrefs(prefs)
 End
 
 Function PLEMd2DeprecatedImport([numKillWavesAfterwards])
@@ -343,4 +367,88 @@ Function PLEMd2Display(numPLEM)
 	strMap = PLEMd2FullPath(numPLEM)
 	Display	
 	AppendImage $strMap
+End
+
+// Global Preferences stored in igor Folder
+// adopted from igor manual
+Structure PLEMd2Prefs
+//use uint, double, uchar as NVAR SVAR etc are not yet initialized
+	uint32	version			// Preferences structure version number. 1,2,3,4,...
+	double	panelCoords[4]	// left, top, right, bottom
+	uint32	reserved[100]	// Reserved for future use
+EndStructure
+
+//	Sets prefs structure to default values.
+static Function DefaultPackagePrefsStruct(prefs)
+	STRUCT PLEMd2Prefs &prefs
+
+	prefs.version = PLEMd2Version
+
+	prefs.panelCoords[0] = 5			// Left
+	prefs.panelCoords[1] = 40		// Top
+	prefs.panelCoords[2] = 5+190	// Right
+	prefs.panelCoords[3] = 40+125	// Bottom
+
+	Variable i
+	for(i=0; i<100; i+=1)
+		prefs.reserved[i] = 0
+	endfor
+End
+
+// SyncPackagePrefsStruct(prefs)
+// Syncs package prefs structures to match state of panel. Call this only if the panel exists.
+static Function SyncPackagePrefsStruct(prefs)
+	STRUCT PLEMd2Prefs &prefs
+
+	// Panel does exists. Set prefs to match panel settings.
+	prefs.version = PLEMd2Version
+	
+	GetWindow  PLEMd2Panel wsize
+	// NewPanel uses device coordinates. We therefore need to scale from
+	// points (returned by GetWindow) to device units for windows created
+	// by NewPanel.
+	Variable scale = ScreenResolution / 72
+	prefs.panelCoords[0] = V_left * scale
+	prefs.panelCoords[1] = V_top * scale
+	prefs.panelCoords[2] = V_right * scale
+	prefs.panelCoords[3] = V_bottom * scale
+	
+//	ControlInfo /W=PLEMd2Panel PhaseLock
+//	prefs.phaseLock = V_Value		// 0=unchecked; 1=checked
+	
+End
+
+// InitPackagePrefsStruct(prefs)
+// Sets prefs structures to match state of panel or to default values if panel does not exist.
+static Function InitPackagePrefsStruct(prefs)
+	STRUCT PLEMd2Prefs &prefs
+
+	DoWindow PLEMd2Panel
+	if (V_flag == 0)
+		// Panel does not exist. Set prefs struct to default.
+		DefaultPackagePrefsStruct(prefs)
+	else
+		// Panel does exists. Sync prefs struct to match panel state.
+		SyncPackagePrefsStruct(prefs)
+	endif
+End
+
+static Function LoadPackagePrefs(prefs)
+	STRUCT PLEMd2Prefs &prefs
+
+	// This loads preferences from disk if they exist on disk.
+	LoadPackagePreferences PLEMd2PackageName, PLEMd2PrefsFileName, PLEMd2PrefsRecordID, prefs
+
+	// If error or prefs not found or not valid, initialize them.
+	if (V_flag!=0 || V_bytesRead==0 || prefs.version!= PLEMd2Version)
+		print "PLEMd2:LoadPackagePrefs: Loading from " + SpecialDirPath("Packages", 0, 0, 0)
+		InitPackagePrefsStruct(prefs)	// Set based on panel if it exists or set to default values.
+		SavePackagePrefs(prefs)		// Create initial prefs record.
+	endif
+End
+
+static Function SavePackagePrefs(prefs)
+	STRUCT PLEMd2Prefs &prefs
+	print "PLEMd2:SavePackagePrefs: Saving to " + SpecialDirPath("Packages", 0, 0, 0)
+	SavePackagePreferences PLEMd2PackageName, PLEMd2PrefsFileName, PLEMd2PrefsRecordID, prefs
 End
