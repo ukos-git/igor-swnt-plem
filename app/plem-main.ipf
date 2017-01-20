@@ -8,21 +8,30 @@
 //Version 4:	Loading of PLEMd1 Correction Waves completed. Versioning System also for Global Variables Initialization.
 //Version 5:	Global Variables of PLEMd1 are saved in Subdirectory (avoid trash)
 //			Versioning System extended for subversions. Loading Procedure Corrected.
-//Version 6:	ToDo. Create Panel for Map-Updates, Save Parameters for Map-Update in PARAMETER-Folder. set PLEMd=1 for old Maps and PLEMd=2 for new Maps. Maybe save it as a STRUCT.
+//Version 6	Created Loading Dialog for Choosing the correct file Names.
+//Version 7:	ToDo. Create Panel for Map-Updates, Save Parameters for Map-Update in PARAMETER-Folder. set PLEMd=1 for old Maps and PLEMd=2 for new Maps. Maybe save it as a STRUCT.
 
 #pragma rtGlobals=3		// Use modern global access method and strict wave access.
 
-static Constant PLEMd2Version = 0507
+static Constant PLEMd2Version = 0608
 static StrConstant PLEMd2PackageName = "PLEM-displayer2"
 static StrConstant PLEMd2PrefsFileName = "PLEMd2Preferences.bin"
+static StrConstant PLEMd2WorkingDir = "C:users:matthias:Meine Dokumente:Dokumente:programs:local:igor:matthias:PLEM-displayer2:"
 static Constant PLEMd2PrefsRecordID = 0
 
 Menu "PLE-Map", dynamic //create menu bar entry
-	"PLEMapDisplayer2", PLEMd2()
-	SubMenu "PLEMapDisplayer1"
+	SubMenu "Displayer1"
+		"Init", PLEMd2d1Init()	
+		"Open", PLEMd2d1Open()
+		"-"
+		"Open depricated", PLEMapDisplayer()
 		"Maps: Import", PLEMd2d1Import()
-		"Maps: Import and Kill", PLEMd2d1Import(1)
-		"Correction Waves: Load from File", PLEMd2d1Init()
+		"Maps: Import and Kill", PLEMd2d1Import(1)		
+	End
+	SubMenu "Displayer2"
+		"Init", PLEMd2()
+		"Open", PLEMd2open()
+		"Configuration", PLEMd2Panel()
 	End
 	SubMenu "PLEMap"
 	//List all available Maps in current project (max 15)
@@ -187,22 +196,104 @@ End
 Function PLEMd2()
 	//INIT
 	STRUCT PLEMd2Prefs prefs
-	LoadPackagePrefs(prefs)
+	PLEMd2LoadPackagePrefs(prefs)
 	PLEMd2init()
 	
 	
 	//EXIT
 	PLEMd2exit()
-	SavePackagePrefs(prefs)
+	PLEMd2SavePackagePrefs(prefs)
 End
 
+Function PLEMd2Open()
+	//INIT
+	STRUCT PLEMd2Prefs prefs
+	PLEMd2LoadPackagePrefs(prefs)
+	PLEMd2init()
+	
+	String strFile, strFileName
+	
+	strFile=PLEMd2PopUpChooseFile(prefs)
+	print strFile
+	if (strlen(strFile)>0)
+		strFileName = ParseFilePath(3, strFile, ":", 0, 0)
+		//numEnd = strsearch(strFile, ".",(strlen(strFile)-1),1)-1
+		//numStart=strsearch(strFile, ":",numEnd,1)
+		//strFileName = strFile[numStart, numEnd]		
+		//neuen Ordner erstellen mit Map-Name, Map hinzufügen zum globalen String.
+		
+		//Headings are in 2nd(0-1-2-->1) line, data starts in 2nd line, load all (0) from 1 to 2 columns, where d		
+		LoadWave/A/D/J/K=1/L={1,2,0,0,2}/O/Q strFile 
+		wave wavWaveLength	= $stringfromlist(0,S_waveNames)
+		wave wavIntensity = $stringfromlist(1,S_waveNames)
+	endif
+	
+	//EXIT
+	PLEMd2exit()
+	PLEMd2SavePackagePrefs(prefs)
+End
+
+Function PLEMd2Panel()
+	DoWindow PLEMd2Panel
+End
+
+Function PLEMd2d1Open()
+
+End
+
+//adapted from function OpenFileDialog on http://www.entorb.net/wickie/IGOR_Pro
+Function/S PLEMd2PopUpChooseFile(prefs,[strPrompt])
+	STRUCT PLEMd2Prefs &prefs
+	String strPrompt
+	strPrompt = selectstring(paramIsDefault(strPrompt), strPrompt, "choose file")
+	
+	Variable refNum
+	String strOutputPath = ""
+	String strOutputFile = ""
+	String fileFilters = "General Text Files (*.txt):.txt;"
+	String strPath = ""
+	
+	//load Path from Preferences.
+	strPath = prefs.strMapsPath
+	
+	GetFileFolderInfo/Q/Z=1 strPath
+	
+	if (V_Flag != 0)
+		print "PLEMd2PopUpChooseFile: Path does not exist. Switching to System Documents Folder"
+		strPath = SpecialDirPath("Documents", 0, 0, 0 )	
+	endif
+
+	NewPath/O/Q/Z path, strPath
+	PathInfo/S path
+	if (V_flag == 0)
+		print "PLEMd2PopUpChooseFile: Selected Path is not valid. Check code."
+		return ""
+	endif
+
+	//Display /D ialog for /R eading from File
+	//Path was magically set by the /S flag from PathInfo.
+	Open/Z=2/D/F=fileFilters/R/M=strPrompt refNum
+	strOutputFile = S_fileName	
+	if (V_flag == 0) 
+		GetFileFolderInfo/Q/Z=1 ParseFilePath(1, strOutputFile, ":", 1, 0)
+		if (V_isFolder == 1)
+			//print "PLEMd2PopUpChooseFile: Remembering Current Path"
+			prefs.strMapsPath = S_Path
+		endif
+	endif
+	
+	return strOutputFile
+	
+End 
+
+//imports Maps and corresponding files from 
+//old PLE-Map displayer created by Tilman Hain from ~2013-2015
+//Old Maps Data have to be in current project root:
 Function PLEMd2d1Import([numKillWavesAfterwards])
 	Variable numKillWavesAfterwards
 	if (ParamIsDefault(numKillWavesAfterwards))
 		numKillWavesAfterwards = 0
 	endif
-	//imports Maps and corresponding files from 
-	//old PLE-Map displayer created by Tilman Hain from ~2013-2015
 	PLEMd2init()
 	SVAR gstrMapsFolder
 	SVAR gstrMapsAvailable
@@ -594,6 +685,7 @@ Function PLEMd2statsInit(stats, strPLEM)
 	print "PLEMd2statsInit: Size: "+num2str(stats.floPLEMTotalX) + "x" + num2str(stats.floPLEMTotalY) + " Data Points."
 End
 
+//return igor path to PLE-Map with the Number numPLEM in gstrMapsAvailable
 Function/S PLEMd2FullPath(numPLEM)
 	Variable numPLEM	
 	PLEMd2init()
@@ -617,11 +709,12 @@ Structure PLEMd2Prefs
 //use uint, double, uchar as NVAR SVAR etc are not yet initialized
 	uint32	version			// Preferences structure version number. 1,2,3,4,...
 	double	panelCoords[4]	// left, top, right, bottom
+	uchar	strMapsPath[256]
 	uint32	reserved[100]	// Reserved for future use
 EndStructure
 
 //	Sets prefs structure to default values.
-static Function DefaultPackagePrefsStruct(prefs)
+static Function PLEMd2DefaultPackagePrefsStruct(prefs)
 	STRUCT PLEMd2Prefs &prefs
 
 	prefs.version = PLEMd2Version
@@ -630,6 +723,8 @@ static Function DefaultPackagePrefsStruct(prefs)
 	prefs.panelCoords[1] = 40		// Top
 	prefs.panelCoords[2] = 5+190	// Right
 	prefs.panelCoords[3] = 40+125	// Bottom
+	
+	prefs.strMapsPath = PLEMd2WorkingDir
 
 	Variable i
 	for(i=0; i<100; i+=1)
@@ -639,7 +734,7 @@ End
 
 // SyncPackagePrefsStruct(prefs)
 // Syncs package prefs structures to match state of panel. Call this only if the panel exists.
-static Function SyncPackagePrefsStruct(prefs)
+static Function PLEMd2SyncPackagePrefsStruct(prefs)
 	STRUCT PLEMd2Prefs &prefs
 
 	// Panel does exists. Set prefs to match panel settings.
@@ -662,20 +757,20 @@ End
 
 // InitPackagePrefsStruct(prefs)
 // Sets prefs structures to match state of panel or to default values if panel does not exist.
-static Function InitPackagePrefsStruct(prefs)
+static Function PLEMd2InitPackagePrefsStruct(prefs)
 	STRUCT PLEMd2Prefs &prefs
 
 	DoWindow PLEMd2Panel
 	if (V_flag == 0)
 		// Panel does not exist. Set prefs struct to default.
-		DefaultPackagePrefsStruct(prefs)
+		PLEMd2DefaultPackagePrefsStruct(prefs)
 	else
 		// Panel does exists. Sync prefs struct to match panel state.
-		SyncPackagePrefsStruct(prefs)
+		PLEMd2SyncPackagePrefsStruct(prefs)
 	endif
 End
 
-static Function LoadPackagePrefs(prefs)
+static Function PLEMd2LoadPackagePrefs(prefs)
 	STRUCT PLEMd2Prefs &prefs
 
 	// This loads preferences from disk if they exist on disk.
@@ -684,12 +779,12 @@ static Function LoadPackagePrefs(prefs)
 	// If error or prefs not found or not valid, initialize them.
 	if (V_flag!=0 || V_bytesRead==0 || prefs.version!= PLEMd2Version)
 		//print "PLEMd2:LoadPackagePrefs: Loading from " + SpecialDirPath("Packages", 0, 0, 0)
-		InitPackagePrefsStruct(prefs)	// Set based on panel if it exists or set to default values.
-		SavePackagePrefs(prefs)		// Create initial prefs record.
+		PLEMd2InitPackagePrefsStruct(prefs)	// Set based on panel if it exists or set to default values.
+		PLEMd2SavePackagePrefs(prefs)		// Create initial prefs record.
 	endif
 End
 
-static Function SavePackagePrefs(prefs)
+static Function PLEMd2SavePackagePrefs(prefs)
 	STRUCT PLEMd2Prefs &prefs
 	//print "PLEMd2:SavePackagePrefs: Saving to " + SpecialDirPath("Packages", 0, 0, 0)
 	SavePackagePreferences PLEMd2PackageName, PLEMd2PrefsFileName, PLEMd2PrefsRecordID, prefs
