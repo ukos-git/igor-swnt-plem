@@ -1,3 +1,4 @@
+#pragma TextEncoding = "UTF-8"		// For details execute DisplayHelpTopic "The TextEncoding Pragma"
 //Programmed by Matthias Kastner
 //Date 28.07.2015
 //Version 0: 	Skeleton
@@ -30,9 +31,11 @@
 //Version 17 Added 2d-Peak fitting procedure
 //Version 17.1 minor bug fixes
 //Version 18 Added switches for calculation
-//current
 //Version 19.1 Improved 2Dfit to include tubes near the borders
-
+//current
+//Version 20.1 separation into different files, new Helper Functions for global Variables. Update of Save and Load Procedures.
+//Version 20.2 corrected Igor7 bug (search for "\r\n" to "\r" only)
+//Version 20.3 ToDo: DataFolder does not exist at a certain point.
 //	ToDo: new Correction Waves for new setup
 //	ToDo: Maybe Delete Old Import PLEMd2d1 function for further releases
 //	ToDo: use prefs for global vars. fix base datafolder etc.
@@ -40,137 +43,7 @@
 
 #pragma rtGlobals=3		// Use modern global access method and strict wave access.
 
-static Constant PLEMd2Version = 1800
-static StrConstant PLEMd2PackageName = "PLEM-displayer2"
-static StrConstant PLEMd2PrefsFileName = "PLEMd2Preferences.bin"
-static StrConstant PLEMd2WorkingDir0 = "C:users:matthias:Meine Dokumente:Documents:programs:local:igor:matthias:PLEM-displayer2:"
-static StrConstant PLEMd2WorkingDir1 = "Z:programs:local:igor:matthias:PLEM-displayer2:"
-
-static Constant PLEMd2PrefsRecordID = 0
-
-Menu "PLE-Map", dynamic //create menu bar entry
-//	SubMenu "Displayer1"
-//		"Init", PLEMd2d1Init()	
-//		"Open", PLEMd2d1Open()
-//		"-"
-//		"Open depricated", PLEMapDisplayer()
-//		"Import: Maps", PLEMd2d1Import(0)
-//		"-"
-//		"Kill: Maps and Import", PLEMd2d1Import(1)	
-//		"-"
-//		"Kill: CorrectionWaves", PLEMd2d1Kill("waves")
-//		"Kill: Variables", PLEMd2d1Kill("variables")
-//		"Kill: Strings", PLEMd2d1Kill("strings")
-//		"-"
-//		"Kill: All", PLEMd2d1Kill("all")
-//	End
-//	SubMenu "Displayer2"
-		PLEMd2MenuInit()+"Init",/q, PLEMd2()
-		"Open", PLEMd2open()
-		"Decorate Image",PLEMd2Decorate()
-		"Info", PLEMd2Panel()
-		"Atlas", PLEMd2PanelAtlas()
-//		"-"
-//		"Clean up Variables", PLEMd2Clean()
-//	End
-	SubMenu "Display"
-	//List all available Maps in current project (max 30)
-		PLEMd2Menu(0), PLEMd2DisplayByNum(0)
-		PLEMd2Menu(1), PLEMd2DisplayByNum(1)
-		PLEMd2Menu(2), PLEMd2DisplayByNum(2)
-		PLEMd2Menu(3), PLEMd2DisplayByNum(3)
-		PLEMd2Menu(4), PLEMd2DisplayByNum(4)		
-		PLEMd2Menu(5), PLEMd2DisplayByNum(5)
-		PLEMd2Menu(6), PLEMd2DisplayByNum(6)
-		PLEMd2Menu(7), PLEMd2DisplayByNum(7)
-		PLEMd2Menu(8), PLEMd2DisplayByNum(8)
-		PLEMd2Menu(9), PLEMd2DisplayByNum(9)
-		PLEMd2Menu(10), PLEMd2DisplayByNum(10)
-		PLEMd2Menu(11), PLEMd2DisplayByNum(11)
-		PLEMd2Menu(12), PLEMd2DisplayByNum(12)
-		PLEMd2Menu(13), PLEMd2DisplayByNum(13)
-		PLEMd2Menu(14), PLEMd2DisplayByNum(14)		
-		PLEMd2Menu(15), PLEMd2DisplayByNum(15)
-		PLEMd2Menu(16), PLEMd2DisplayByNum(16)
-		PLEMd2Menu(17), PLEMd2DisplayByNum(17)
-		PLEMd2Menu(18), PLEMd2DisplayByNum(18)
-		PLEMd2Menu(19), PLEMd2DisplayByNum(19)		
-		PLEMd2Menu(20), PLEMd2DisplayByNum(20)
-		PLEMd2Menu(21), PLEMd2DisplayByNum(21)
-		PLEMd2Menu(22), PLEMd2DisplayByNum(22)
-		PLEMd2Menu(23), PLEMd2DisplayByNum(23)
-		PLEMd2Menu(24), PLEMd2DisplayByNum(24)
-		PLEMd2Menu(25), PLEMd2DisplayByNum(25)
-		PLEMd2Menu(26), PLEMd2DisplayByNum(26)
-		PLEMd2Menu(27), PLEMd2DisplayByNum(27)
-		PLEMd2Menu(28), PLEMd2DisplayByNum(28)
-		PLEMd2Menu(29), PLEMd2DisplayByNum(29)	
-	End
-	SubMenu "Duplicate"
-		PLEMd2Menu(0), PLEMd2DuplicateByNum(0)
-		PLEMd2Menu(1), PLEMd2DuplicateByNum(1)
-		PLEMd2Menu(2), PLEMd2DuplicateByNum(2)
-		PLEMd2Menu(3), PLEMd2DuplicateByNum(3)
-		PLEMd2Menu(4), PLEMd2DuplicateByNum(4)		
-		PLEMd2Menu(5), PLEMd2DuplicateByNum(5)
-		PLEMd2Menu(6), PLEMd2DuplicateByNum(6)
-		PLEMd2Menu(7), PLEMd2DuplicateByNum(7)
-		PLEMd2Menu(8), PLEMd2DuplicateByNum(8)
-		PLEMd2Menu(9), PLEMd2DuplicateByNum(9)
-		PLEMd2Menu(10), PLEMd2DuplicateByNum(10)
-		PLEMd2Menu(11), PLEMd2DuplicateByNum(11)
-		PLEMd2Menu(12), PLEMd2DuplicateByNum(12)
-		PLEMd2Menu(13), PLEMd2DuplicateByNum(13)
-		PLEMd2Menu(14), PLEMd2DuplicateByNum(14)	
-		PLEMd2Menu(15), PLEMd2DuplicateByNum(15)
-		PLEMd2Menu(16), PLEMd2DuplicateByNum(16)
-		PLEMd2Menu(17), PLEMd2DuplicateByNum(17)
-		PLEMd2Menu(18), PLEMd2DuplicateByNum(18)
-		PLEMd2Menu(19), PLEMd2DuplicateByNum(19)		
-		PLEMd2Menu(20), PLEMd2DuplicateByNum(20)
-		PLEMd2Menu(21), PLEMd2DuplicateByNum(21)
-		PLEMd2Menu(22), PLEMd2DuplicateByNum(22)
-		PLEMd2Menu(23), PLEMd2DuplicateByNum(23)
-		PLEMd2Menu(24), PLEMd2DuplicateByNum(24)
-		PLEMd2Menu(25), PLEMd2DuplicateByNum(25)
-		PLEMd2Menu(26), PLEMd2DuplicateByNum(26)
-		PLEMd2Menu(27), PLEMd2DuplicateByNum(27)
-		PLEMd2Menu(28), PLEMd2DuplicateByNum(28)
-		PLEMd2Menu(29), PLEMd2DuplicateByNum(29)			
-	End	
-	SubMenu "Kill"		
-		PLEMd2Menu(0), PLEMd2KillMapByNum(0)
-		PLEMd2Menu(1), PLEMd2KillMapByNum(1)
-		PLEMd2Menu(2), PLEMd2KillMapByNum(2)
-		PLEMd2Menu(3), PLEMd2KillMapByNum(3)
-		PLEMd2Menu(4), PLEMd2KillMapByNum(4)		
-		PLEMd2Menu(5), PLEMd2KillMapByNum(5)
-		PLEMd2Menu(6), PLEMd2KillMapByNum(6)
-		PLEMd2Menu(7), PLEMd2KillMapByNum(7)
-		PLEMd2Menu(8), PLEMd2KillMapByNum(8)
-		PLEMd2Menu(9), PLEMd2KillMapByNum(9)
-		PLEMd2Menu(10), PLEMd2KillMapByNum(10)
-		PLEMd2Menu(11), PLEMd2KillMapByNum(11)
-		PLEMd2Menu(12), PLEMd2KillMapByNum(12)
-		PLEMd2Menu(13), PLEMd2KillMapByNum(13)
-		PLEMd2Menu(14), PLEMd2KillMapByNum(14)
-		PLEMd2Menu(15), PLEMd2KillMapByNum(15)
-		PLEMd2Menu(16), PLEMd2KillMapByNum(16)
-		PLEMd2Menu(17), PLEMd2KillMapByNum(17)
-		PLEMd2Menu(18), PLEMd2KillMapByNum(18)
-		PLEMd2Menu(19), PLEMd2KillMapByNum(19)		
-		PLEMd2Menu(20), PLEMd2KillMapByNum(20)
-		PLEMd2Menu(21), PLEMd2KillMapByNum(21)
-		PLEMd2Menu(22), PLEMd2KillMapByNum(22)
-		PLEMd2Menu(23), PLEMd2KillMapByNum(23)
-		PLEMd2Menu(24), PLEMd2KillMapByNum(24)
-		PLEMd2Menu(25), PLEMd2KillMapByNum(25)
-		PLEMd2Menu(26), PLEMd2KillMapByNum(26)
-		PLEMd2Menu(27), PLEMd2KillMapByNum(27)
-		PLEMd2Menu(28), PLEMd2KillMapByNum(28)
-		PLEMd2Menu(29), PLEMd2KillMapByNum(29)				
-	End	
-End
+Constant PLEMd2Version = 2002
 
 // Variables for current Project only. See also the LoadPreferences towards the end of the procedure for additional settings that are saved system-wide.
 Function PLEMd2initVar()
@@ -201,10 +74,10 @@ Function PLEMd2initVar()
 	NewDataFolder/O/S	 $gstrPLEMd1root
 	String/G gstrPLEMd1PathBase	 = SpecialDirPath("Igor Pro User Files", 0, 0, 0 ) + "User Procedures:Korrekturkurven:"	
 	//Load only specified waves from folder. Leave blank if all waves from directory above should be loaded.	
-	String/G gstrPLEMd1CorrectionToLoad = "1200 nm Blaze & CCD @ +20 °C.txt;" + "1200 nm Blaze & CCD @ -90 °C.txt;"
-	gstrPLEMd1CorrectionToLoad += "1200 nm Blaze & InGaAs @ +25 °C.txt;" + "1200 nm Blaze & InGaAs @ -25 °C.txt;" + "1200 nm Blaze & InGaAs @ -90 °C.txt;"
-	gstrPLEMd1CorrectionToLoad += "1250 nm Blaze & CCD @ -90 °C.txt;" + "1250 nm Blaze & InGaAs @ -90 °C.txt;" 	
-	gstrPLEMd1CorrectionToLoad += "500 nm Blaze & CCD @ +20 °C.txt;" + "500 nm Blaze & CCD @ -90 °C.txt;"
+	String/G gstrPLEMd1CorrectionToLoad = "1200 nm Blaze & CCD @ +20 Â°C.txt;" + "1200 nm Blaze & CCD @ -90 Â°C.txt;"
+	gstrPLEMd1CorrectionToLoad += "1200 nm Blaze & InGaAs @ +25 Â°C.txt;" + "1200 nm Blaze & InGaAs @ -25 Â°C.txt;" + "1200 nm Blaze & InGaAs @ -90 Â°C.txt;"
+	gstrPLEMd1CorrectionToLoad += "1250 nm Blaze & CCD @ -90 Â°C.txt;" + "1250 nm Blaze & InGaAs @ -90 Â°C.txt;" 	
+	gstrPLEMd1CorrectionToLoad += "500 nm Blaze & CCD @ +20 Â°C.txt;" + "500 nm Blaze & CCD @ -90 Â°C.txt;"
 	gstrPLEMd1CorrectionToLoad += "760 nm Strahlenteiler (Chroma) Abs.txt;" + "760 nm Strahlenteiler (Chroma) Em.txt;"
 	
 	//the following waves and strings should be loaded to root if PLEMd1 is loaded. We use the info for killing the vars.
@@ -229,35 +102,6 @@ Function PLEMd2initVar()
 	Variable/G gnumPLEMd2IsInit = 1
 	SetDataFolder $gstrPLEMd2root
 End
-
-Function/S PLEMd2Menu(numPLEM)
-	//directory persistent
-	Variable numPLEM
-	SVAR/Z gstrPLEMd2root = root:gstrPLEMd2root
-	String strReturn = ""
-	
-	//dynamic Menus are called every time the menu bar is pressed.
-	//global Variables should not automatically occur in other projects. so don't create them.
-	if (PLEMd2isInit())
-		SVAR gstrMapsAvailable = $(gstrPLEMd2root + ":gstrMapsAvailable")
-		NVAR gnumMapsAvailable	 = $(gstrPLEMd2root + ":gnumMapsAvailable")
-		if (numPLEM<gnumMapsAvailable)
-			strReturn = StringFromList(numPLEM, gstrMapsAvailable)
-		endif
-	endif
-	
-	return strReturn
-End
-
-function/t PLEMd2MenuInit()
-	string strHook = "" // off
-
-	if (PLEMd2isInit())
-		strHook = "!"+num2char(18) //on
-	endif
-
-	return strHook
-end
 
 Function PLEMd2isInit()
 	//numInit only chages if all the tests are ok.
@@ -372,7 +216,10 @@ Function PLEMd2Open()
 	Struct PLEMd2Prefs prefs
 	PLEMd2LoadPackagePrefs(prefs)
 	PLEMd2init()
+	
 	SVAR gstrMapsFolder, gstrMapsAvailable
+	DFREF dfrPLEM
+	
 	String strFile, strFileName, strFileType
 	String strWave, strWaveExtract, strDataFolder, strWaveNames
 	String strPLEM
@@ -385,16 +232,12 @@ Function PLEMd2Open()
 	if (strlen(strFile)>0)
 		strFileName = ParseFilePath(3, strFile, ":", 0, 0)
 		strFileType  = ParseFilePath(4, strFile, ":", 0, 0)
+		strPLEM = ReplaceString(" ", strFileName, "")
+		
+		dfrPLEM = returnMapFolder(strPLEM)		
+		SetDataFolder dfrPLEM
+		strDataFolder = GetDataFolder(1, dfrPLEM)
 
-		strPLEM = ReplaceString(" ",strFileName,"")
-		//ReplaceString(replaceThisStr, inStr, withThisStr  [, caseSense  [, maxReplace ] ])
-		SetDataFolder $gstrMapsFolder
-		if (DataFolderExists(strPLEM))
-			print "PLEMd2Open: DataFolder already exists. Overwriting."
-		endif
-		NewDataFolder/O/S $strPLEM
-		strDataFolder = GetDataFolder(1)
-		//print "PLEMd2Open: Using Data Folder " + strDataFolder
 		strswitch(strFileType)
 			case "ibw":	// literal string or string constant
 				LoadWave/Q/A/N=temp strFile
@@ -437,13 +280,12 @@ Function PLEMd2ProcessIBW(strPLEM)
 	// check if IBW file was loaded prior to function call.
 	if (WaveExists(stats.wavIBW)==0)
 		print "PLEMd2ProcessIBW: IBW Wave does not exist. Check Code."
-		return 0
+		Abort
 	endif
 
-	// create ":ORIGINAL" folder
-	SetDataFolder $(stats.strDataFolder)
-	NewDataFolder/O/S ORIGINAL
-	stats.strDataFolderOriginal = GetDataFolder(1)
+	DFREF dfrOriginal = returnMapOriginalFolder(strPLEM)
+	stats.strDataFolderOriginal = GetDataFolder(1, dfrOriginal)
+	setDataFolder dfrOriginal
 	
 	// load waves from IBW file
 	strWaveNames = PLEMd2ExtractWaveList(stats.wavIBW)
@@ -504,7 +346,7 @@ Function PLEMd2MapsAppendNotes(strPLEM)
 	Note/K/NOCR stats.wavPower 			strHeader
 	Note/K/NOCR stats.wavPhoton 		strHeader
 	Note/K/NOCR stats.wavFilter 			strHeader
-	Note/K/NOCR stats.wavQuantumEfficiency		strHeader
+	Note/K/NOCR stats.wavQE		strHeader
 End
 
 
@@ -532,7 +374,7 @@ Function PLEMd2BuildMaps(strPLEM)
 		//2) stats. strBackground = multiple --> count(BG_*) = count (PL_*)
 		
 		PLEMd2statsLoad(stats, strPLEM)
-		SetDataFolder $(stats.strDataFolderOriginal)		
+		SetDataFolder returnMapOriginalFolder(strPLEM)
 		
 		wave wavWavelength = WL
 		wave wavBackground = BG
@@ -640,7 +482,7 @@ Function PLEMd2BuildMaps(strPLEM)
 		endif
 
 		//wavQuantumEfficiency, wavFilter not handled yet
-		stats.wavQuantumEfficiency = 1
+		stats.wavQE = 1
 		stats.wavFilter = 1
 		
 		// different handling for spectra in calibration mode (1) and for maps (0)
@@ -676,7 +518,7 @@ Function PLEMd2BuildMaps(strPLEM)
 				// Interpolate Background Wave
 				Duplicate/O/FREE/R=[][i] stats.wavBackground wavTempBackground
 				interpolate2 /T=1 /I=3 /Y=wavTempBackground /X=stats.wavWavelength wavWavelength, wavBackground				
-				// Interpolate Correction Waves (will be the same all over the for loop …)
+				// Interpolate Correction Waves (will be the same all over the for loop â€¦)
 				Duplicate/O/FREE/R=[][i] stats.wavGrating wavTempGrating
 				interpolate2 /T=1 /I=3 /Y=wavTempGrating /X=stats.wavWavelength stats.wavXgrating, stats.wavYgrating
 				
@@ -743,7 +585,7 @@ Function PLEMd2BuildMaps(strPLEM)
 			stats.wavPLEM/=stats.wavGrating
 		endif
 		if (stats.booQuantumEfficiency)
-			stats.wavPLEM*=stats.wavQuantumEfficiency
+			stats.wavPLEM*=stats.wavQE
 		endif
 	else
 		print "PLEMd2BuildMaps: Map does not exist"
@@ -849,6 +691,7 @@ Function PLEMd2ExtractVariables(wavIBW, strVariableName)
 		strReadLine = StringFromList(i, strHeader, "\r\n")
 	while ((StringMatch(strReadLine, "*IGOR0:*") != 1) && (i<numCount))
 	strListVariableNames = StringFromList(1, strReadLine, ":")
+	
 	do
 		i += 1
 		strReadLine = StringFromList(i, strHeader, "\r\n")
@@ -898,27 +741,28 @@ Function/S PLEMd2ExtractWaveList(wavIBW)
 	Variable i, numCount, numItem
 	
 	strHeader=note(wavIBW)
-	numCount = ItemsInList(strHeader, "\r\n")
+	numCount = ItemsInList(strHeader, "\r")
 
 	i=0
 	do
 		i += 1
-		strReadLine = StringFromList(i, strHeader, "\r\n")
+		strReadLine = StringFromList(i, strHeader, "\r")
 	while ((StringMatch(strReadLine, "*IGOR2*") != 1) && (i<numCount))
 	strListWaveNumbers = StringFromList(1, strReadLine, ":")	
+
 	do
 		i += 1
-		strReadLine = StringFromList(i, strHeader, "\r\n")
+		strReadLine = StringFromList(i, strHeader, "\r")
 	while ((StringMatch(strReadLine, "*IGOR3*") != 1) && (i<numCount))
-	strListWaveNames = StringFromList(1, strReadLine, ":")	
-	//print strListWaveNumbers
-	//print strListWaveNames
+	strListWaveNames = StringFromList(1, strReadLine, ":")
+
 	numListWaveNumbers = ItemsInList(strListWaveNumbers, ";")
 	numListWaveNames = ItemsInList(strListWaveNames, ";")
 	if (numListWaveNumbers != numListWaveNames)
 		print "PLEMd2ExtractWaveList: Size Missmatch in Binary File. Check Labview Programming"
 		return ""
 	endif
+	
 	strList = ""
 	for (i=0; i<numListWaveNames; i+=1)
 		strItem = StringFromList(i, strListWaveNames, ";")		
@@ -947,7 +791,7 @@ Function/S PLEMd2ExtractPower(wavIBW)
 	do
 		i += 1
 		strReadLine = StringFromList(i, strHeader, "\r\n")
-	while ((StringMatch(strReadLine, "*Power at*") != 1) && (i<numCount)) //Power at Glass Plate (µW):
+	while ((StringMatch(strReadLine, "*Power at*") != 1) && (i<numCount)) //Power at Glass Plate (ÂµW):
 	strListParse = StringFromList(1, strReadLine, ":")
 	
 	numCount = ItemsInList(strListParse)
@@ -2133,486 +1977,6 @@ Variable &left,&right
 	endif
 End
 
-//Structure for storing Information about a PLE-Map
-Structure PLEMd2stats
-	//Versioning System to update/create new Global vars.
-	Variable numVersion
-	//strPLEM is Name of Map
-	//strPLEMfull is path containing wave name
-	//strDataFolder is Folder to Main directory
-	//strDataFolderOriginal is Folder to Processed IBW data Main:ORIGINAL
-	//numPLEM is number of Map in Menu Entry-List
-	//wavPLEM is the wave reference to :PLEM
-	String strPLEM, strPLEMfull, strDataFolder, strDataFolderOriginal
-	Variable numPLEM
-	//2D-Waves
-	Wave wavPLEM, wavMeasure, wavIBW, wavBackground, wavGrating, wavPower, wavPhoton, wavQuantumEfficiency, wavFilter
-	//1D-Waves
-	Wave wavExcitation, wavWavelength
-	Wave wavYpower, wavYphoton, wavXgrating, wavYgrating
-	// Normalization Value
-	Variable numNormalization
-	// Switches for calculation
-	Variable booBackground, booPower, booPhoton, booGrating, booQuantumEfficiency, booNormalization, booFilter
-	// chirality waves
-	Wave/D wavAtlasS1nm, wavAtlasS2nm, wavAtlasN, wavAtlasM, wavAtlasNM
-	Wave/D wavEnergyS1, wavEnergyS2, wavChiralityn, wavChiralitym, wav2Dfit, wav1Dfit
-	Wave/T wavChiralitynm
-	Wave wavPLEMfit, wavPLEMfitSingle
-	// Variables for chirality offset
-	Variable 	numS1offset, numS2offset
-	// calculated variables
-	Variable numPLEMTotalX, numPLEMLeftX, numPLEMDeltaX, numPLEMRightX
-	Variable numPLEMTotalY, numPLEMBottomY, numPLEMDeltaY, numPLEMTopY 	//stats.numPLEMDeltaY
-	
-	// variables from IBW file
-	String strDate, strUser, strFileName
-	Variable numCalibrationMode, numSlit, numGrating, numFilter, numShutter, numWLcenter, numDetector, numCooling, numExposure, numBinning, numWLfirst, numWLlast, numWLdelta, numEmissionMode, numEmissionPower, numEmissionStart, numEmissionEnd, numEmissionDelta, numEmissionStep, numScans, numBackground
-Endstructure
-
-Function PLEMd2statsCreateVar()
-	Variable/G gnumPLEM, gnumVersion
-	String/G gstrPLEM, gstrPLEMfull, gstrDataFolder, gstrDataFolderOriginal	
-	Variable/G gnumS1offset, gnumS2offset
-	Variable/G gnumPLEMTotalX, gnumPLEMLeftX, gnumPLEMDeltaX, gnumPLEMRightX
-	Variable/G gnumPLEMTotalY, gnumPLEMBottomY, gnumPLEMDeltaY, gnumPLEMTopY
-	Variable/G gnumNormalization
-	Variable/G gbooBackground, gbooPower, gbooPhoton, gbooGrating, gbooQuantumEfficiency, gbooNormalization, gbooFilter
-	String/G gstrDate, gstrUser, gstrFileName
-	Variable/G gnumCalibrationMode, gnumSlit, gnumGrating, gnumFilter, gnumShutter, gnumWLcenter, gnumDetector, gnumCooling, gnumExposure, gnumBinning, gnumScans, gnumBackground
-	Variable/G gnumWLfirst, gnumWLlast, gnumWLdelta
-	Variable/G gnumEmissionMode, gnumEmissionPower, gnumEmissionStart, gnumEmissionEnd, gnumEmissionDelta, gnumEmissionStep	
-End
-
-Function PLEMd2statsLoad(stats, strMap)
-	Struct PLEMd2stats &stats
-	String strMap
-	
-	SVAR gstrPLEMd2root = root:gstrPLEMd2root
-	SVAR gstrMapsFolder = $(gstrPLEMd2root + ":gstrMapsFolder")
-	
-	String strMapFolder = gstrMapsFolder + ":" + strMap + ":"
-	String strMapInfoFolder = strMapFolder + "INFO"
-	String strMapChiralityFolder = strMapFolder + "CHIRALITY"
-	String strSaveDataFolder
-
-	if (!DataFolderExists(strMapFolder))
-		print "PLEMd2statsLoad: No Map Folder found for map: " + strMap
-	else
-		strSaveDataFolder = GetDataFolder(1)
-		SetDataFolder $strMapFolder
-		if (WaveExists(:PLEM))
-			Wave stats.wavPLEM = PLEM
-		endif
-		if (!WaveExists(:PLEMfit))
-			Make/O PLEMfit
-		endif
-		Wave stats.wavPLEMfitSingle = PLEMfit
-		if (WaveExists(:MEASURE))
-			Wave stats.wavMeasure = MEASURE
-		endif
-		if (WaveExists(:IBW))
-			Wave stats.wavIBW = IBW
-		endif
-		if (WaveExists(:BACKGROUND))
-			Wave stats.wavBackground = BACKGROUND
-		endif
-		if (WaveExists(:GRATING))
-			Wave stats.wavGrating = GRATING
-		endif
-		if (WaveExists(:POWER))
-			Wave stats.wavPower = POWER
-		endif
-		if (WaveExists(:PHOTON))
-			Wave stats.wavPhoton = PHOTON
-		endif
-		if (WaveExists(:FILTER))
-			Wave stats.wavFilter = FILTER
-		endif
-		if (WaveExists(:QUANTUM))
-			Wave stats.wavQuantumEfficiency = QUANTUM
-		endif
-		if (WaveExists(:yExcitation))
-			Wave stats.wavExcitation = yExcitation
-		endif
-		if (WaveExists(:xWavelength))
-			Wave stats.wavWavelength = xWavelength
-		endif
-		if (WaveExists(:yPower))
-			Wave stats.wavYpower = yPower
-		endif
-		if (WaveExists(:yPhoton))
-			Wave stats.wavYphoton = yPhoton
-		endif
-		if (WaveExists(:xGrating))
-			Wave stats.wavXgrating = xGrating
-		endif
-		if (WaveExists(:yGrating))
-			Wave stats.wavYgrating = yGrating
-		endif
-		SetDataFolder $strSaveDataFolder
-	endif
-	if (!DataFolderExists(strMapChiralityFolder))
-		NewDataFolder/O $strMapChiralityFolder
-	endif 
-	if (DataFolderExists(strMapChiralityFolder))
-		strSaveDataFolder = GetDataFolder(1)
-		SetDataFolder $strMapChiralityFolder
-		Variable numAtlasDimension = 41 // maximum dimension (does not exceed maximum atlas chiralities)
-		// PLEmap data for displaying
-		if (!WaveExists(:PLEMs1nm))
-			Make/O/N=(numAtlasDimension)/D :PLEMs1nm
-		endif
-		Wave/D stats.wavEnergyS1 = :PLEMs1nm
-		if (!WaveExists(:PLEMs2nm))
-			Make/O/N=(numAtlasDimension)/D :PLEMs2nm
-		endif
-		Wave/D stats.wavEnergyS2 = :PLEMs2nm
-		if (!WaveExists(:PLEMchiralityn))
-			Make/O/N=(numAtlasDimension)/D :PLEMchiralityn
-		endif
-		Wave/D stats.wavChiralityn = :PLEMchiralityn		
-		if (!WaveExists(:PLEMchiralitym))
-			Make/O/N=(numAtlasDimension)/D :PLEMchiralitym
-		endif
-		Wave/D stats.wavChiralitym = :PLEMchiralitym
-		if (!WaveExists(:PLEMchirality))
-			Make/T/O/N=(numAtlasDimension) :PLEMchirality
-		endif
-		Wave/T stats.wavChiralitynm = :PLEMchirality
-		
-		// atlas (original dataset)
-		if (!WaveExists(:atlasS1nm))
-			Make/O/N=(numAtlasDimension)/D :atlasS1nm
-		endif
-		Wave/D stats.wavAtlasS1nm = :atlasS1nm		
-		if (!WaveExists(:atlasS2nm))
-			Make/O/N=(numAtlasDimension)/D :atlasS2nm
-		endif
-		Wave/D stats.wavAtlasS2nm = :atlasS2nm		
-		if (!WaveExists(:atlasN))
-			Make/O/N=(numAtlasDimension)/D :atlasN
-		endif
-		Wave/D stats.wavAtlasN = :atlasN		
-		if (!WaveExists(:atlasM))
-			Make/O/N=(numAtlasDimension)/D :atlasM
-		endif
-		Wave/D stats.wavAtlasM = :atlasM
-		
-		// fitting waves
-		if (!WaveExists(:fit1D))
-			Make/O/N=(numAtlasDimension)/D :fit1D
-		endif
-		Wave/D stats.wav1Dfit = :fit1D
-		if (!WaveExists(:fit2D))
-			Make/O/N=(numAtlasDimension)/D :fit2D
-		endif
-		Wave/D stats.wav2Dfit = :fit2D
-		if (!WaveExists(:fitPLEM))
-			Make/O/D :fitPLEM
-		endif
-		Wave/D stats.wavPLEMfit = :fitPLEM
-				
-		SetDataFolder $strSaveDataFolder							
-	endif	
-	if (!DataFolderExists(strMapInfoFolder))
-		PLEMd2statsInitialize(strMap)
-	endif
-	if (DataFolderExists(strMapInfoFolder))
-		//it could be that someone deleted all the vars. never mind this case. Maybe later with /Z flag and NVAR_Exists
-		strSaveDataFolder = GetDataFolder(1)
-		SetDataFolder $strMapInfoFolder		
-		NVAR/Z gnumPLEM, gnumVersion
-		SVAR/Z gstrPLEM, gstrPLEMfull, gstrDataFolder, gstrDataFolderOriginal
-		SVAR/Z gstrDate, gstrUser, gstrFileName		
-		NVAR/Z gnumPLEMTotalX, gnumPLEMLeftX, gnumPLEMDeltaX, gnumPLEMRightX
-		NVAR/Z gnumPLEMTotalY, gnumPLEMBottomY, gnumPLEMDeltaY, gnumPLEMTopY
-		NVAR/Z gnumNormalization
-		NVAR/Z gbooBackground, gbooPower, gbooPhoton, gbooGrating, gbooQuantumEfficiency, gbooNormalization, gbooFilter
-		NVAR/Z gnumS1offset, gnumS2offset //atlas data
-		NVAR/Z gnumCalibrationMode, gnumSlit, gnumGrating, gnumFilter, gnumShutter, gnumWLcenter, gnumDetector, gnumCooling, gnumExposure, gnumBinning, gnumScans, gnumBackground
-		NVAR/Z gnumWLfirst, gnumWLlast, gnumWLdelta
-		NVAR/Z gnumEmissionMode, gnumEmissionPower, gnumEmissionStart, gnumEmissionEnd, gnumEmissionDelta, gnumEmissionStep
-		
-		stats.numVersion = SelectNumber(NVAR_Exists(gnumVersion),0,gnumVersion)
-
-		stats.numPLEM 	= SelectNumber(NVAR_Exists(gnumPLEM),-1,gnumPLEM)
-		stats.strPLEM	= SelectString(SVAR_Exists(gstrPLEM),"",gstrPLEM)	//could be forced to strMap but keep it simple for once.
-		stats.strPLEMfull 	= SelectString(SVAR_Exists(gstrPLEMfull),"",gstrPLEMfull)
-		stats.strDataFolder		= SelectString(SVAR_Exists(gstrDataFolder),"",gstrDataFolder)
-		stats.strDataFolderOriginal	= SelectString(SVAR_Exists(gstrDataFolderOriginal),"",gstrDataFolderOriginal)
-		
-		stats.numNormalization 	= SelectNumber(NVAR_Exists(gnumNormalization),1,gnumNormalization)
-		stats.numNormalization 	= SelectNumber(stats.numNormalization != 0,1,gnumNormalization)
-		
-		stats.booBackground 	= SelectNumber(NVAR_Exists(gbooBackground),1,gbooBackground)
-		stats.booPower 		= SelectNumber(NVAR_Exists(gbooPower),1,gbooPower)
-		stats.booPhoton 		= SelectNumber(NVAR_Exists(gbooPhoton),1,gbooPhoton)
-		stats.booGrating  		= SelectNumber(NVAR_Exists(gbooGrating),1,gbooGrating)
-		stats.booQuantumEfficiency = SelectNumber(NVAR_Exists(gbooQuantumEfficiency),1,gbooQuantumEfficiency) 
-		stats.booNormalization	= SelectNumber(NVAR_Exists(gbooNormalization),1,gbooNormalization) 
-		stats.booFilter		= SelectNumber(NVAR_Exists(gbooFilter),1,gbooFilter) 
-		
-		stats.numS1offset 	= SelectNumber(NVAR_Exists(gnumS1offset),28,gnumS1offset)
-		stats.numS2offset 	= SelectNumber(NVAR_Exists(gnumS2offset),10,gnumS2offset)
-		
-		stats.numPLEMTotalX = gnumPLEMTotalX
-		stats.numPLEMLeftX	= gnumPLEMLeftX
-		stats.numPLEMDeltaX = gnumPLEMDeltaX
-		stats.numPLEMRightX	= gnumPLEMRightX
-		
-		stats.numPLEMTotalY	= gnumPLEMTotalY
-		stats.numPLEMBottomY = gnumPLEMBottomY
-		stats.numPLEMDeltaY	= gnumPLEMDeltaY
-		stats.numPLEMTopY	= gnumPLEMTopY
-		
-		stats.strDate 		= gstrDate
-		stats.strUser		= gstrUser
-		stats.strFileName = gstrFileName
-		
-		stats.numCalibrationMode = SelectNumber(NVAR_Exists(gnumCalibrationMode),-1,gnumCalibrationMode)
-		stats.numSlit = SelectNumber(NVAR_Exists(gnumSlit),-1,gnumSlit)
-		stats.numGrating = SelectNumber(NVAR_Exists(gnumGrating),-1,gnumGrating)
-		stats.numFilter = SelectNumber(NVAR_Exists(gnumFilter),-1,gnumFilter)
-		stats.numShutter = SelectNumber(NVAR_Exists(gnumShutter),-1,gnumShutter)
-		stats.numWLcenter = SelectNumber(NVAR_Exists(gnumWLcenter),-1,gnumWLcenter)
-		stats.numDetector = SelectNumber(NVAR_Exists(gnumDetector),-1,gnumDetector)
-		stats.numCooling = SelectNumber(NVAR_Exists(gnumCooling),-1,gnumCooling)
-		stats.numExposure = SelectNumber(NVAR_Exists(gnumExposure),-1,gnumExposure)
-		stats.numBinning = SelectNumber(NVAR_Exists(gnumBinning),-1,gnumBinning)
-		stats.numWLfirst = SelectNumber(NVAR_Exists(gnumWLfirst),-1,gnumWLfirst)
-		stats.numWLlast = SelectNumber(NVAR_Exists(gnumWLlast),-1,gnumWLlast)
-		stats.numWLdelta = SelectNumber(NVAR_Exists(gnumWLdelta),-1,gnumWLdelta)
-		stats.numEmissionMode = SelectNumber(NVAR_Exists(gnumEmissionMode),-1,gnumEmissionMode)
-		stats.numEmissionPower = SelectNumber(NVAR_Exists(gnumEmissionPower),-1,gnumEmissionPower)
-		stats.numEmissionStart = SelectNumber(NVAR_Exists(gnumEmissionStart),-1,gnumEmissionStart)
-		stats.numEmissionEnd = SelectNumber(NVAR_Exists(gnumEmissionEnd),-1,gnumEmissionEnd)
-		stats.numEmissionDelta = SelectNumber(NVAR_Exists(gnumEmissionDelta),-1,gnumEmissionDelta)
-		stats.numEmissionStep = SelectNumber(NVAR_Exists(gnumEmissionStep),-1,gnumEmissionStep)
-		stats.numScans = SelectNumber(NVAR_Exists(gnumScans),-1,gnumScans)
-		stats.numBackground = SelectNumber(NVAR_Exists(gnumBackground),-1,gnumBackground)
-		
-		SetDataFolder $strSaveDataFolder
-	endif
-End
-
-Function PLEMd2statsSave(stats)
-	Struct PLEMd2stats &stats
-	String strMap = stats.strPLEM
-	
-	SVAR gstrPLEMd2root = root:gstrPLEMd2root
-	SVAR gstrMapsFolder = $(gstrPLEMd2root + ":gstrMapsFolder")
-	
-	String strMapFolder = gstrMapsFolder + ":" + strMap + ":"
-	String strMapInfoFolder = strMapFolder + "INFO:"
-	String strSaveDataFolder
-
-	if (!DataFolderExists(strMapFolder))
-		print "PLEMd2statsSave: No Map Folder found for map: " + strMap
-	else
-		strSaveDataFolder = GetDataFolder(1)
-		SetDataFolder $strMapFolder
-		//waves are only referenced and therefor saved automatically
-		//wavPLEM = PLEM, wavMeasure = MEASURE, wavBackground = BACKGROUND, wavCorrected = CORRECTED
-		//wavWavelength = WAVELENGTH, wavPower = POWER, wavPhoton = PHOTON
-		//wavPLEM 	= stats.wavPLEM
-		//wavMeasure 	= stats.wavMeasure
-		//Waveexists(stats.wavBackground) ? wavBackground = stats.wavBackground
-		//wavCorrected 	= stats.wavCorrected
-		//wavWavelength 	= stats.wavWavelength
-		//wavPower 	= stats.wavPower
-		//wavPhoton 	= stats.wavPhoton
-		SetDataFolder $strSaveDataFolder
-	endif
-	if (!DataFolderExists(strMapInfoFolder))
-		print "PLEMd2statsSave: No Info Folder found for map: " + strMap
-	else
-		//it could be that someone deleted all the vars. never mind this case.
-		strSaveDataFolder = GetDataFolder(1)
-		SetDataFolder $strMapInfoFolder
-		NVAR/Z gnumPLEM, gnumVersion
-		SVAR/Z gstrPLEM, gstrPLEMfull, gstrDataFolder, gstrDataFolderOriginal	
-		NVAR/Z gnumPLEMTotalX, gnumPLEMLeftX, gnumPLEMDeltaX, gnumPLEMRightX
-		NVAR/Z gnumPLEMTotalY, gnumPLEMBottomY, gnumPLEMDeltaY, gnumPLEMTopY
-		NVAR/Z gnumNormalization
-		NVAR/Z gbooBackground, gbooPower, gbooPhoton, gbooGrating, gbooQuantumEfficiency, gbooNormalization, gbooFilter
-		NVAR/Z gnumS1offset, gnumS2offset //atlas data
-		SVAR/Z gstrDate, gstrUser, gstrFileName
-		NVAR/Z gnumCalibrationMode, gnumSlit, gnumGrating, gnumFilter, gnumShutter, gnumWLcenter, gnumDetector, gnumCooling, gnumExposure, gnumBinning, gnumScans, gnumBackground
-		NVAR/Z gnumWLfirst, gnumWLlast, gnumWLdelta
-		NVAR/Z gnumEmissionMode, gnumEmissionPower, gnumEmissionStart, gnumEmissionEnd, gnumEmissionDelta, gnumEmissionStep
-		
-		gnumVersion		= stats.numVersion
-		
-		gnumPLEM		= stats.numPLEM
-		gstrPLEM		= stats.strPLEM
-		gstrPLEMfull		= stats.strPLEMfull
-		gstrDataFolder		= stats.strDataFolder
-		gstrDataFolderOriginal	= stats.strDataFolderOriginal
-		
-		gnumNormalization = stats.numNormalization
-		gbooBackground = stats.booBackground
-		gbooPower = stats.booPower 		
-		stats.booPhoton = gbooPhoton		
-		stats.booGrating  = gbooGrating	
-		stats.booQuantumEfficiency = gbooQuantumEfficiency 
-		stats.booNormalization	= gbooNormalization 
-		stats.booFilter = gbooFilter
-		
-		gnumS1offset = stats.numS1offset
-		gnumS2offset = stats.numS2offset
-				
-		gnumPLEMTotalX	= stats.numPLEMTotalX
-		gnumPLEMLeftX	= stats.numPLEMLeftX
-		gnumPLEMDeltaX = stats.numPLEMDeltaX
-		gnumPLEMRightX	= stats.numPLEMRightX
-		
-		gnumPLEMTotalY		= stats.numPLEMTotalY
-		gnumPLEMBottomY 	= stats.numPLEMBottomY
-		gnumPLEMDeltaY		= stats.numPLEMDeltaY
-		gnumPLEMTopY		= stats.numPLEMTopY
-		
-		gstrDate 		= stats.strDate
-		gstrUser			= stats.strUser
-		gstrFileName 	= stats.strFileName
-		
-		gnumCalibrationMode = stats.numCalibrationMode
-		gnumSlit = stats.numSlit
-		gnumGrating = stats.numGrating
-		gnumFilter = stats.numFilter
-		gnumShutter = stats.numShutter
-		gnumWLcenter = stats.numWLcenter
-		gnumDetector = stats.numDetector
-		gnumCooling = stats.numCooling
-		gnumExposure = stats.numExposure
-		gnumBinning = stats.numBinning
-		gnumScans = stats.numScans
-		gnumBackground = stats.numBackground
-		gnumWLfirst = stats.numWLfirst
-		gnumWLlast = stats.numWLlast
-		gnumWLdelta = stats.numWLdelta
-		gnumEmissionMode = stats.numEmissionMode
-		gnumEmissionPower = stats.numEmissionPower
-		gnumEmissionStart = stats.numEmissionStart
-		gnumEmissionEnd = stats.numEmissionEnd
-		gnumEmissionDelta = stats.numEmissionDelta
-		gnumEmissionStep = stats.numEmissionStep
-
-		SetDataFolder $strSaveDataFolder
-	endif
-End
-
-Function PLEMd2statsInitialize(strPLEM)
-//Initialize the stats struct without calling the load procedure
-//**on Version-Missmatch 
-//**if Folder INFO is not there.
-	String strPLEM
-		
-	if (PLEMd2isInit() != 1)
-		print "PLEMd2statsInitialize: PLEMd2isInit returned false"
-		return 0
-	endif
-	
-	String strSaveDataFolder = GetDataFolder(1)
-
-	SVAR gstrPLEMd2root = root:gstrPLEMd2root
-	SetDataFolder $gstrPLEMd2root
-	SVAR gstrMapsAvailable, gstrMapsFolder
-	SetDataFolder $gstrMapsFolder	
-	
-	String strDataFolder 		= gstrMapsFolder + ":" + strPLEM + ":"
-	
-	if (!DataFolderExists(strDataFolder))
-		print "PLEMd2statsInitVar: Current Map (" + strPLEM + ") is probably not in conventional Data Folder strucure. Check Code"
-		NewDataFolder/O $strDataFolder
-	endif
-	
-	SetDataFolder $strDataFolder
-
-	
-	// switch to INFO folder with global variables
-	if (!DataFolderExists(strDataFolder + "INFO:"))
-		print "PLEMd2statsInitVar: Initializing Info Variables for Map"
-		NewDataFolder/O/S INFO
-		PLEMd2statsCreateVar()
-	else
-		SetDataFolder INFO
-	endif
-	
-	NVAR gnumVersion 
-	NVAR gnumPLEM
-	SVAR gstrPLEM
-	SVAR gstrPLEMfull
-	SVAR gstrDataFolder
-	//The Variables have to be killed before reinit.
-	if (gnumVersion<PLEMd2Version)
-		print "PLEMd2statsInitVar: Version Missmatch. Initializing. Information loss hopefuly prevented."
-		//clear folder and set new waves
-		KillVariables/A/Z
-		KillStrings/A/Z
-		KillWaves/A/Z			
-		PLEMd2statsCreateVar()
-	endif
-	gstrPLEM 		= strPLEM
-	gnumPLEM		= PLEMd2AddMap(strPLEM)
-	gstrDataFolder	= strDataFolder
-	gstrPLEMfull		= strDataFolder + "PLEM"
-	gnumVersion 		= PLEMd2Version
-	
-	SetDataFolder $strSaveDataFolder	
-End
-
-Function PLEMd2statsCalculate(stats)
-	Struct PLEMd2stats &stats
-	
-	//Help Variables for sorting
-	//Sorting of pointers. But pointers do not seem to work at runtime within a function: left = &test
-	Variable left, right
-		
-	wave wavPLEM = stats.wavPLEM
-	
-	//collect Information about the wave and sort it.
-	stats.numPLEMTotalX	= DimSize(wavPLEM,0)
-	stats.numPLEMLeftX	= DimOffset(wavPLEM,0)
-	stats.numPLEMDeltaX 	= DimDelta(wavPLEM,0)	
-	stats.numPLEMRightX	= stats.numPLEMLeftX + stats.numPLEMTotalX * stats.numPLEMDeltaX
-	stats.numPLEMTotalY	= DimSize(wavPLEM,1)
-	stats.numPLEMBottomY=DimOffset(wavPLEM,1)
-	stats.numPLEMDeltaY	= DimDelta(wavPLEM,1)
-	stats.numPLEMTopY	= stats.numPLEMBottomY + stats.numPLEMTotalY * stats.numPLEMDeltaY
-	
-	left = stats.numPLEMLeftX
-	right = stats.numPLEMRightX
-	PLEMd2sort(left,right)
-	stats.numPLEMLeftX = left
-	stats.numPLEMRightX=right
-	
-	left = stats.numPLEMBottomY
-	right = stats.numPLEMTopY
-	PLEMd2sort(left,right)
-	stats.numPLEMBottomY = left
-	stats.numPLEMTopY=right	
-	
-	print "PLEMd2statsCalculate: Absorption: " + num2str(stats.numPLEMLeftX) + "nm - " + num2str(stats.numPLEMRightX) + "nm"	
-	print "PLEMd2statsCalculate: Emission: "+ num2str(stats.numPLEMBottomY) + "nm - " + num2str(stats.numPLEMTopY) + "nm"	
-	print "PLEMd2statsCalculate: Size: "+num2str(stats.numPLEMTotalX) + "x" + num2str(stats.numPLEMTotalY) + " Data Points."
-End
-
-Function/S PLEMd2FullPathByString(strPLEM)
-	String strPLEM	
-
-	String strSaveDataFolder = GetDataFolder(1)
-
-	SVAR gstrPLEMd2root = root:gstrPLEMd2root
-	SetDataFolder $gstrPLEMd2root
-	SVAR gstrMapsFolder
-
-	String strMap = gstrMapsFolder + ":" + strPLEM + ":PLEM"
-
-	SetDataFolder $strSaveDataFolder
-	return strMap
-End
-
 //Get number of map. in Menu-List.
 Function PLEMd2numPLEM(strPLEM)
 	String strPLEM
@@ -3092,94 +2456,3 @@ Function/S PLEMd2window2strPLEM(strWindow)
 	return strWindow[numStart+4,numEnd-1]
 End
 
-// Global Preferences stored in igor Folder
-// adopted from igor manual
-Structure PLEMd2Prefs
-//use uint, double, uchar as NVAR SVAR etc are not yet initialized
-	uint32	version			// Preferences structure version number. 1,2,3,4,...
-	double	panelCoords[4]	// left, top, right, bottom
-	uchar	strMapsPath[256]
-	uint32	reserved[100]	// Reserved for future use
-EndStructure
-
-//	Sets prefs structure to default values.
-static Function PLEMd2DefaultPackagePrefsStruct(prefs)
-	STRUCT PLEMd2Prefs &prefs
-
-	prefs.version = PLEMd2Version
-
-	prefs.panelCoords[0] = 5			// Left
-	prefs.panelCoords[1] = 40		// Top
-	prefs.panelCoords[2] = 5+190	// Right
-	prefs.panelCoords[3] = 40+125	// Bottom
-	
-	GetFileFolderInfo/Q/Z=1 PLEMd2WorkingDir0
-	if (V_flag == 0)
-		prefs.strMapsPath = PLEMd2WorkingDir0
-	else
-		//fallback
-		prefs.strMapsPath = PLEMd2WorkingDir1		
-	endif
-	Variable i
-	for(i=0; i<100; i+=1)
-		prefs.reserved[i] = 0
-	endfor
-End
-
-// SyncPackagePrefsStruct(prefs)
-// Syncs package prefs structures to match state of panel. Call this only if the panel exists.
-static Function PLEMd2SyncPackagePrefsStruct(prefs)
-	STRUCT PLEMd2Prefs &prefs
-
-	// Panel does exists. Set prefs to match panel settings.
-	prefs.version = PLEMd2Version
-	
-	GetWindow  PLEMd2Panel wsize
-	// NewPanel uses device coordinates. We therefore need to scale from
-	// points (returned by GetWindow) to device units for windows created
-	// by NewPanel.
-	Variable scale = ScreenResolution / 72
-	prefs.panelCoords[0] = V_left * scale
-	prefs.panelCoords[1] = V_top * scale
-	prefs.panelCoords[2] = V_right * scale
-	prefs.panelCoords[3] = V_bottom * scale
-	
-//	ControlInfo /W=PLEMd2Panel PhaseLock
-//	prefs.phaseLock = V_Value		// 0=unchecked; 1=checked
-	
-End
-
-// InitPackagePrefsStruct(prefs)
-// Sets prefs structures to match state of panel or to default values if panel does not exist.
-static Function PLEMd2InitPackagePrefsStruct(prefs)
-	STRUCT PLEMd2Prefs &prefs
-
-	DoWindow PLEMd2Panel
-	if (V_flag == 0)
-		// Panel does not exist. Set prefs struct to default.
-		PLEMd2DefaultPackagePrefsStruct(prefs)
-	else
-		// Panel does exists. Sync prefs struct to match panel state.
-		PLEMd2SyncPackagePrefsStruct(prefs)
-	endif
-End
-
-static Function PLEMd2LoadPackagePrefs(prefs)
-	STRUCT PLEMd2Prefs &prefs
-
-	// This loads preferences from disk if they exist on disk.
-	LoadPackagePreferences PLEMd2PackageName, PLEMd2PrefsFileName, PLEMd2PrefsRecordID, prefs
-
-	// If error or prefs not found or not valid, initialize them.
-	if (V_flag!=0 || V_bytesRead==0 || prefs.version!= PLEMd2Version)
-		//print "PLEMd2:LoadPackagePrefs: Loading from " + SpecialDirPath("Packages", 0, 0, 0)
-		PLEMd2InitPackagePrefsStruct(prefs)	// Set based on panel if it exists or set to default values.
-		PLEMd2SavePackagePrefs(prefs)		// Create initial prefs record.
-	endif
-End
-
-static Function PLEMd2SavePackagePrefs(prefs)
-	STRUCT PLEMd2Prefs &prefs
-	//print "PLEMd2:SavePackagePrefs: Saving to " + SpecialDirPath("Packages", 0, 0, 0)
-	SavePackagePreferences PLEMd2PackageName, PLEMd2PrefsFileName, PLEMd2PrefsRecordID, prefs
-End
