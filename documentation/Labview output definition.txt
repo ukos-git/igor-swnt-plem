@@ -1,0 +1,23 @@
+Grating:
+1 = 500nm Blaze
+2 = 800nm Blaze
+3 = 1250nm Blaze
+
+Filter:
+1 = Langpass 320nm
+2 = Langpass 475nm
+3 = Langpass 715nm
+4 = Langpass 900nm
+5 = Leer
+
+Shutter:
+0 = Geschlossen
+1 = Offen
+
+Detektor:
+0 = CCD
+1 = InGaAs
+
+Mode:
+0 = Power Mode
+1 = Feedback Mode
