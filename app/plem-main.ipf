@@ -6,10 +6,13 @@
 //			Dynamic Delimited Text Load for old Gratings and other Correction Files.
 //Version 3:	Specified fixed Format for Loading Maps, Background etc.
 //Version 4:	Loading of PLEMd1 Correction Waves completed. Versioning System also for Global Variables Initialization.
+//Version 5:	Global Variables of PLEMd1 are saved in Subdirectory (avoid trash)
+//			Versioning System extended for subversions. Loading Procedure Corrected.
+//Version 6:	ToDo. Create Panel for Map-Updates, Save Parameters for Map-Update in PARAMETER-Folder. set PLEMd=1 for old Maps and PLEMd=2 for new Maps. Maybe save it as a STRUCT.
 
 #pragma rtGlobals=3		// Use modern global access method and strict wave access.
 
-static Constant PLEMd2Version = 4
+static Constant PLEMd2Version = 0507
 static StrConstant PLEMd2PackageName = "PLEM-displayer2"
 static StrConstant PLEMd2PrefsFileName = "PLEMd2Preferences.bin"
 static Constant PLEMd2PrefsRecordID = 0
@@ -19,7 +22,7 @@ Menu "PLE-Map", dynamic //create menu bar entry
 	SubMenu "PLEMapDisplayer1"
 		"Maps: Import", PLEMd2d1Import()
 		"Maps: Import and Kill", PLEMd2d1Import(1)
-		"Correction Waves: Load from File", PLEMd2d1reset()//PLEMd2d1Init
+		"Correction Waves: Load from File", PLEMd2d1Init()
 	End
 	SubMenu "PLEMap"
 	//List all available Maps in current project (max 15)
@@ -37,12 +40,13 @@ Menu "PLE-Map", dynamic //create menu bar entry
 		PLEMd2Menu(11), PLEMd2Display(11)
 		PLEMd2Menu(12), PLEMd2Display(12)
 		PLEMd2Menu(13), PLEMd2Display(13)
-		PLEMd2Menu(14), PLEMd2Display(14)				
+		PLEMd2Menu(14), PLEMd2Display(14)		
 	End
 End
 
 // Variables for current Project only. See also the LoadPreferences towards the end of the procedure for additional settings that are saved system-wide.
 Function PLEMd2initVar()
+	print "PLEMd2initVar: intialization of global variables"
 	//Init Data Folder
 	String strSaveDataFolder = GetDataFolder(1)
 	SetDataFolder root:
@@ -56,22 +60,28 @@ Function PLEMd2initVar()
 	
 	//Specify source for new correction files (displayer2) and old files (displayer1 or Tilman's original)
 	String/G gstrPathBase	= SpecialDirPath("Igor Pro User Files", 0, 0, 0 ) + "User Procedures:PLEMd2:"
-	String/G gstrPathBased1	= SpecialDirPath("Igor Pro User Files", 0, 0, 0 ) + "User Procedures:Korrekturkurven:"
 	
 	//Global Wave Names for correction files (maybe this is better done dynamically)
 	String/G gstrCCD1250		= gstrPLEMd2root + ":" + "CCD1250"
 	String/G gstrInGaAs1250	= gstrPLEMd2root + ":" + "InGaAs1250"
 	
-	//Data from old PLEM-displayer1
-	String/G gstrPLEMd1Folder = gstrPLEMd2root + ":" + "PLEMd1"
-		//Load only specified waves from folder. Leave blank if all waves should be loaded.
-	String/G gstrD1CorrectionWaves = "500 nm Blaze & CCD @ +20 °C.txt;500 nm Blaze & CCD @ -90 °C.txt;1200 nm Blaze & CCD @ +20 °C.txt;1200 nm Blaze & CCD @ -90 °C.txt;1250 nm Blaze & CCD @ -90 °C.txt;1200 nm Blaze & InGaAs @ +25 °C.txt;1200 nm Blaze & InGaAs @ -90 °C.txt;1250 nm Blaze & InGaAs @ -90 °C.txt;760 nm Strahlenteiler (Chroma) Abs.txt;760 nm Strahlenteiler (Chroma) Em.txt"
-	NewDataFolder/O	 $gstrPLEMd1Folder	
+	//
+	String/G gstrPLEMd1root = gstrPLEMd2root + ":" + "PLEMd1"
+	String/G gstrMapsFolder = gstrPLEMd2root + ":" + "maps"
+	SetDataFolder $gstrPLEMd2root  //folder should already be there.	
+	//Correction Waves from old PLEM-displayer1
+
+	NewDataFolder/O/S	 $gstrPLEMd1root
+	String/G gstrPLEMd1PathBase	 = SpecialDirPath("Igor Pro User Files", 0, 0, 0 ) + "User Procedures:Korrekturkurven:"	
+	//Load only specified waves from folder. Leave blank if all waves from directory above should be loaded.	
+	String/G gstrPLEMd1CorrectionToLoad = "500 nm Blaze & CCD @ +20 °C.txt;500 nm Blaze & CCD @ -90 °C.txt;1200 nm Blaze & CCD @ +20 °C.txt;1200 nm Blaze & CCD @ -90 °C.txt;1250 nm Blaze & CCD @ -90 °C.txt;1200 nm Blaze & InGaAs @ +25 °C.txt;1200 nm Blaze & InGaAs @ -90 °C.txt;1250 nm Blaze & InGaAs @ -90 °C.txt;760 nm Strahlenteiler (Chroma) Abs.txt;760 nm Strahlenteiler (Chroma) Em.txt"
+	String/G gstrPLEMd1CorrectionAvailable = ""
 	Variable/G gnumPLEMd1IsInit = 0
 	
+	SetDataFolder $gstrPLEMd2root
 	//Maps: Create Folder and Initialize Strings where we store the maps of the current project
-	String/G gstrMapsFolder = gstrPLEMd2root + ":" + "maps"
-	NewDataFolder/O	 $gstrMapsFolder	
+	
+	NewDataFolder/O	 $gstrMapsFolder
 	String/G gstrMapsAvailable = ""
 	Variable/G gnumMapsAvailable	= 0
 
@@ -84,11 +94,9 @@ Function PLEMd2initVar()
 End
 
 Function/S PLEMd2Menu(numPLEM)
-	Variable numPLEM		
-
+	//directory persistent
+	Variable numPLEM
 	String strReturn = ""
-	String strSaveDataFolder = GetDataFolder(1)
-	SetDataFolder root:		
 
 	//dynamic Menus are called every time the menu bar is pressed.
 	//global Variables should not automatically occur in other projects. so don't create them.
@@ -103,39 +111,36 @@ Function/S PLEMd2Menu(numPLEM)
 				strReturn = StringFromList(numPLEM, gstrMapsAvailable)
 			endif
 		endif
-	//no else needed. strReturn was delclared initially. So fall back to that.
+	//no else needed. strReturn was delclared initially. So fall back to that.	
 	endif
 	
-	SetDataFolder $strSaveDataFolder	
 	return strReturn
 End
 
 Function PLEMd2isInit()
-	Variable numInit
-	
+	//numInit only chages if all the tests are ok.
+	Variable numInit = 0
+	String strGlobalVariables = ""
 	String strSaveDataFolder = GetDataFolder(1)
+
 	SetDataFolder root:
-	
-	if (FindListItem("gnumPLEMd2IsInit",VariableList("*",";",4)) != -1)
+
+	if (FindListItem("gnumPLEMd2IsInit", VariableList("gnum*",";",4)) != -1)
 		NVAR gnumPLEMd2IsInit = root:gnumPLEMd2IsInit
-		//We were initialized once. So we check also the current Version.
-		SVAR gstrPLEMd2root	= root:gstrPLEMd2root	
-		SetDataFolder $gstrPLEMd2root		
-		if (FindListItem("gnumPLEMd2Version",VariableList("*",";",4)) != -1) //backward compatibility if var does not exist. (we have strong cpus!)
-			NVAR gnumPLEMd2Version
-			if (gnumPLEMd2Version<PLEMd2Version)
-				print "PLEMd2isInit: Version missmatch Project (v" + num2str(gnumPLEMd2Version) + ") is older than Procedure (v" + num2str(PLEMd2Version) + ")"
-				gnumPLEMd2IsInit = 0
+		if (FindListItem("gstrPLEMd2root", StringList("gstr*",";")) != -1)
+			SVAR gstrPLEMd2root	= root:gstrPLEMd2root
+			if (DataFolderExists(gstrPLEMd2root))
+				SetDataFolder $gstrPLEMd2root				
+				//Check if Version of Procedure matches Project.
+				if (FindListItem("gnumPLEMd2Version",VariableList("gnum*",";",4)) != -1)
+					NVAR gnumPLEMd2Version
+					if (!(gnumPLEMd2Version<PLEMd2Version))
+						//only at this point we can be sure, that the project is initialized.
+						numInit = gnumPLEMd2IsInit
+					endif
+				endif
 			endif
-		else
-			//Versioning System does not yet exist. Initialize Procedure.
-			print "PLEMd2isInit: Version missmatch Procedure (v" + num2str(PLEMd2Version) + ")"
-			gnumPLEMd2IsInit = 0
 		endif
-		numInit = gnumPLEMd2IsInit
-	else
-		//Do not declare Global Variable here. Use InitVar instead
-		numInit = 0
 	endif
 	
 	SetDataFolder $strSaveDataFolder	
@@ -149,7 +154,6 @@ Function PLEMd2init()
 
 	if (PLEMd2isInit()==0)
 		PLEMd2initVar()
-		print "PLEMd2init: intialization"
 	endif
 	
 	//Change DataFolder to Project Root
@@ -402,11 +406,13 @@ Function PLEMd2d1CountFiles(strBaseName)
 End
 
 Function PLEMd2d1isInit()
+	//directory persistent: function does not switch the current directory.
 	if (PLEMd2isInit() == 0)
 		return 0
 	else
 		SVAR gstrPLEMd2root = root:gstrPLEMd2root
-		NVAR gnumPLEMd1IsInit = $(gstrPLEMd2root + ":gnumPLEMd1IsInit")
+		SVAR gstrPLEMd1root = $(gstrPLEMd2root + ":gstrPLEMd1root")
+		NVAR gnumPLEMd1IsInit = $(gstrPLEMd1root + ":gnumPLEMd1IsInit")
 		return gnumPLEMd1IsInit
 	endif
 End
@@ -416,10 +422,12 @@ Function PLEMd2d1reset()
 	print "PLEMd2d1reset: reset in progress"
 	If (PLEMd2d1isInit() == 1)
 		SVAR gstrPLEMd2root = root:gstrPLEMd2root
-		NVAR gnumPLEMd1IsInit = $(gstrPLEMd2root + ":gnumPLEMd1IsInit")	
+		SVAR gstrPLEMd1root = $(gstrPLEMd2root + ":gstrPLEMd1root")
+		NVAR gnumPLEMd1IsInit = $(gstrPLEMd1root + ":gnumPLEMd1IsInit")
 		gnumPLEMd1IsInit = 0
 	endif
 	PLEMd2d1Init()
+	print "PLEMd2d1reset: reset ended"
 End
 
 Function PLEMd2d1Init() 
@@ -429,41 +437,44 @@ Function PLEMd2d1Init()
 	If (PLEMd2d1isInit() == 0)
 		//switch to current working dir. Keep old directory in memory.
 		String strSaveDataFolder = GetDataFolder(1)
-		SVAR gstrPLEMd2root = root:gstrPLEMd2root
-		SetDataFolder $gstrPLEMd2root		
-		
-		//now we fetch the global vars.
-		SVAR gstrD1CorrectionWaves, gstrPLEMd1Folder, gstrPathBased1
+ 		
+ 		//GLOBAL VARS
+ 		SVAR gstrPLEMd2root = root:gstrPLEMd2root
+		SVAR gstrPLEMd1root = $(gstrPLEMd2root + ":gstrPLEMd1root")
+		SetDataFolder $gstrPLEMd1root	
+		SVAR gstrPLEMd1CorrectionToLoad, gstrPLEMd1CorrectionAvailable, gstrPLEMd1PathBase
 		NVAR gnumPLEMd1IsInit
-	
-		//and define some local.
-		String strD1CorrectionWaves, strD1CorrectionWave
+		
+		//LOCAL VARS
+		String strPLEMd1CorrectionWaves, strPLEMd1CorrectionWave
 		String strFiles, strFile
-		Variable numD1CorrectionWaves, numFiles
+		String strFilesLoaded
+		Variable numPLEMd1CorrectionWaves, numFiles
 		Variable i
 	
-		//waves should be saved in PLEMd1 Folder.
-		SetDataFolder $gstrPLEMd1Folder	
-		NewPath/O/Q path, gstrPathBased1
-		print "PLEMd2d1Init: loading Files from " + gstrPathBased1
+
+				
+		NewPath/O/Q path, gstrPLEMd1PathBase
+		print "PLEMd2d1Init: loading Files from " + gstrPLEMd1PathBase
 		strFiles = IndexedFile(path,-1,".txt")
 		numFiles = PLEMd2GetListSize(strFiles)
-		print "PLEMd2d1Init: found " + num2str(numFiles) + " files: " + strFiles		
-		numD1CorrectionWaves = PLEMd2GetListSize(gstrD1CorrectionWaves)
+		print "PLEMd2d1Init: found " + num2str(numFiles) + " files"
+		numPLEMd1CorrectionWaves = PLEMd2GetListSize(gstrPLEMd1CorrectionToLoad)
 
 		//if there were no waves specified, load all Files from the current directory.		
-		if (numD1CorrectionWaves == 0)
-			numD1CorrectionWaves = numFiles
-			strD1CorrectionWaves = strFiles
+		if (numPLEMd1CorrectionWaves == 0)
+			numPLEMd1CorrectionWaves 	= numFiles
+			strPLEMd1CorrectionWave 	= strFiles
 		else
-			strD1CorrectionWaves	 = gstrD1CorrectionWaves
+			strPLEMd1CorrectionWaves	 = gstrPLEMd1CorrectionToLoad
 		endif
 
+		gstrPLEMd1CorrectionAvailable = ""
+		strFilesLoaded = ""
 		for (i=0;i<numFiles;i+=1)
 			strFile = StringFromList(i, strFiles)
-			if (FindListItem(strFile,strD1CorrectionWaves) != -1)
-				print "Loading from " + strFile
-				LoadWave/P=path/O/J/D/W/A/K=0 (strFile)
+			if (FindListItem(strFile, strPLEMd1CorrectionWaves) != -1)
+				LoadWave/P=path/O/J/D/W/A/K=0/Q (strFile)
 					//P	Path Variable
 					//O	Overwrite existing waves in case of a name conflict.
 					//J	Indicates that the file uses the delimited text format.
@@ -472,16 +483,24 @@ Function PLEMd2d1Init()
 					//W	Looks for wave names in file
 					//K=k	Controls how to determine whether a column in the file is numeric or text (only for delimited text and fixed field text files).
 					//	k = 0:	Deduce the nature of the column automatically.
+					///Q	Suppresses the normal messages in the history area.
 
 					//LoadWave sets the following variables:
 					//V_flag		Number of waves loaded.
 					//S_fileName	Name of the file being loaded.
 					//S_path		File system path to the folder containing the file.
-					//S_waveNames	Semicolon-separated list of the names of loaded waves.					
-			endif
+					//S_waveNames	Semicolon-separated list of the names of loaded waves.
+					
+					if (V_flag > 0)
+						gstrPLEMd1CorrectionAvailable += S_waveNames
+						strFilesLoaded += S_fileName + ";"
+					endif
+			endif			
 		endfor
-	gnumPLEMd1IsInit = 1
-	SetDataFolder $strSaveDataFolder
+		print "PLEMd2d1Init: Loaded " + num2str(PLEMd2GetListSize(strFilesLoaded)) + "/"+ num2str(PLEMd2GetListSize(gstrPLEMd1CorrectionToLoad)) + " files"
+		print "PLEMd2d1Init: Loaded " + num2str(PLEMd2GetListSize(gstrPLEMd1CorrectionAvailable)) + " waves: "		
+		gnumPLEMd1IsInit = 1
+		SetDataFolder $strSaveDataFolder
 	endif
 End
 
@@ -490,6 +509,7 @@ End
 //Helper Functions
 
 //Function returns the Number of Items in a list.
+//only items of size greater than zero are counted. ItemsInList returns even those.
 Function PLEMd2GetListSize(strList)
 	String strList
 	
@@ -663,7 +683,7 @@ static Function LoadPackagePrefs(prefs)
 
 	// If error or prefs not found or not valid, initialize them.
 	if (V_flag!=0 || V_bytesRead==0 || prefs.version!= PLEMd2Version)
-		print "PLEMd2:LoadPackagePrefs: Loading from " + SpecialDirPath("Packages", 0, 0, 0)
+		//print "PLEMd2:LoadPackagePrefs: Loading from " + SpecialDirPath("Packages", 0, 0, 0)
 		InitPackagePrefsStruct(prefs)	// Set based on panel if it exists or set to default values.
 		SavePackagePrefs(prefs)		// Create initial prefs record.
 	endif
@@ -671,6 +691,6 @@ End
 
 static Function SavePackagePrefs(prefs)
 	STRUCT PLEMd2Prefs &prefs
-	print "PLEMd2:SavePackagePrefs: Saving to " + SpecialDirPath("Packages", 0, 0, 0)
+	//print "PLEMd2:SavePackagePrefs: Saving to " + SpecialDirPath("Packages", 0, 0, 0)
 	SavePackagePreferences PLEMd2PackageName, PLEMd2PrefsFileName, PLEMd2PrefsRecordID, prefs
 End
