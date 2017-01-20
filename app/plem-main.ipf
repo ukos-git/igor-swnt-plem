@@ -5,10 +5,11 @@
 //Version 2: 	Dynamic paths for User Procedures directory
 //			Dynamic Delimited Text Load for old Gratings and other Correction Files.
 //Version 3:	Specified fixed Format for Loading Maps, Background etc.
+//Version 4:	Loading of PLEMd1 Correction Waves completed. Versioning System also for Global Variables Initialization.
 
 #pragma rtGlobals=3		// Use modern global access method and strict wave access.
 
-static Constant PLEMd2Version = 3
+static Constant PLEMd2Version = 4
 static StrConstant PLEMd2PackageName = "PLEM-displayer2"
 static StrConstant PLEMd2PrefsFileName = "PLEMd2Preferences.bin"
 static Constant PLEMd2PrefsRecordID = 0
@@ -16,10 +17,11 @@ static Constant PLEMd2PrefsRecordID = 0
 Menu "PLE-Map", dynamic //create menu bar entry
 	"PLEMapDisplayer2", PLEMd2()
 	SubMenu "PLEMapDisplayer1"
-		"Import", PLEMd2d1Import()
-		"Import and Kill", PLEMd2d1Import(1)
+		"Maps: Import", PLEMd2d1Import()
+		"Maps: Import and Kill", PLEMd2d1Import(1)
+		"Correction Waves: Load from File", PLEMd2d1reset()//PLEMd2d1Init
 	End
-	SubMenu "PLEM"
+	SubMenu "PLEMap"
 	//List all available Maps in current project (max 15)
 		PLEMd2Menu(0), PLEMd2Display(0)
 		PLEMd2Menu(1), PLEMd2Display(1)
@@ -62,8 +64,8 @@ Function PLEMd2initVar()
 	
 	//Data from old PLEM-displayer1
 	String/G gstrPLEMd1Folder = gstrPLEMd2root + ":" + "PLEMd1"
-	//Load only specified waves from folder. Leave blank if all waves should be loaded.
-	String/G gstrD1CorrectionWaves = "500 nm Blaze & CCD @ +20 °C.txt;500 nm Blaze & CCD @ -90 °C.txt;1200 nm Blaze & CCD @ +20 °C.txt;1200 nm Blaze & CCD @ -90 °C.txt;1250 nm Blaze & CCD @ -90 °C.txt;1200 nm Blaze & InGaAs @ +25 °C.txt;1200 nm Blaze & InGaAs @ -90 °C.txt;1250 nm Blaze & InGaAs @ -90 °C.txt;760 nm Strahlenteiler (Chroma) abs.txt;760 nm Strahlenteiler (Chroma) em.txt"
+		//Load only specified waves from folder. Leave blank if all waves should be loaded.
+	String/G gstrD1CorrectionWaves = "500 nm Blaze & CCD @ +20 °C.txt;500 nm Blaze & CCD @ -90 °C.txt;1200 nm Blaze & CCD @ +20 °C.txt;1200 nm Blaze & CCD @ -90 °C.txt;1250 nm Blaze & CCD @ -90 °C.txt;1200 nm Blaze & InGaAs @ +25 °C.txt;1200 nm Blaze & InGaAs @ -90 °C.txt;1250 nm Blaze & InGaAs @ -90 °C.txt;760 nm Strahlenteiler (Chroma) Abs.txt;760 nm Strahlenteiler (Chroma) Em.txt"
 	NewDataFolder/O	 $gstrPLEMd1Folder	
 	Variable/G gnumPLEMd1IsInit = 0
 	
@@ -73,7 +75,8 @@ Function PLEMd2initVar()
 	String/G gstrMapsAvailable = ""
 	Variable/G gnumMapsAvailable	= 0
 
-		
+	//save current init-version in project folder.
+	Variable/G gnumPLEMd2Version = PLEMd2Version
 	//set a variable in root folder to recognize if the module was initialized.
 	SetDataFolder root:
 	Variable/G gnumPLEMd2IsInit = 1
@@ -111,10 +114,24 @@ Function PLEMd2isInit()
 	Variable numInit
 	
 	String strSaveDataFolder = GetDataFolder(1)
-	SetDataFolder root:	
+	SetDataFolder root:
 	
 	if (FindListItem("gnumPLEMd2IsInit",VariableList("*",";",4)) != -1)
 		NVAR gnumPLEMd2IsInit = root:gnumPLEMd2IsInit
+		//We were initialized once. So we check also the current Version.
+		SVAR gstrPLEMd2root	= root:gstrPLEMd2root	
+		SetDataFolder $gstrPLEMd2root		
+		if (FindListItem("gnumPLEMd2Version",VariableList("*",";",4)) != -1) //backward compatibility if var does not exist. (we have strong cpus!)
+			NVAR gnumPLEMd2Version
+			if (gnumPLEMd2Version<PLEMd2Version)
+				print "PLEMd2isInit: Version missmatch Project (v" + num2str(gnumPLEMd2Version) + ") is older than Procedure (v" + num2str(PLEMd2Version) + ")"
+				gnumPLEMd2IsInit = 0
+			endif
+		else
+			//Versioning System does not yet exist. Initialize Procedure.
+			print "PLEMd2isInit: Version missmatch Procedure (v" + num2str(PLEMd2Version) + ")"
+			gnumPLEMd2IsInit = 0
+		endif
 		numInit = gnumPLEMd2IsInit
 	else
 		//Do not declare Global Variable here. Use InitVar instead
@@ -137,7 +154,7 @@ Function PLEMd2init()
 	
 	//Change DataFolder to Project Root
 	SVAR gstrPLEMd2root	= root:gstrPLEMd2root	
-	SetDataFolder $gstrPLEMd2root	
+	SetDataFolder $gstrPLEMd2root
 	
 	//Save Original Path in Project Root
 	SVAR gstrSaveDataFolder	= strSaveDataFolder		
@@ -164,11 +181,13 @@ Function PLEMd2exit()
 End
 
 Function PLEMd2()
+	//INIT
 	STRUCT PLEMd2Prefs prefs
 	LoadPackagePrefs(prefs)
-	//reset for testing purose
-	PLEMd2reset()
 	PLEMd2init()
+	
+	
+	//EXIT
 	PLEMd2exit()
 	SavePackagePrefs(prefs)
 End
@@ -236,7 +255,7 @@ Function PLEMd2d1Import([numKillWavesAfterwards])
 		SetDataFolder $gstrMapsFolder
 		SetDataFolder $strMap
 		
-		//Copy Map
+		//Copy Map for dimensions.
 		wave wavPLEM = $("root:PLE_map_" + strMap)		
 		if (WaveExists(wavPLEM))
 			numTotalX	= DimSize(wavPLEM,0)
@@ -264,15 +283,16 @@ Function PLEMd2d1Import([numKillWavesAfterwards])
 				endif
 			endfor
 			
-			//Create Background Wave from Files.
+			//Create 2D-Background Wave from Files.
 			Duplicate/O wavPLEM BACKGROUND
 			wave wavBackground	= BACKGROUND			
+			//count background files
 			numFiles	= PLEMd2d1CountFiles(gstrMapsFolder + ":" + strMap + ":ORIGINAL:" + strMap + "_bg")
-
 			for (j=0;j<numTotalY;j+=1)
 				if (numFiles > 1)
 					strWave = gstrMapsFolder + ":" + strMap + ":ORIGINAL:" + strMap + "_bg_" + num2str(j)
 				else
+					//single background
 					strWave = gstrMapsFolder + ":" + strMap + ":ORIGINAL:" + strMap + "_bg_0"
 				endif
 				wave wavCurrent = $strWave
@@ -281,6 +301,7 @@ Function PLEMd2d1Import([numKillWavesAfterwards])
 						wavBackground[k][j] = wavCurrent[k]
 					endfor
 				else
+					//background file not found. Zero it out.
 					for (k=0;k<numTotalX;k+=1)
 						wavBackground[k][j] = 0
 					endfor				
@@ -391,6 +412,7 @@ Function PLEMd2d1isInit()
 End
 
 Function PLEMd2d1reset()
+	//directory persistent: function does not switch the current directory.
 	print "PLEMd2d1reset: reset in progress"
 	If (PLEMd2d1isInit() == 1)
 		SVAR gstrPLEMd2root = root:gstrPLEMd2root
@@ -400,7 +422,9 @@ Function PLEMd2d1reset()
 	PLEMd2d1Init()
 End
 
-Function PLEMd2d1Init()
+Function PLEMd2d1Init() 
+	//directory persistent: function restores current dir on exit.
+	
 	//check if Init() is necessary. And if the global variables are relibably there.
 	If (PLEMd2d1isInit() == 0)
 		//switch to current working dir. Keep old directory in memory.
@@ -439,7 +463,7 @@ Function PLEMd2d1Init()
 			strFile = StringFromList(i, strFiles)
 			if (FindListItem(strFile,strD1CorrectionWaves) != -1)
 				print "Loading from " + strFile
-				//LoadWave/P=path/O/J/D/W/A/K=0 (strFile + ".txt")
+				LoadWave/P=path/O/J/D/W/A/K=0 (strFile)
 					//P	Path Variable
 					//O	Overwrite existing waves in case of a name conflict.
 					//J	Indicates that the file uses the delimited text format.
@@ -448,6 +472,12 @@ Function PLEMd2d1Init()
 					//W	Looks for wave names in file
 					//K=k	Controls how to determine whether a column in the file is numeric or text (only for delimited text and fixed field text files).
 					//	k = 0:	Deduce the nature of the column automatically.
+
+					//LoadWave sets the following variables:
+					//V_flag		Number of waves loaded.
+					//S_fileName	Name of the file being loaded.
+					//S_path		File system path to the folder containing the file.
+					//S_waveNames	Semicolon-separated list of the names of loaded waves.					
 			endif
 		endfor
 	gnumPLEMd1IsInit = 1
