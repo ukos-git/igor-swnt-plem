@@ -1,8 +1,8 @@
 ﻿#pragma TextEncoding = "UTF-8"		// For details execute DisplayHelpTopic "The TextEncoding Pragma"
 #pragma rtGlobals=3		// Use modern global access method and strict wave access.
 
-static StrConstant PLEMd2WorkingDir0 = "C:users:matthias:Meine Dokumente:Documents:programs:local:igor:matthias:PLEM-displayer2:"
-static StrConstant PLEMd2WorkingDir1 = "Z:programs:local:igor:matthias:PLEM-displayer2:"
+static StrConstant PLEMd2WorkingDir0 = "X:nasPLEM:"
+static StrConstant PLEMd2WorkingDir1 = "X:nasPLEM:Kastner Matthias:"
 StrConstant PLEMd2PackageName = "PLEM-displayer2"
 static StrConstant PLEMd2PrefsFileName = "PLEMd2Preferences.bin"
 static Constant PLEMd2PrefsRecordID = 0
@@ -21,7 +21,7 @@ EndStructure
 static Function PLEMd2DefaultPackagePrefsStruct(prefs)
 	STRUCT PLEMd2Prefs &prefs
 
-	prefs.version = PLEMd2Version
+	prefs.version = cPLEMd2Version
 
 	prefs.panelCoords[0] = 5			// Left
 	prefs.panelCoords[1] = 40		// Top
@@ -47,7 +47,7 @@ static Function PLEMd2SyncPackagePrefsStruct(prefs)
 	STRUCT PLEMd2Prefs &prefs
 
 	// Panel does exists. Set prefs to match panel settings.
-	prefs.version = PLEMd2Version
+	prefs.version = cPLEMd2Version
 	
 	GetWindow  PLEMd2Panel wsize
 	// NewPanel uses device coordinates. We therefore need to scale from
@@ -86,7 +86,7 @@ Function PLEMd2LoadPackagePrefs(prefs)
 	LoadPackagePreferences PLEMd2PackageName, PLEMd2PrefsFileName, PLEMd2PrefsRecordID, prefs
 
 	// If error or prefs not found or not valid, initialize them.
-	if (V_flag!=0 || V_bytesRead==0 || prefs.version!= PLEMd2Version)
+	if (V_flag!=0 || V_bytesRead==0 || prefs.version!= cPLEMd2Version)
 		//print "PLEMd2:LoadPackagePrefs: Loading from " + SpecialDirPath("Packages", 0, 0, 0)
 		PLEMd2InitPackagePrefsStruct(prefs)	// Set based on panel if it exists or set to default values.
 		PLEMd2SavePackagePrefs(prefs)		// Create initial prefs record.

@@ -21,7 +21,7 @@ Structure PLEMd2stats
 	// Normalization Value
 	Variable numNormalization
 	// Switches for calculation
-	Variable booBackground, booPower, booPhoton, booGrating, booQuantumEfficiency, booNormalization, booFilter
+	Variable booBackground, booPower, booPhoton, booGrating, booQuantumEfficiency, booNormalization, booFilter, booInterpolate
 	// chirality waves
 	Wave/D wavAtlasS1nm, wavAtlasS2nm, wavAtlasN, wavAtlasM, wavAtlasNM
 	Wave/D wavEnergyS1, wavEnergyS2, wavChiralityn, wavChiralitym, wav2Dfit, wav1Dfit
@@ -33,6 +33,8 @@ Structure PLEMd2stats
 	Variable numPLEMTotalX, numPLEMLeftX, numPLEMDeltaX, numPLEMRightX
 	Variable numPLEMTotalY, numPLEMBottomY, numPLEMDeltaY, numPLEMTopY 	//stats.numPLEMDeltaY
 	
+	// nanostage position
+	variable numPositionX, numPositionY, numPositionZ
 	// variables from IBW file
 	String strDate, strUser, strFileName
 	Variable numCalibrationMode, numSlit, numGrating, numFilter, numShutter, numWLcenter, numDetector, numCooling, numExposure, numBinning, numWLfirst, numWLlast, numWLdelta, numEmissionMode, numEmissionPower, numEmissionStart, numEmissionEnd, numEmissionDelta, numEmissionStep, numScans, numBackground
@@ -59,30 +61,24 @@ Function PLEMd2statsLoad(stats, strMap)
 	Wave stats.wavXgrating 		= getMapWave(strMap, "xGrating")
 	Wave stats.wavYgrating 		= getMapWave(strMap, "yGrating")
 
-	Variable numAtlasDimension = 41 // maximum dimension (does not exceed maximum atlas chiralities)
-
 	Wave/D stats.wavEnergyS1 		= getAtlasWave(strMap, "PLEMs1nm")
 	Wave/D stats.wavEnergyS2 		= getAtlasWave(strMap, "PLEMs2nm")
 	Wave/D stats.wavChiralityn 	= getAtlasWave(strMap, "PLEMchiralityn")
 	Wave/D stats.wavChiralitym 	= getAtlasWave(strMap, "PLEMchiralitym")
 	Wave/T stats.wavChiralitynm 	= getAtlasTextWave(strMap, "PLEMchirality")
-	Wave/D stats.wavAtlasS1nm = getAtlasWave(strMap, "atlasS1nm")
-	Wave/D stats.wavAtlasS2nm = getAtlasWave(strMap, "atlasS2nm")
-	Wave/D stats.wavAtlasN = getAtlasWave(strMap, "atlasN")
-	Wave/D stats.wavAtlasM = getAtlasWave(strMap, "atlasM")
-	Wave/D stats.wav1Dfit = getAtlasWave(strMap, "fit1D")
-	Wave/D stats.wav2Dfit = getAtlasWave(strMap, "fit2D")
-	Wave/D stats.wavPLEMfit = getAtlasWave(strMap, "fitPLEM")
-
-	Redimension/N=(numAtlasDimension) stats.wavEnergyS1, stats.wavEnergyS2, stats.wavChiralityn, stats.wavChiralitym, stats.wavChiralitynm
-	Redimension/N=(numAtlasDimension) stats.wavAtlasS1nm, stats.wavAtlasS2nm, stats.wavAtlasN, stats.wavAtlasM
-	Redimension/N=(numAtlasDimension) stats.wav1Dfit, stats.wav2Dfit
+	Wave/D stats.wavAtlasS1nm 		= getAtlasWave(strMap, "atlasS1nm")
+	Wave/D stats.wavAtlasS2nm 		= getAtlasWave(strMap, "atlasS2nm")
+	Wave/D stats.wavAtlasN 			= getAtlasWave(strMap, "atlasN")
+	Wave/D stats.wavAtlasM 			= getAtlasWave(strMap, "atlasM")
+	Wave/D stats.wav1Dfit 			= getAtlasWave(strMap, "fit1D")
+	Wave/D stats.wav2Dfit 			= getAtlasWave(strMap, "fit2D")
+	Wave/D stats.wavPLEMfit 		= getAtlasWave(strMap, "fitPLEM")
 
 	// PLEMd2statsInitialize(strMap)
 	stats.numVersion = getMapVariable(strMap, "gnumVersion")
 
-	stats.numPLEM 	= getMapVariable(strMap, "gnumPLEM")
-	stats.strPLEM	= getMapString(strMap, "gstrPLEM")
+	stats.numPLEM 						= getMapVariable(strMap, "gnumPLEM")
+	stats.strPLEM						= getMapString(strMap, "gstrPLEM") // no magic here
 	stats.strPLEMfull 				= getMapString(strMap, "gstrPLEMfull")
 	stats.strDataFolder				= getMapString(strMap, "gstrDataFolder")
 	stats.strDataFolderOriginal	= getMapString(strMap, "gstrDataFolderOriginal")
@@ -97,6 +93,7 @@ Function PLEMd2statsLoad(stats, strMap)
 	stats.booQuantumEfficiency = getMapVariable(strMap, "gbooQuantumEfficiency")
 	stats.booNormalization		= getMapVariable(strMap, "gbooNormalization")
 	stats.booFilter		= getMapVariable(strMap, "gbooFilter")
+	stats.booInterpolate = getMapVariable(strMap, "gbooInterpolate")
 		
 	stats.numS1offset 	= getMapVariable(strMap, "gnumS1offset")
 	stats.numS2offset 	= getMapVariable(strMap, "gnumS2offset")
@@ -109,34 +106,37 @@ Function PLEMd2statsLoad(stats, strMap)
 	stats.numPLEMTotalY	= getMapVariable(strMap, "gnumPLEMTotalY")
 	stats.numPLEMBottomY = getMapVariable(strMap, "gnumPLEMBottomY")
 	stats.numPLEMDeltaY	= getMapVariable(strMap, "gnumPLEMDeltaY")
-	stats.numPLEMTopY	= getMapVariable(strMap, "gnumPLEMTopY")
+	stats.numPLEMTopY		= getMapVariable(strMap, "gnumPLEMTopY")
 		
 	stats.strDate 		= getMapString(strMap, "gstrDate")
 	stats.strUser		= getMapString(strMap, "gstrUser")
 	stats.strFileName = getMapString(strMap, "gstrFileName")
 		
-	stats.numCalibrationMode = getMapVariable(strMap, "gnumCalibrationMode")
-	stats.numSlit = getMapVariable(strMap, "gnumSlit")
-	stats.numGrating = getMapVariable(strMap, "gnumGrating")
-	stats.numFilter = getMapVariable(strMap, "gnumFilter")
-	stats.numShutter = getMapVariable(strMap, "gnumShutter")
-	stats.numWLcenter = getMapVariable(strMap, "gnumWLcenter")
-	stats.numDetector = getMapVariable(strMap, "gnumDetector")
-	stats.numCooling = getMapVariable(strMap, "gnumCooling")
-	stats.numExposure = getMapVariable(strMap, "gnumExposure")
-	stats.numBinning = getMapVariable(strMap, "gnumBinning")
-	stats.numWLfirst = getMapVariable(strMap, "gnumWLfirst")
-	stats.numWLlast = getMapVariable(strMap, "gnumWLlast")
-	stats.numWLdelta = getMapVariable(strMap, "gnumWLdelta")
-	stats.numEmissionMode = getMapVariable(strMap, "gnumEmissionMode")
-	stats.numEmissionPower = getMapVariable(strMap, "gnumEmissionPower")
-	stats.numEmissionStart = getMapVariable(strMap, "gnumEmissionStart")
-	stats.numEmissionEnd = getMapVariable(strMap, "gnumEmissionEnd")
-	stats.numEmissionDelta = getMapVariable(strMap, "gnumEmissionDelta")
-	stats.numEmissionStep = getMapVariable(strMap, "gnumEmissionStep")
-	stats.numScans = getMapVariable(strMap, "gnumScans")
-	stats.numBackground = getMapVariable(strMap, "gnumBackground")
+	stats.numCalibrationMode 	= getMapVariable(strMap, "gnumCalibrationMode")
+	stats.numSlit 					= getMapVariable(strMap, "gnumSlit")
+	stats.numGrating 				= getMapVariable(strMap, "gnumGrating")
+	stats.numFilter 				= getMapVariable(strMap, "gnumFilter")
+	stats.numShutter 				= getMapVariable(strMap, "gnumShutter")
+	stats.numWLcenter 			= getMapVariable(strMap, "gnumWLcenter")
+	stats.numDetector 			= getMapVariable(strMap, "gnumDetector")
+	stats.numCooling 				= getMapVariable(strMap, "gnumCooling")
+	stats.numExposure 			= getMapVariable(strMap, "gnumExposure")
+	stats.numBinning 				= getMapVariable(strMap, "gnumBinning")
+	stats.numWLfirst 				= getMapVariable(strMap, "gnumWLfirst")
+	stats.numWLlast 				= getMapVariable(strMap, "gnumWLlast")
+	stats.numWLdelta 				= getMapVariable(strMap, "gnumWLdelta")
+	stats.numEmissionMode 		= getMapVariable(strMap, "gnumEmissionMode")
+	stats.numEmissionPower 		= getMapVariable(strMap, "gnumEmissionPower")
+	stats.numEmissionStart 		= getMapVariable(strMap, "gnumEmissionStart")
+	stats.numEmissionEnd 		= getMapVariable(strMap, "gnumEmissionEnd")
+	stats.numEmissionDelta 		= getMapVariable(strMap, "gnumEmissionDelta")
+	stats.numEmissionStep 		= getMapVariable(strMap, "gnumEmissionStep")
+	stats.numScans 				= getMapVariable(strMap, "gnumScans")
+	stats.numBackground 			= getMapVariable(strMap, "gnumBackground")
 
+	stats.numPositionX = getMapVariable(strMap, "gnumPositionX")
+	stats.numPositionY = getMapVariable(strMap, "gnumPositionY")
+	stats.numPositionZ = getMapVariable(strMap, "gnumPositionZ")
 End
 
 Function PLEMd2statsSave(stats)
@@ -160,6 +160,7 @@ Function PLEMd2statsSave(stats)
 	setMapVariable(strMap, "gbooQuantumEfficiency", stats.booQuantumEfficiency)
 	setMapVariable(strMap, "gbooNormalization", stats.booNormalization)
 	setMapVariable(strMap, "gbooFilter", stats.booFilter)
+	setMapVariable(strMap, "gbooInterpolate", stats.booInterpolate)
 	
 	setMapVariable(strMap,"gnumS1offset", stats.numS1offset)
 	setMapVariable(strMap,"gnumS2offset", stats.numS2offset)
@@ -199,6 +200,10 @@ Function PLEMd2statsSave(stats)
 	setMapVariable(strMap,"gnumEmissionEnd", stats.numEmissionEnd)
 	setMapVariable(strMap,"gnumEmissionDelta", stats.numEmissionDelta)
 	setMapVariable(strMap,"gnumEmissionStep", stats.numEmissionStep)
+	
+	setMapVariable(strMap,"gnumPositionX", stats.numPositionX)
+	setMapVariable(strMap,"gnumPositionY", stats.numPositionY)
+	setMapVariable(strMap,"gnumPositionZ", stats.numPositionZ)
 End
 
 Function PLEMd2statsInitialize(strMap)
@@ -206,21 +211,36 @@ Function PLEMd2statsInitialize(strMap)
 //**on Version-Missmatch 
 //**if Folder INFO is not there.
 	String strMap
+	Struct PLEMd2Stats stats
 		
 	if (PLEMd2isInit() != 1)
 		print "PLEMd2statsInitialize: PLEMd2isInit returned false"
 		return 0
 	endif
+	PLEMd2statsLoad(stats, strMap)
 	
-	setMapVariable(strMap, "gnumPLEM", PLEMd2AddMap(strMap))
-	setMapString(strMap, "gstrPLEM", strMap)
-	setMapString(strMap, "gstrDataFolder", GetDataFolder(1, returnMapFolder(strMap)))
-	setMapString(strMap, "gstrPLEMfull", getWavesDataFolder(getMapWave(strMap, "PLEM"),2))
-	setMapVariable(strMap, "gnumVersion", PLEMd2Version)
+	stats.numPLEM = PLEMd2AddMap(strMap)
+	stats.strPLEM = strMap
+	stats.strDataFolder =  GetDataFolder(1, returnMapFolder(strMap))
+	stats.strPLEMfull = getWavesDataFolder(getMapWave(strMap, "PLEM"),2)
+	stats.numVersion = cPLEMd2Version
+
+	stats.numNormalization = 1
+	
+	stats.booBackground 	= 1
+	stats.booPower 		= 1
+	stats.booPhoton 		= 0
+	stats.booGrating  	= 0
+	stats.booQuantumEfficiency = 0
+	stats.booNormalization		= 0
+	stats.booFilter		= 0
+	stats.booInterpolate = 0
+	
+	PLEMd2statsSave(stats)
 	
 End
 
-Function PLEMd2statsCalculate(stats)
+Function PLEMd2statsCalculateDeprecated(stats)
 	Struct PLEMd2stats &stats
 	
 	//Help Variables for sorting
@@ -260,9 +280,7 @@ Function/S PLEMd2FullPathByString(strPLEM)
 	String strPLEM	
 
 	String strSaveDataFolder = GetDataFolder(1)
-
-	SVAR gstrPLEMd2root = root:gstrPLEMd2root
-	SetDataFolder $gstrPLEMd2root
+	SetDataFolder $cstrPLEMd2root
 	SVAR gstrMapsFolder
 
 	String strMap = gstrMapsFolder + ":" + strPLEM + ":PLEM"

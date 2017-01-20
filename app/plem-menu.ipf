@@ -128,14 +128,13 @@ End
 Function/S PLEMd2Menu(numPLEM)
 	//directory persistent
 	Variable numPLEM
-	SVAR/Z gstrPLEMd2root = root:gstrPLEMd2root
 	String strReturn = ""
 	
 	//dynamic Menus are called every time the menu bar is pressed.
 	//global Variables should not automatically occur in other projects. so don't create them.
 	if (PLEMd2isInit())
-		SVAR gstrMapsAvailable = $(gstrPLEMd2root + ":gstrMapsAvailable")
-		NVAR gnumMapsAvailable	 = $(gstrPLEMd2root + ":gnumMapsAvailable")
+		SVAR gstrMapsAvailable = $(cstrPLEMd2root + ":gstrMapsAvailable")
+		NVAR gnumMapsAvailable	 = $(cstrPLEMd2root + ":gnumMapsAvailable")
 		if (numPLEM<gnumMapsAvailable)
 			strReturn = StringFromList(numPLEM, gstrMapsAvailable)
 		endif

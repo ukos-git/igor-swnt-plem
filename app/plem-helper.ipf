@@ -2,7 +2,6 @@
 #pragma rtGlobals=3		// Use modern global access method and strict wave access.
 #pragma IgorVersion = 6.20 // use sdfr
 
-static StrConstant cstrPLEMd2root 	= "root:PLEMd2"
 static StrConstant cstrPLEMd2maps 	= ":maps"
 static StrConstant cstrPLEMd2info 	= ":INFO"
 static StrConstant cstrPLEMd2chirality = ":CHIRALITY"
@@ -45,6 +44,9 @@ End
 // Function returns DataFolder reference to current map's info folder where NVAR and SVAR are saved
 static Function/DF returnMapInfoFolder(strMap)
 	String strMap
+	if (strlen(strMap) == 0)
+		abort
+	endif
 	DFREF dfrMap = returnMapFolder(strMap)
 	DFREF dfrInfo = returnDataFolderReference(cstrPLEMd2root + cstrPLEMd2maps + ":" + strMap + cstrPLEMd2info)
 	return dfrInfo
@@ -72,7 +74,7 @@ static Function/S getGstring(name, dataFolder)
 	DFREF dataFolder
 	SVAR/Z/SDFR=dataFolder myVar = $name
 	if (!SVAR_EXISTS(myVar))
-		String/G dataFolder:$name
+		String/G dataFolder:$name = ""
 		return ""
 	else
 		return myVar
@@ -85,7 +87,7 @@ static Function getGvar(name, dataFolder)
 	DFREF dataFolder
 	NVAR/Z/SDFR=dataFolder myVar = $name
 	if (!NVAR_EXISTS(myVar))
-		Variable/G dataFolder:$name
+		Variable/G dataFolder:$name = NaN
 		return NaN
 	else
 		return myVar
