@@ -1,5 +1,5 @@
 //Programmed by Matthias Kastner
-//Date 16.03.2015
+//Date 01.04.2015
 //Version 0: 	Skeleton
 //Version 1: 	Global Settings in binary file
 //Version 2: 	Dynamic paths for User Procedures directory
@@ -9,11 +9,14 @@
 //Version 5:	Global Variables of PLEMd1 are saved in Subdirectory (avoid trash)
 //			Versioning System extended for subversions. Loading Procedure Corrected.
 //Version 6	Created Loading Dialog for Choosing the correct file Names.
-//Version 7:	ToDo. Create Panel for Map-Updates, Save Parameters for Map-Update in PARAMETER-Folder. set PLEMd=1 for old Maps and PLEMd=2 for new Maps. Maybe save it as a STRUCT.
+//Version 7:	Created Mapper for Parameters for Map-INFO-Folder
+//Version 8:	Loading Procedure for Igor Binary files. Extract Data to ORIGINAL-Folder
+//Version 9: 	Save Files to BACKGROUND, PLEM, usw. 
+//			ToDo. Create Panel for Map-Updates, Save Parameters for Map-Update in PARAMETER-Folder.
 
 #pragma rtGlobals=3		// Use modern global access method and strict wave access.
 
-static Constant PLEMd2Version = 0700
+static Constant PLEMd2Version = 0801
 static StrConstant PLEMd2PackageName = "PLEM-displayer2"
 static StrConstant PLEMd2PrefsFileName = "PLEMd2Preferences.bin"
 static StrConstant PLEMd2WorkingDir = "C:users:matthias:Meine Dokumente:Dokumente:programs:local:igor:matthias:PLEM-displayer2:"
@@ -39,6 +42,8 @@ Menu "PLE-Map", dynamic //create menu bar entry
 		"Init", PLEMd2()
 		"Open", PLEMd2open()
 		"Configuration", PLEMd2Panel()
+		"-"
+		"Clean up Variables", PLEMd2Clean()
 	End
 	SubMenu "PLEMap"
 	//List all available Maps in current project (max 15)
@@ -216,16 +221,44 @@ Function PLEMd2()
 	PLEMd2SavePackagePrefs(prefs)
 End
 
+Function PLEMd2Clean()
+	String strVariables, strStrings, strAvailable
+	String strSaveDataFolder = GetDataFolder(1)
+	Variable i, numAvailable
+	
+	SetDataFolder root:
+
+	strVariables	= VariableList("V_*",";",4)	//Scalar Variables
+	strVariables	+= VariableList("*",";",2)	//System Variables
+	strStrings	= StringList("S_*",";")
+	
+	numAvailable = PLEMd2GetListSize(strVariables)	
+	for (i=0;i<numAvailable;i+=1)
+		strAvailable = StringFromList(i, strVariables)		
+		Killvariables/Z $("root:" + strAvailable)
+	endfor
+	
+	numAvailable = PLEMd2GetListSize(strStrings)
+	for (i=0;i<numAvailable;i+=1)
+		strAvailable = StringFromList(i, strStrings)		
+		Killstrings/Z $("root:" + strAvailable)
+	endfor
+	
+	SetDataFolder $strSaveDataFolder	
+End
+
 Function PLEMd2Open()
 	//INIT
-	STRUCT PLEMd2Prefs prefs
+	Struct PLEMd2Prefs prefs
+	Struct PLEMd2Stats stats	
 	PLEMd2LoadPackagePrefs(prefs)
 	PLEMd2init()
-	SVAR gstrMapsFolder
+	SVAR gstrMapsFolder, gstrMapsAvailable
 	String strFile, strFileName, strFileType
-	String strDataFolder
-	String strFrom, strTo
-	Variable i
+	String strWave, strWaveExtract, strDataFolder, strWaveNames
+	String strPLEM
+	Variable numTotalX, numTotalY	
+	Variable i,j
 	
 	strFile=PLEMd2PopUpChooseFile(prefs)
 	print "PLEMd2Open: Opening File from " + strFile
@@ -236,24 +269,57 @@ Function PLEMd2Open()
 		i=0
 		do
 			strDataFolder = strFileName + num2str(i)
-			i += 1;
+			i += 1;			
 		while (DataFolderExists(strDataFolder)!=0)
+		strPLEM = strDataFolder
 		NewDataFolder/S $strDataFolder
-		NewDataFolder/S ORIGINAL
+		strDataFolder = GetDataFolder(1)
+		print "PLEMd2Open: Using Data Folder " + strDataFolder
 		strswitch(strFileType)
 			case "ibw":	// literal string or string constant
-				LoadWave/A=$strFileName strFile
+				LoadWave/N/Q strFile
 				if (PLEMd2GetListSize(S_waveNames) == 1)
-					strFrom	= gstrMapsFolder + ":" + strDataFolder + ":ORIGINAL:" + StringFromList(0, S_waveNames)
-					strTo	= gstrMapsFolder + ":" + strDataFolder + ":IBW"
-					duplicate $strFrom $strTo
+					strDataFolder = GetDataFolder(1)
+					strWave	= strDataFolder + StringFromList(0, S_waveNames) //should be IBW					
+					PLEMd2AddMap(strPLEM)
+					PLEMd2statsInitialize(strPLEM)
+					PLEMd2statsLoad(stats, strPLEM)
+					stats.strPLEM = strPLEM					
+					SetDataFolder $strDataFolder
+					Duplicate/O $strWave IBW
+					KillWaves/Z $strWave
+					stats.strPath = strDataFolder
+					strWave = strDataFolder + "IBW"					
+					stats.strFullPath = strWave
+					SetDataFolder $strDataFolder
+					NewDataFolder/S ORIGINAL
+					strDataFolder = GetDataFolder(1)
+					wave wavIBW = $strWave					
+					strWaveNames = PLEMd2ExtractWaveList(wavIBW)
+					numTotalX	= DimSize(wavIBW,0)
+					numTotalY	= DimSize(wavIBW,1)
+
+					if (numTotalY == ItemsInList(strWaveNames))
+						print "PLEMd2Open: Binary File has " + num2str(numTotalY) + " waves"
+						//Extract Columns from Binary Wave and give them proper names
+						for (i=0; i<numTotalY; i+=1)
+							strWaveExtract = StringFromList(i, strWaveNames) 						
+							Make/D/O/N=(numTotalX) $strWaveExtract
+							wave wavExtract = $strWaveExtract													
+							for (j=0; j<numTotalX; j+=1)
+								wavExtract[j] = wavIBW[j][i]
+							endfor
+							wave wavExtract=$""
+						endfor
+						PLEMd2ExtractInfo(wavIBW, stats)
+						PLEMd2statsSave(stats)
+						PLEMd2BuildMaps(strPLEM)
+						
+					endif
 				else
 					print "PLEMd2Open: Error Loaded more than one or no Wave from Igor Binary File"
 				endif
-				print S_waveNames
-				//SetDataFolder $(gstrMapsFolder + ":" + strDataFolder)
-				//NewDataFolder/S ORIGINAL
-				//hier die wavenotes konvertieren zu überschriften und dann waves extrahieren.
+
 				break	// without this execution "falls through" to val=1
 			case "txt":
 				//LoadWave/A/D/J/K=1/L={1,2,0,0,2}/O/Q strFile
@@ -268,6 +334,185 @@ Function PLEMd2Open()
 	//EXIT
 	PLEMd2exit()
 	PLEMd2SavePackagePrefs(prefs)
+End
+
+Function PLEMd2BuildMaps(strPLEM)
+	String strPLEM
+
+	String strSaveDataFolder = GetDataFolder(1)	
+
+	SetDataFolder root:
+	SVAR gstrPLEMd2root
+	SetDataFolder $gstrPLEMd2root
+	SVAR gstrMapsFolder
+	
+	Struct PLEMd2stats stats
+	String strWaveBG, strWavePL
+	Variable i, numItems
+	
+	if (PLEMd2MapExists(strPLEM))
+		print "PLEMd2BuildMaps: Map found"
+		//There are 3 different structures for DATA
+		//1) WAVES: wavelength_nm, background, PL_intensity ...
+		//2) WAVES: wavelength_nm, BG_498_502, PL_498_502,BG_502_506,PL_502_506 ...
+		//3) WAVES: wavelength_nm, background, PL_498_502,PL_502_506,PL_506_510,PL_510_514 ...
+		PLEMd2statsLoad(stats, strPLEM)
+		//Bedingungen:
+		//1)+3) stats.strbackground = single --> wavexists(background)
+		//2) stats. strBackground = multiple --> count(BG_*) = count (PL_*)
+		SetDataFolder $(gstrMapsFolder + ":" + strPLEM + ":ORIGINAL:")
+		strswitch(stats.strbackground)
+			case "single":	// literal string or string constant
+				wave wavBackground = background
+				if (WaveExists(wavBackground))					
+					strWavePL = WaveList("PL_*",";","")
+					numItems = ItemsInList(strWavePL, ";")
+					strWaveBG = ""
+					for (i=0; i<numItems; i+=1)
+						strWaveBG += "background;"
+					endfor
+				endif
+				wave wavBackground = $("")
+				break	// without this execution "falls through" to val=1
+			case "multiple":
+				strWaveBG = WaveList("BG_*",";","")
+				strWavePL = WaveList("PL_*",";","")
+				break
+			default:
+				break
+		endswitch
+		if (ItemsInList(strWaveBG, ";") == ItemsInList(strWavePL, ";"))
+			print "PLEMd2BuildMaps: Building Maps..."
+		endif				
+		PLEMd2statsSave(stats)
+	endif
+	SetDataFolder $strSaveDataFolder	
+End
+
+Function PLEMd2ExtractInfo(wavIBW, stats)
+	Wave wavIBW
+	Struct PLEMd2Stats &stats
+	
+	stats.strDate 		= PLEMd2ExtractSearch(wavIBW, "Date")
+	stats.strUser 		= PLEMd2ExtractSearch(wavIBW, "User")
+	stats.strFileName 	= PLEMd2ExtractSearch(wavIBW, "File")
+	stats.strSlit 		= PLEMd2ExtractSearch(wavIBW, "Slit")
+	stats.strGrating	= PLEMd2ExtractSearch(wavIBW, "Grating")
+	stats.strFilter		= PLEMd2ExtractSearch(wavIBW, "Filter")
+	stats.strCentralWL= PLEMd2ExtractSearch(wavIBW, "Central")
+	stats.strDetector	= PLEMd2ExtractSearch(wavIBW, "Detector")
+	stats.strCooling	= PLEMd2ExtractSearch(wavIBW, "Cooling")
+	stats.strExposure	= PLEMd2ExtractSearch(wavIBW, "Exposure")
+	stats.strBinning	= PLEMd2ExtractSearch(wavIBW, "Binning")
+	stats.strWlFirst	= PLEMd2ExtractSearch(wavIBW, "Wavelength First Pixel")
+	stats.strWlLast	= PLEMd2ExtractSearch(wavIBW, "Wavelength Last Pixel")
+	stats.strWlDelta	= PLEMd2ExtractSearch(wavIBW, "Delta")
+	stats.strOperation	= PLEMd2ExtractSearch(wavIBW, "Operation")
+	stats.strPower	= PLEMd2ExtractSearch(wavIBW, "Power")
+	stats.strWlShort	= PLEMd2ExtractSearch(wavIBW, "Short")
+	stats.strWlLong	= PLEMd2ExtractSearch(wavIBW, "Long")
+	stats.strWlBP		= PLEMd2ExtractSearch(wavIBW, "Bandpass")
+	stats.strWlStep	= PLEMd2ExtractSearch(wavIBW, "Step")
+	stats.strNumberScans	= PLEMd2ExtractSearch(wavIBW, "Number")
+	struct PLEMd2Background Background
+	PLEMd2ExtractBackground(wavIBW, Background)
+	
+	stats.strBackground	= Background.strBackground
+	stats.strShutter		= Background.strShutter
+End
+
+Structure PLEMd2Background
+	String strShutter
+	String strBackground
+EndStructure
+
+Function/S PLEMd2ExtractBackground(wavIBW, Background)
+	Wave wavIBW
+	Struct PLEMd2Background &Background
+
+	String strHeader, strReadLine, strItem
+	Variable i, numCount
+	
+	String strReturn = ""
+	
+	strHeader = Note(wavIBW)
+	numCount = ItemsInList(strHeader, "\r\n")
+
+	i=0
+	do
+		i += 1
+		strReadLine = StringFromList(i, strHeader, "\r\n")
+	while ((StringMatch(strReadLine, "*Background*") != 1) && (i<numCount))
+
+	if (StringMatch(strReadLine, "*Multiple*"))
+		background.strBackground = "multiple"
+	else
+		background.strBackground = "single"
+	endif
+	
+	if (StringMatch(strReadLine, "*Open*"))
+		Background.strShutter = "open"
+	else
+		Background.strShutter = "closed"
+	endif
+End
+
+
+
+Function/S PLEMd2ExtractSearch(wavIBW, strFind)
+	Wave wavIBW
+	String strFind
+
+	String strHeader, strReadLine, strItem
+	Variable i, numCount
+	
+	String strReturn = ""
+	
+	strHeader = Note(wavIBW)
+	numCount = ItemsInList(strHeader, "\r\n")
+
+	i=0
+	do
+		i += 1
+		strReadLine = StringFromList(i, strHeader, "\r\n")
+	while ((StringMatch(strReadLine, "*" + strFind + "*") != 1) && (i<numCount))
+
+	strItem = StringFromList(1, strReadLine, ":")
+	if ((strlen(strReadLine)>0) && (strlen(strItem)>0))
+		strReturn = strItem
+	else
+		strReturn = ""
+	endif	
+	
+	return strReturn
+End
+
+Function/S PLEMd2ExtractWaveList(wavIBW)
+	Wave wavIBW
+	
+	String strHeader, strList, strReadLine, strItem
+	Variable i, numCount, numItem
+	
+	strHeader=note(wavIBW)
+	numCount = ItemsInList(strHeader, "\r\n")
+
+	i=0
+	do
+		i += 1
+		strReadLine = StringFromList(i, strHeader, "\r\n")
+	while ((StringMatch(strReadLine, "*Wave Assignment:*") != 1) && (i<numCount))
+
+	strList = ""
+	for (i=i; i<numCount; i+=1)	
+		strReadLine = StringFromList(i, strHeader, "\r\n")
+		strItem = StringFromList(1, strReadLine, " ")
+		numItem = str2num(StringFromList(0, strReadLine, " "))
+		if ((strlen(strReadLine)>0) && (strlen(strItem)>0))
+			strList=AddListItem(strItem, strList, ";", numItem)			
+		endif
+	endfor
+
+	return strList
 End
 
 Function PLEMd2Panel()
@@ -331,10 +576,12 @@ Function PLEMd2d1Import(numKillWavesAfterwards)
 	//if (ParamIsDefault(numKillWavesAfterwards))
 	//	numKillWavesAfterwards = 0
 	//endif
-	PLEMd2init()
+	PLEMd2init()	
 	SVAR gstrMapsFolder
 	SVAR gstrMapsAvailable
 	NVAR gnumMapsAvailable	
+
+	Struct PLEMd2Stats stats
 	
 	String strMaps, strMap
 	String strWaves, strWave
@@ -360,9 +607,13 @@ Function PLEMd2d1Import(numKillWavesAfterwards)
 		if (DataFolderExists(strMap))
 			SetDataFolder $strMap
 		else
-			NewDataFolder/O/S $strMap //option O probably not needed.
+			NewDataFolder/S $strMap
+			PLEMd2statsInitialize(strMap)
 		endif
-
+		
+		//Load Stats
+		PLEMd2statsLoad(stats, strMap)
+		
 		//Copy Original Data Waves in Subdirectory
 		strSearchStrings	 = "_bg_;_corr_m_;_"
 		numSearchstrings = PLEMd2GetListSize(strSearchStrings)		
@@ -391,7 +642,7 @@ Function PLEMd2d1Import(numKillWavesAfterwards)
 		wave wavPLEM = $("root:PLE_map_" + strMap)		
 		if (WaveExists(wavPLEM))
 			numTotalX	= DimSize(wavPLEM,0)
-			numTotalY	= DimSize(wavPLEM,1)		
+			numTotalY	= DimSize(wavPLEM,1)
 			if (numTotalY != numFiles)
 				print "PLEMd2d1Import: Size Missmatch in Map: " + strMap
 			endif
@@ -483,12 +734,51 @@ Function PLEMd2d1Import(numKillWavesAfterwards)
 		endif
 		
 		//Append Current Map to List of Maps
-		if (FindListItem(strMap,gstrMapsAvailable) == -1)
-			gstrMapsAvailable += strMap + ";"
-		endif
+		PLEMd2AddMap(strMap)
+		//Save stats.
+		PLEMd2statsAction(stats, strMap)
+		PLEMd2statsSave(stats)
 	endfor
-	gnumMapsAvailable = PLEMd2GetListSize(gstrMapsAvailable)
 	PLEMd2exit()
+End
+
+Function PLEMd2AddMap(strMap)
+	String strMap
+
+	String strSaveDataFolder = GetDataFolder(1)		
+	SetDataFolder root:
+	SVAR gstrPLEMd2root
+	SetDataFolder $gstrPLEMd2root
+	SVAR gstrMapsAvailable	
+	NVAR gnumMapsAvailable
+
+	if (FindListItem(strMap,gstrMapsAvailable) == -1)
+		gstrMapsAvailable += strMap + ";"
+	endif
+	gnumMapsAvailable = PLEMd2GetListSize(gstrMapsAvailable)
+
+	SetDataFolder $strSaveDataFolder	
+End
+
+Function PLEMd2MapExists(strMap)
+	String strMap
+
+	String strSaveDataFolder = GetDataFolder(1)		
+	SetDataFolder root:
+	SVAR gstrPLEMd2root
+	SetDataFolder $gstrPLEMd2root
+	SVAR gstrMapsAvailable	
+	NVAR gnumMapsAvailable
+
+	Variable numReturn = 0
+	
+	if (FindListItem(strMap,gstrMapsAvailable) != -1)
+		numReturn = 1
+	endif
+
+	SetDataFolder $strSaveDataFolder	
+	
+	return numReturn
 End
 
 Function PLEMd2d1Kill(strWhichOne)
@@ -563,7 +853,7 @@ Function PLEMd2d1Kill(strWhichOne)
 					Killstrings/Z $("root:"+strAvailable)
 					break			
 				default:
-					//we don't know what type it was so we check every type again. We have strong cpus!
+					//we don't know what type it was so we kill every type. We have strong cpus!
 					if (WaveExists($("root:"+strAvailable)))
 						Killwaves/Z $("root:"+strAvailable)
 					endif
@@ -607,7 +897,6 @@ Function/S PLEMd2d1Find()
 		endif			
 		numIndex += 1
 	while (1)
-	
 	SetDataFolder $strSaveDataFolder	
 	return strPLEMd1
 End
@@ -776,7 +1065,7 @@ Structure PLEMd2stats
 	String strSlit, strGrating, strFilter, strCentralWL
 	String strDetector, strCooling, strExposure, strBinning, strWlFirst, strWlLast, strWlDelta
 	String strOperation, strPower, strWlShort, strWlLong, strWlBP, strWlStep, strNumberScans
-	String strBackground
+	String strBackground, strShutter
 	
 Endstructure
 
@@ -789,7 +1078,7 @@ Function PLEMd2statsCreateVar()
 	String/G gstrSlit, gstrGrating, gstrFilter, gstrCentralWL
 	String/G gstrDetector, gstrCooling, gstrExposure, gstrBinning, gstrWlFirst, gstrWlLast, gstrWlDelta
 	String/G gstrOperation, gstrPower, gstrWlShort, gstrWlLong, gstrWlBP, gstrWlStep, gstrNumberScans
-	String/G gstrBackground
+	String/G gstrBackground, gstrShutter
 End
 
 Function PLEMd2statsLoad(stats, strMap)
@@ -817,7 +1106,7 @@ Function PLEMd2statsLoad(stats, strMap)
 		SVAR/Z gstrSlit, gstrGrating, gstrFilter, gstrCentralWL
 		SVAR/Z gstrDetector, gstrCooling, gstrExposure, gstrBinning, gstrWlFirst, gstrWlLast, gstrWlDelta
 		SVAR/Z gstrOperation, gstrPower, gstrWlShort, gstrWlLong, gstrWlBP, gstrWlStep, gstrNumberScans
-		SVAR/Z gstrBackground
+		SVAR/Z gstrBackground, gstrShutter
 
 		stats.numVersion = SelectNumber(NVAR_Exists(gnumVersion),0,gnumVersion)
 		
@@ -861,7 +1150,8 @@ Function PLEMd2statsLoad(stats, strMap)
 		stats.strWlStep	= gstrWlStep
 		stats.strNumberScans = gstrNumberScans
 		
-		stats.strBackground = gstrBackground
+		stats.strBackground 	= gstrBackground
+		stats.strShutter		= SelectString(SVAR_Exists(gstrShutter),"",gstrShutter)
 		
 		SetDataFolder $strSaveDataFolder
 	endif
@@ -890,7 +1180,7 @@ Function PLEMd2statsSave(stats)
 		SVAR gstrSlit, gstrGrating, gstrFilter, gstrCentralWL
 		SVAR gstrDetector, gstrCooling, gstrExposure, gstrBinning, gstrWlFirst, gstrWlLast, gstrWlDelta
 		SVAR gstrOperation, gstrPower, gstrWlShort, gstrWlLong, gstrWlBP, gstrWlStep, gstrNumberScans
-		SVAR gstrBackground
+		SVAR gstrBackground, gstrShutter
 		
 		gnumVersion		= stats.numVersion
 		
@@ -935,6 +1225,7 @@ Function PLEMd2statsSave(stats)
 		gstrNumberScans	= stats.strNumberScans
 		
 		gstrBackground	= stats.strBackground
+		gstrShutter		= stats.strShutter
 		
 		SetDataFolder $strSaveDataFolder
 	endif
@@ -966,7 +1257,7 @@ Function PLEMd2statsInitialize(strPLEM)
 			SetDataFolder $strDataFolder
 			strDataFolder += ":INFO"
 			if (!DataFolderExists(strDataFolder))
-				print "PLEMd2statsInitVar: Initializing Info Variables for Maps"
+				print "PLEMd2statsInitVar: Initializing Info Variables for Map"
 				NewDataFolder/O/S $strDataFolder
 				PLEMd2statsCreateVar()
 			else
