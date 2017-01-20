@@ -1,5 +1,5 @@
 //Programmed by Matthias Kastner
-//Date 01.04.2015
+//Date 02.04.2015
 //Version 0: 	Skeleton
 //Version 1: 	Global Settings in binary file
 //Version 2: 	Dynamic paths for User Procedures directory
@@ -12,11 +12,12 @@
 //Version 7:	Created Mapper for Parameters for Map-INFO-Folder
 //Version 8:	Loading Procedure for Igor Binary files. Extract Data to ORIGINAL-Folder
 //Version 9: 	Save Files to BACKGROUND, PLEM, usw. 
-//			ToDo. Create Panel for Map-Updates, Save Parameters for Map-Update in PARAMETER-Folder.
+//			ToDo. Create Panel for Map-Updates
+//			ToDo: Mapper for Global Vars in PLEMd2 Folder?
 
 #pragma rtGlobals=3		// Use modern global access method and strict wave access.
 
-static Constant PLEMd2Version = 0801
+static Constant PLEMd2Version = 0905
 static StrConstant PLEMd2PackageName = "PLEM-displayer2"
 static StrConstant PLEMd2PrefsFileName = "PLEMd2Preferences.bin"
 static StrConstant PLEMd2WorkingDir = "C:users:matthias:Meine Dokumente:Dokumente:programs:local:igor:matthias:PLEM-displayer2:"
@@ -47,21 +48,21 @@ Menu "PLE-Map", dynamic //create menu bar entry
 	End
 	SubMenu "PLEMap"
 	//List all available Maps in current project (max 15)
-		PLEMd2Menu(0), PLEMd2Display(0)
-		PLEMd2Menu(1), PLEMd2Display(1)
-		PLEMd2Menu(2), PLEMd2Display(2)
-		PLEMd2Menu(3), PLEMd2Display(3)
-		PLEMd2Menu(4), PLEMd2Display(4)		
-		PLEMd2Menu(5), PLEMd2Display(5)
-		PLEMd2Menu(6), PLEMd2Display(6)
-		PLEMd2Menu(7), PLEMd2Display(7)
-		PLEMd2Menu(8), PLEMd2Display(8)
-		PLEMd2Menu(9), PLEMd2Display(9)
-		PLEMd2Menu(10), PLEMd2Display(10)
-		PLEMd2Menu(11), PLEMd2Display(11)
-		PLEMd2Menu(12), PLEMd2Display(12)
-		PLEMd2Menu(13), PLEMd2Display(13)
-		PLEMd2Menu(14), PLEMd2Display(14)		
+		PLEMd2Menu(0), PLEMd2DisplayByNum(0)
+		PLEMd2Menu(1), PLEMd2DisplayByNum(1)
+		PLEMd2Menu(2), PLEMd2DisplayByNum(2)
+		PLEMd2Menu(3), PLEMd2DisplayByNum(3)
+		PLEMd2Menu(4), PLEMd2DisplayByNum(4)		
+		PLEMd2Menu(5), PLEMd2DisplayByNum(5)
+		PLEMd2Menu(6), PLEMd2DisplayByNum(6)
+		PLEMd2Menu(7), PLEMd2DisplayByNum(7)
+		PLEMd2Menu(8), PLEMd2DisplayByNum(8)
+		PLEMd2Menu(9), PLEMd2DisplayByNum(9)
+		PLEMd2Menu(10), PLEMd2DisplayByNum(10)
+		PLEMd2Menu(11), PLEMd2DisplayByNum(11)
+		PLEMd2Menu(12), PLEMd2DisplayByNum(12)
+		PLEMd2Menu(13), PLEMd2DisplayByNum(13)
+		PLEMd2Menu(14), PLEMd2DisplayByNum(14)		
 	End
 End
 
@@ -95,7 +96,7 @@ Function PLEMd2initVar()
 	NewDataFolder/O/S	 $gstrPLEMd1root
 	String/G gstrPLEMd1PathBase	 = SpecialDirPath("Igor Pro User Files", 0, 0, 0 ) + "User Procedures:Korrekturkurven:"	
 	//Load only specified waves from folder. Leave blank if all waves from directory above should be loaded.	
-	String/G gstrPLEMd1CorrectionToLoad = "500 nm Blaze & CCD @ +20 °C.txt;500 nm Blaze & CCD @ -90 °C.txt;1200 nm Blaze & CCD @ +20 °C.txt;1200 nm Blaze & CCD @ -90 °C.txt;1250 nm Blaze & CCD @ -90 °C.txt;1200 nm Blaze & InGaAs @ +25 °C.txt;1200 nm Blaze & InGaAs @ -90 °C.txt;1250 nm Blaze & InGaAs @ -90 °C.txt;760 nm Strahlenteiler (Chroma) Abs.txt;760 nm Strahlenteiler (Chroma) Em.txt"
+	String/G gstrPLEMd1CorrectionToLoad = "500 nm Blaze & CCD @ +20 Â°C.txt;500 nm Blaze & CCD @ -90 Â°C.txt;1200 nm Blaze & CCD @ +20 Â°C.txt;1200 nm Blaze & CCD @ -90 Â°C.txt;1250 nm Blaze & CCD @ -90 Â°C.txt;1200 nm Blaze & InGaAs @ +25 Â°C.txt;1200 nm Blaze & InGaAs @ -90 Â°C.txt;1250 nm Blaze & InGaAs @ -90 Â°C.txt;760 nm Strahlenteiler (Chroma) Abs.txt;760 nm Strahlenteiler (Chroma) Em.txt"
 	//the following waves and strings should be loaded to root if PLEMd1 is loaded. We use the info for killing the vars.
 	String/G gstrPLEMd1strings = "file_path;file_extension;file_name;left_PLE;right_PLE;"
 	String/G gstrPLEMd1variables = "background;start_wl;end_wl;increment;multiple;single;chroma_abs;chroma_em;nkt;power;photon;fermi_parameter;grating_detector;checked_a;checked_b;checked_c;checked_d;checked_e;mode;"
@@ -136,7 +137,7 @@ Function/S PLEMd2Menu(numPLEM)
 				strReturn = StringFromList(numPLEM, gstrMapsAvailable)
 			endif
 		endif
-	//no else needed. strReturn was delclared initially. So fall back to that.	
+	//no else needed. strReturn was declared initially. So fall back to that.	Try() - Except() Could be an option here.
 	endif
 	
 	return strReturn
@@ -173,6 +174,8 @@ Function PLEMd2isInit()
 End
 
 //The Init and exit Function should be called before and after a menu item is called.
+//strSaveDataFolder should be handled differently. Global Vars are not suitable here.
+
 Function PLEMd2init()
 	//remember current path
 	String strSaveDataFolder = GetDataFolder(1)			
@@ -257,6 +260,7 @@ Function PLEMd2Open()
 	String strFile, strFileName, strFileType
 	String strWave, strWaveExtract, strDataFolder, strWaveNames
 	String strPLEM
+	Variable numCurrentMap = -1
 	Variable numTotalX, numTotalY	
 	Variable i,j
 	
@@ -280,17 +284,17 @@ Function PLEMd2Open()
 				LoadWave/N/Q strFile
 				if (PLEMd2GetListSize(S_waveNames) == 1)
 					strDataFolder = GetDataFolder(1)
-					strWave	= strDataFolder + StringFromList(0, S_waveNames) //should be IBW					
-					PLEMd2AddMap(strPLEM)
+					strWave	= strDataFolder + StringFromList(0, S_waveNames) //should be IBW
+					numCurrentMap = PLEMd2AddMap(strPLEM)
 					PLEMd2statsInitialize(strPLEM)
 					PLEMd2statsLoad(stats, strPLEM)
+					stats.numPLEM = numCurrentMap
 					stats.strPLEM = strPLEM					
 					SetDataFolder $strDataFolder
 					Duplicate/O $strWave IBW
 					KillWaves/Z $strWave
 					stats.strPath = strDataFolder
 					strWave = strDataFolder + "IBW"					
-					stats.strFullPath = strWave
 					SetDataFolder $strDataFolder
 					NewDataFolder/S ORIGINAL
 					strDataFolder = GetDataFolder(1)
@@ -314,7 +318,8 @@ Function PLEMd2Open()
 						PLEMd2ExtractInfo(wavIBW, stats)
 						PLEMd2statsSave(stats)
 						PLEMd2BuildMaps(strPLEM)
-						
+						PLEMd2MapsAppendNotes(strPLEM, wavIBW)
+						PLEMd2Display(stats.strPLEM)						
 					endif
 				else
 					print "PLEMd2Open: Error Loaded more than one or no Wave from Igor Binary File"
@@ -323,7 +328,7 @@ Function PLEMd2Open()
 				break	// without this execution "falls through" to val=1
 			case "txt":
 				//LoadWave/A/D/J/K=1/L={1,2,0,0,2}/O/Q strFile
-				print "PLEMd2Open: Could not open file"
+				print "PLEMd2Open: Could not open file. Not yet implemented."
 				break
 			default:
 				print "PLEMd2Open: Could not open file"
@@ -335,6 +340,27 @@ Function PLEMd2Open()
 	PLEMd2exit()
 	PLEMd2SavePackagePrefs(prefs)
 End
+
+Function PLEMd2MapsAppendNotes(strPLEM, wavIBW)
+	String strPLEM
+	Wave wavIBW
+	
+	Struct PLEMd2stats stats
+	String strHeader
+	
+	PLEMd2statsLoad(stats, strPLEM)
+	
+	strHeader = Note(wavIBW)
+	Note/K/NOCR stats.wavPLEM strHeader
+	Note/K/NOCR stats.wavMeasure strHeader
+	Note/K/NOCR stats.wavBackground strHeader
+	Note/K/NOCR stats.wavCorrected strHeader
+	Note/K/NOCR stats.wavExcitation strHeader
+	Note/K/NOCR stats.wavPower strHeader
+	Note/K/NOCR stats.wavPhoton strHeader
+	Note/K/NOCR stats.wavWavelength strHeader
+End
+strHeader = Note(wavIBW)
 
 Function PLEMd2BuildMaps(strPLEM)
 	String strPLEM
@@ -348,21 +374,25 @@ Function PLEMd2BuildMaps(strPLEM)
 	
 	Struct PLEMd2stats stats
 	String strWaveBG, strWavePL
-	Variable i, numItems
+
+	Variable numExcitationFrom, numExcitationTo
+
+	String strDataFolderOriginal
+	Variable i,j, numItems
 	
 	if (PLEMd2MapExists(strPLEM))
-		print "PLEMd2BuildMaps: Map found"
 		//There are 3 different structures for DATA
 		//1) WAVES: wavelength_nm, background, PL_intensity ...
 		//2) WAVES: wavelength_nm, BG_498_502, PL_498_502,BG_502_506,PL_502_506 ...
 		//3) WAVES: wavelength_nm, background, PL_498_502,PL_502_506,PL_506_510,PL_510_514 ...
 		PLEMd2statsLoad(stats, strPLEM)
+		print "PLEMd2BuildMaps: Map found. Background is " + stats.strbackground		
 		//Bedingungen:
 		//1)+3) stats.strbackground = single --> wavexists(background)
 		//2) stats. strBackground = multiple --> count(BG_*) = count (PL_*)
 		SetDataFolder $(gstrMapsFolder + ":" + strPLEM + ":ORIGINAL:")
 		strswitch(stats.strbackground)
-			case "single":	// literal string or string constant
+			case "single":
 				wave wavBackground = background
 				if (WaveExists(wavBackground))					
 					strWavePL = WaveList("PL_*",";","")
@@ -373,17 +403,104 @@ Function PLEMd2BuildMaps(strPLEM)
 					endfor
 				endif
 				wave wavBackground = $("")
-				break	// without this execution "falls through" to val=1
+				break
 			case "multiple":
 				strWaveBG = WaveList("BG_*",";","")
-				strWavePL = WaveList("PL_*",";","")
+				strWavePL = WaveList("PL_*",";","")				
 				break
 			default:
 				break
 		endswitch
-		if (ItemsInList(strWaveBG, ";") == ItemsInList(strWavePL, ";"))
-			print "PLEMd2BuildMaps: Building Maps..."
-		endif				
+		wave wavWavelength = wavelength_nm
+		if (!WaveExists(wavWavelength))
+			print "PLEMd2BuildMaps: Wavelength Wave not found within ORIGINAL Folder"
+			return 0
+		endif
+		print "PLEMd2BuildMaps: Building Maps..."
+		if (ItemsInList(strWaveBG, ";") != ItemsInList(strWavePL, ";"))
+			print "PELMd2BuildMaps: Error Size Missmatch between Background Maps and PL Maps"
+			return 0
+		else
+			stats.numPLEMTotalY = ItemsInList(strWavePL, ";")
+		endif
+		stats.strPLEM 	= strPLEM
+		stats.strPath		= gstrMapsFolder + ":" + strPLEM + ":"
+		
+		strDataFolderOriginal 	= stats.strPath + "ORIGINAL:"
+		stats.numPLEMTotalX = NumPnts($(StringFromList(0,strWaveBG)))
+		
+		SetDataFolder $(stats.strPath)
+		if (stats.numPLEMTotalY==1)
+			stats.numCalibrationMode = 1
+			Make/D/O/N=(stats.numPLEMTotalX) PLEM
+			Make/D/O/N=(stats.numPLEMTotalX) MEASURE
+			Make/D/O/N=(stats.numPLEMTotalX) BACKGROUND
+			Make/D/O/N=(stats.numPLEMTotalX) CORRECTED						
+		else
+			stats.numCalibrationMode = 0
+			Make/D/O/N=((stats.numPLEMTotalX),(stats.numPLEMTotalY)) PLEM
+			Make/D/O/N=((stats.numPLEMTotalX),(stats.numPLEMTotalY)) MEASURE
+			Make/D/O/N=((stats.numPLEMTotalX),(stats.numPLEMTotalY)) BACKGROUND
+			Make/D/O/N=((stats.numPLEMTotalX),(stats.numPLEMTotalY)) CORRECTED			
+		endif
+		Make/D/O/N=(stats.numPLEMTotalX) WAVELENGTH
+		Make/D/O/N=(stats.numPLEMTotalY) EXCITATION
+		Make/D/O/N=(stats.numPLEMTotalY) POWER
+		Make/D/O/N=(stats.numPLEMTotalY) PHOTON
+
+		//reload wave references
+		PLEMd2statsSave(stats)
+		PLEMd2statsLoad(stats, strPLEM) 
+
+		stats.numPLEMLeftX	= wavWavelength[0]
+		stats.numPLEMRightX	= wavWavelength[(stats.numPLEMTotalX-1)]
+		stats.numPLEMDeltaX	= 0
+
+		for (j=0; j<stats.numPLEMTotalX; j+=1)
+			stats.wavWavelength[j] = wavWavelength[j]
+			stats.numPLEMDeltaX += wavWavelength[j]
+		endfor
+		stats.numPLEMDeltaX /= stats.numPLEMTotalX
+		
+		if (stats.numCalibrationMode == 1)
+			stats.wavExcitation = 0
+			stats.wavPower 		= 0	//ToDo
+			stats.wavPhoton	 	= 0	//ToDo
+			wave wavMeasure 	= $(strDataFolderOriginal + StringFromList(0,strWavePL))
+			wave wavBackground 	= $(strDataFolderOriginal + StringFromList(0,strWaveBG))			
+			stats.wavMeasure		= wavMeasure
+			stats.wavBackground	= wavBackground
+			stats.wavCorrected	= 0 //ToDo
+			stats.numPLEMDeltaY 	= stats.numExcitationStep
+			stats.numPLEMBottomY 	= stats.numExcitationStart
+			stats.numPLEMTopY 		= stats.numExcitationEnd
+			SetScale/I x stats.numPLEMLeftX, stats.numPLEMRightX, "", stats.wavPLEM, stats.wavMeasure, stats.wavBackground, stats.wavCorrected
+		else
+			stats.numPLEMBottomY	= (str2num(StringFromList(1,StringFromList(0,strWavePL),"_")) + str2num(StringFromList(2,StringFromList(0,strWavePL),"_"))) / 2
+			stats.numPLEMTopY		= (str2num(StringFromList(1,StringFromList((stats.numPLEMTotalY-1),strWavePL),"_")) + str2num(StringFromList(2,StringFromList((stats.numPLEMTotalY-1),strWavePL),"_"))) / 2		
+			stats.numPLEMDeltaY 	= 0		
+			for (i=0; i<stats.numPLEMTotalY; i+=1)
+				numExcitationFrom 	= str2num(StringFromList(1,StringFromList(i,strWavePL),"_"))
+				numExcitationTo 		= str2num(StringFromList(2,StringFromList(i,strWavePL),"_"))
+				stats.numPLEMDeltaY	+= numExcitationFrom + numExcitationTo
+				stats.wavExcitation[i] 	= (numExcitationFrom + numExcitationFrom) / 2
+				stats.wavPower[i] 		= 0	//ToDo
+				stats.wavPhoton[i] 	= 0	//ToDo
+				wave wavMeasure 	= $(strDataFolderOriginal + StringFromList(i,strWavePL))
+				wave wavBackground 	= $(strDataFolderOriginal + StringFromList(i,strWaveBG))			
+				for (j=0; j<stats.numPLEMTotalX; j+=1)
+					stats.wavMeasure[j][i] 		= wavMeasure[j]
+					stats.wavBackground[j][i] 	= wavBackground[j]
+					stats.wavCorrected[j][i]		= 0 //ToDo: Will Contain Grating Correction
+				endfor
+				wave wavBackground 	= $("")
+				wave wavMeasure 	= $("")
+			endfor
+			stats.numPLEMDeltaY /= stats.numPLEMTotalY * 2
+			SetScale/I x stats.numPLEMLeftX, stats.numPLEMRightX, "", stats.wavPLEM, stats.wavMeasure, stats.wavBackground, stats.wavCorrected
+			SetScale/I y stats.numPLEMBottomY, stats.numPLEMTopY, "", stats.wavPLEM, stats.wavMeasure, stats.wavBackground, stats.wavCorrected			
+		endif
+		stats.wavPLEM = stats.wavMeasure - stats.wavBackground
 		PLEMd2statsSave(stats)
 	endif
 	SetDataFolder $strSaveDataFolder	
@@ -392,28 +509,32 @@ End
 Function PLEMd2ExtractInfo(wavIBW, stats)
 	Wave wavIBW
 	Struct PLEMd2Stats &stats
+	String strFound
 	
 	stats.strDate 		= PLEMd2ExtractSearch(wavIBW, "Date")
 	stats.strUser 		= PLEMd2ExtractSearch(wavIBW, "User")
 	stats.strFileName 	= PLEMd2ExtractSearch(wavIBW, "File")
-	stats.strSlit 		= PLEMd2ExtractSearch(wavIBW, "Slit")
+	stats.numSlit 		= str2num(PLEMd2ExtractSearch(wavIBW, "Slit"))
 	stats.strGrating	= PLEMd2ExtractSearch(wavIBW, "Grating")
 	stats.strFilter		= PLEMd2ExtractSearch(wavIBW, "Filter")
-	stats.strCentralWL= PLEMd2ExtractSearch(wavIBW, "Central")
+	stats.numCentralWL= str2num(PLEMd2ExtractSearch(wavIBW, "Central"))
 	stats.strDetector	= PLEMd2ExtractSearch(wavIBW, "Detector")
 	stats.strCooling	= PLEMd2ExtractSearch(wavIBW, "Cooling")
-	stats.strExposure	= PLEMd2ExtractSearch(wavIBW, "Exposure")
+	stats.numExposure= str2num(PLEMd2ExtractSearch(wavIBW, "Exposure"))
 	stats.strBinning	= PLEMd2ExtractSearch(wavIBW, "Binning")
-	stats.strWlFirst	= PLEMd2ExtractSearch(wavIBW, "Wavelength First Pixel")
-	stats.strWlLast	= PLEMd2ExtractSearch(wavIBW, "Wavelength Last Pixel")
-	stats.strWlDelta	= PLEMd2ExtractSearch(wavIBW, "Delta")
+	stats.numEmissionStart = str2num(PLEMd2ExtractSearch(wavIBW, "Wavelength First Pixel"))
+	stats.numEmissionEnd	= str2num(PLEMd2ExtractSearch(wavIBW, "Wavelength Last Pixel"))
+	stats.numEmissionDelta= str2num(PLEMd2ExtractSearch(wavIBW, "Delta"))
 	stats.strOperation	= PLEMd2ExtractSearch(wavIBW, "Operation")
 	stats.strPower	= PLEMd2ExtractSearch(wavIBW, "Power")
-	stats.strWlShort	= PLEMd2ExtractSearch(wavIBW, "Short")
-	stats.strWlLong	= PLEMd2ExtractSearch(wavIBW, "Long")
+	strFound = PLEMd2ExtractSearch(wavIBW, "Min Central")	
+	stats.numExcitationStart = (strlen(strFound) == 0) ? str2num(PLEMd2ExtractSearch(wavIBW, "Short Wavelength")) : str2num(strFound)
+	strFound = PLEMd2ExtractSearch(wavIBW, "Max Central")		
+	stats.numExcitationEnd = (strlen(strFound) == 0) ? str2num(PLEMd2ExtractSearch(wavIBW, "Long Wavelength")) : str2num(strFound)
+	strFound = PLEMd2ExtractSearch(wavIBW, "Step")
+	stats.numExcitationStep = (strlen(strFound) == 0) ? abs(stats.numExcitationStart - stats.numExcitationEnd) : str2num(strFound)
 	stats.strWlBP		= PLEMd2ExtractSearch(wavIBW, "Bandpass")
-	stats.strWlStep	= PLEMd2ExtractSearch(wavIBW, "Step")
-	stats.strNumberScans	= PLEMd2ExtractSearch(wavIBW, "Number")
+	stats.numNumberScans	= str2num(PLEMd2ExtractSearch(wavIBW, "Number"))
 	struct PLEMd2Background Background
 	PLEMd2ExtractBackground(wavIBW, Background)
 	
@@ -752,12 +873,20 @@ Function PLEMd2AddMap(strMap)
 	SVAR gstrMapsAvailable	
 	NVAR gnumMapsAvailable
 
-	if (FindListItem(strMap,gstrMapsAvailable) == -1)
-		gstrMapsAvailable += strMap + ";"
-	endif
-	gnumMapsAvailable = PLEMd2GetListSize(gstrMapsAvailable)
+	Variable numFind
 
+	numFind = FindListItem(strMap,gstrMapsAvailable)
+	if (numFind == -1)
+		gstrMapsAvailable += strMap + ";"
+		numFind = PLEMd2GetListSize(gstrMapsAvailable)
+		gnumMapsAvailable = numFind
+	else
+		gnumMapsAvailable = PLEMd2GetListSize(gstrMapsAvailable)
+	endif
+	
+	
 	SetDataFolder $strSaveDataFolder	
+	return numFind
 End
 
 Function PLEMd2MapExists(strMap)
@@ -1056,17 +1185,19 @@ Structure PLEMd2stats
 	//wavPLEM is the wave reference to :PLEM
 	String strPLEM, strFullPath, strPath
 	Variable numPLEM
-	wave wavPLEM
+	Wave wavPLEM, wavMeasure, wavBackground, wavCorrected, wavExcitation
+	Wave wavWavelength, wavPower, wavPhoton
 		
 	Variable numPLEMTotalX, numPLEMLeftX, numPLEMDeltaX, numPLEMRightX
 	Variable numPLEMTotalY, numPLEMBottomY, numPLEMDeltaY, numPLEMTopY
 	
 	String strDate, strUser, strFileName
-	String strSlit, strGrating, strFilter, strCentralWL
-	String strDetector, strCooling, strExposure, strBinning, strWlFirst, strWlLast, strWlDelta
-	String strOperation, strPower, strWlShort, strWlLong, strWlBP, strWlStep, strNumberScans
-	String strBackground, strShutter
-	
+	String strGrating, strFilter, strDetector, strCooling, strBinning
+	String strOperation, strPower, strWlBP	
+	String strBackground, strShutter	
+	Variable numSlit, numCentralWL, numExposure, numEmissionStart, numEmissionEnd, numEmissionDelta
+	Variable numExcitationStart, numExcitationEnd, numExcitationStep, numNumberScans
+	Variable numCalibrationMode
 Endstructure
 
 Function PLEMd2statsCreateVar()
@@ -1074,11 +1205,14 @@ Function PLEMd2statsCreateVar()
 	String/G gstrPLEM, gstrFullPath, gstrPath
 	Variable/G gnumPLEMTotalX, gnumPLEMLeftX, gnumPLEMDeltaX, gnumPLEMRightX
 	Variable/G gnumPLEMTotalY, gnumPLEMBottomY, gnumPLEMDeltaY, gnumPLEMTopY
-	String/G gstrDate, gstrUser, gstrFileName
-	String/G gstrSlit, gstrGrating, gstrFilter, gstrCentralWL
-	String/G gstrDetector, gstrCooling, gstrExposure, gstrBinning, gstrWlFirst, gstrWlLast, gstrWlDelta
-	String/G gstrOperation, gstrPower, gstrWlShort, gstrWlLong, gstrWlBP, gstrWlStep, gstrNumberScans
+	String/G gstrDate, gstrUser, gstrFileName, gstrGrating, gstrFilter
+	Variable/G gnumSlit, gnumCentralWL
+	String/G gstrDetector, gstrCooling, gnumExposure, gstrBinning
+	Variable/G gnumEmissionStart, gnumEmissionEnd, gnumEmissionDelta
+	String/G gstrOperation, gstrPower, gstrWlBP
+	Variable/G gnumExcitationStart, gnumExcitationEnd, gnumExcitationStep, gnumNumberScans
 	String/G gstrBackground, gstrShutter
+	Variable/G gnumCalibrationMode
 End
 
 Function PLEMd2statsLoad(stats, strMap)
@@ -1088,26 +1222,44 @@ Function PLEMd2statsLoad(stats, strMap)
 	SVAR gstrPLEMd2root = root:gstrPLEMd2root
 	SVAR gstrMapsFolder = $(gstrPLEMd2root + ":gstrMapsFolder")
 	
-	String strMapInfoFolder = gstrMapsFolder + ":" + strMap + ":INFO"
-	
+	String strMapFolder = gstrMapsFolder + ":" + strMap + ":"
+	String strMapInfoFolder = strMapFolder + "INFO:"
+	String strSaveDataFolder
+
+	if (!DataFolderExists(strMapFolder))
+		print "PLEMd2statsLoad: No Map Folder found for map: " + strMap
+	else
+		strSaveDataFolder = GetDataFolder(1)
+		SetDataFolder $strMapFolder
+		Wave stats.wavPLEM = PLEM, stats.wavMeasure = MEASURE
+		Wave stats.wavBackground = BACKGROUND, stats.wavCorrected = CORRECTED
+		Wave stats.wavExcitation = EXCITATION
+		Wave stats.wavWavelength = WAVELENGTH
+		Wave stats.wavPower = POWER, stats.wavPhoton = PHOTON
+		SetDataFolder $strSaveDataFolder
+	endif	
 	if (!DataFolderExists(strMapInfoFolder))
 		print "PLEMd2statsLoad: Wrong call. Please Initialize stats with PLEMd2statsInitialize(" + strMap + ")"
 		//PLEMd2statsInitialize(strMap) Load is called from initialize. --> Circle reference!
 	endif
 	if (DataFolderExists(strMapInfoFolder))
 		//it could be that someone deleted all the vars. never mind this case. Maybe later with /Z flag and NVAR_Exists
-		String strSaveDataFolder = GetDataFolder(1)
+		strSaveDataFolder = GetDataFolder(1)
 		SetDataFolder $strMapInfoFolder		
 		NVAR/Z gnumPLEM, gnumVersion
 		SVAR/Z gstrPLEM, gstrFullPath, gstrPath
 		NVAR/Z gnumPLEMTotalX, gnumPLEMLeftX, gnumPLEMDeltaX, gnumPLEMRightX
 		NVAR/Z gnumPLEMTotalY, gnumPLEMBottomY, gnumPLEMDeltaY, gnumPLEMTopY
 		SVAR/Z gstrDate, gstrUser, gstrFileName
-		SVAR/Z gstrSlit, gstrGrating, gstrFilter, gstrCentralWL
-		SVAR/Z gstrDetector, gstrCooling, gstrExposure, gstrBinning, gstrWlFirst, gstrWlLast, gstrWlDelta
-		SVAR/Z gstrOperation, gstrPower, gstrWlShort, gstrWlLong, gstrWlBP, gstrWlStep, gstrNumberScans
+		NVAR/Z gnumSlit, gnumCentralWL, gnumExposure
+		SVAR/Z gstrGrating, gstrFilter
+		SVAR/Z gstrDetector, gstrCooling, gstrBinning
+		NVAR/Z gnumEmissionStart, gnumEmissionEnd, gnumEmissionDelta
+		SVAR/Z gstrOperation, gstrPower, gstrWlBP
+		NVAR/Z gnumExcitationStart, gnumExcitationEnd, gnumNumberScans, gnumExcitationStep
 		SVAR/Z gstrBackground, gstrShutter
-
+		NVAR/Z gnumCalibrationMode
+		
 		stats.numVersion = SelectNumber(NVAR_Exists(gnumVersion),0,gnumVersion)
 		
 		stats.numPLEM 	= SelectNumber(NVAR_Exists(gnumPLEM),-1,gnumPLEM)
@@ -1129,29 +1281,30 @@ Function PLEMd2statsLoad(stats, strMap)
 		stats.strUser		= gstrUser
 		stats.strFileName 	= gstrFileName
 		
-		stats.strSlit 		= gstrSlit
+		stats.numSlit 		= gnumSlit
 		stats.strGrating 	= gstrGrating
 		stats.strFilter 		= gstrFilter
-		stats.strCentralWl	= gstrCentralWL
+		stats.numCentralWL	= gnumCentralWL
 		
 		stats.strDetector	= gstrDetector
 		stats.strCooling	= gstrCooling
-		stats.strExposure	= gstrExposure
+		stats.numExposure	= gnumExposure
 		stats.strBinning	= gstrBinning
-		stats.strWlFirst	= gstrWlFirst
-		stats.strWlLast	= gstrWlLast
-		stats.strWlDelta	= gstrWlDelta
+		stats.numEmissionStart	= gnumEmissionStart
+		stats.numEmissionEnd	= gnumEmissionEnd
+		stats.numEmissionDelta	= gnumEmissionDelta
 		
 		stats.strOperation	= gstrOperation
 		stats.strPower 	= gstrPower
-		stats.strWlShort	= gstrWlShort
-		stats.strWlLong	= gstrWlLong
+		stats.numExcitationStart	= gnumExcitationStart
+		stats.numExcitationEnd	= gnumExcitationEnd
 		stats.strWlBP		= gstrWlBP
-		stats.strWlStep	= gstrWlStep
-		stats.strNumberScans = gstrNumberScans
+		stats.numExcitationStep	= gnumExcitationStep
+		stats.numNumberScans = gnumNumberScans
 		
 		stats.strBackground 	= gstrBackground
 		stats.strShutter		= SelectString(SVAR_Exists(gstrShutter),"",gstrShutter)
+		stats.numCalibrationMode = SelectNumber(NVAR_Exists(gnumCalibrationMode),-1,gnumCalibrationMode)
 		
 		SetDataFolder $strSaveDataFolder
 	endif
@@ -1164,23 +1317,45 @@ Function PLEMd2statsSave(stats)
 	SVAR gstrPLEMd2root = root:gstrPLEMd2root
 	SVAR gstrMapsFolder = $(gstrPLEMd2root + ":gstrMapsFolder")
 	
-	String strMapInfoFolder = gstrMapsFolder + ":" + strMap + ":INFO"
-	
+	String strMapFolder = gstrMapsFolder + ":" + strMap + ":"
+	String strMapInfoFolder = strMapFolder + "INFO:"
+	String strSaveDataFolder
+
+	if (!DataFolderExists(strMapFolder))
+		print "PLEMd2statsSave: No Map Folder found for map: " + strMap
+	else
+		strSaveDataFolder = GetDataFolder(1)
+		SetDataFolder $strMapFolder
+		//wavPLEM = PLEM, wavMeasure = MEASURE, wavBackground = BACKGROUND, wavCorrected = CORRECTED
+		//wavWavelength = WAVELENGTH, wavPower = POWER, wavPhoton = PHOTON
+		//wavPLEM 	= stats.wavPLEM
+		//wavMeasure 	= stats.wavMeasure
+		//Waveexists(stats.wavBackground) ? wavBackground = stats.wavBackground
+		//wavCorrected 	= stats.wavCorrected
+		//wavWavelength 	= stats.wavWavelength
+		//wavPower 	= stats.wavPower
+		//wavPhoton 	= stats.wavPhoton
+		SetDataFolder $strSaveDataFolder
+	endif
 	if (!DataFolderExists(strMapInfoFolder))
 		print "PLEMd2statsSave: No Info Folder found for map: " + strMap
 	else
 		//it could be that someone deleted all the vars. never mind this case.
-		String strSaveDataFolder = GetDataFolder(1)
+		strSaveDataFolder = GetDataFolder(1)
 		SetDataFolder $strMapInfoFolder
-		NVAR gnumPLEM, gnumVersion
-		SVAR gstrPLEM, gstrFullPath, gstrPath
-		NVAR gnumPLEMTotalX, gnumPLEMLeftX, gnumPLEMDeltaX, gnumPLEMRightX
-		NVAR gnumPLEMTotalY, gnumPLEMBottomY, gnumPLEMDeltaY, gnumPLEMTopY
-		SVAR gstrDate, gstrUser, gstrFileName
-		SVAR gstrSlit, gstrGrating, gstrFilter, gstrCentralWL
-		SVAR gstrDetector, gstrCooling, gstrExposure, gstrBinning, gstrWlFirst, gstrWlLast, gstrWlDelta
-		SVAR gstrOperation, gstrPower, gstrWlShort, gstrWlLong, gstrWlBP, gstrWlStep, gstrNumberScans
-		SVAR gstrBackground, gstrShutter
+		NVAR/Z gnumPLEM, gnumVersion
+		SVAR/Z gstrPLEM, gstrFullPath, gstrPath
+		NVAR/Z gnumPLEMTotalX, gnumPLEMLeftX, gnumPLEMDeltaX, gnumPLEMRightX
+		NVAR/Z gnumPLEMTotalY, gnumPLEMBottomY, gnumPLEMDeltaY, gnumPLEMTopY
+		SVAR/Z gstrDate, gstrUser, gstrFileName
+		NVAR/Z gnumSlit, gnumCentralWL, gnumExposure
+		SVAR/Z gstrGrating, gstrFilter
+		SVAR/Z gstrDetector, gstrCooling, gstrBinning
+		NVAR/Z gnumEmissionStart, gnumEmissionEnd, gnumEmissionDelta
+		SVAR/Z gstrOperation, gstrPower, gstrWlBP
+		NVAR/Z gnumExcitationStart, gnumExcitationEnd, gnumExcitationStep, gnumNumberScans
+		SVAR/Z gstrBackground, gstrShutter
+		NVAR/Z gnumCalibrationMode
 		
 		gnumVersion		= stats.numVersion
 		
@@ -1203,30 +1378,31 @@ Function PLEMd2statsSave(stats)
 		gstrUser			= stats.strUser
 		gstrFileName 		= stats.strFileName
 		
-		gstrSlit 		= stats.strSlit
+		gnumSlit 		= stats.numSlit
 		gstrGrating 	= stats.strGrating
 		gstrFilter 	= stats.strFilter
-		gstrCentralWl	= stats.strCentralWL
+		gnumCentralWL	= stats.numCentralWL
 		
 		gstrDetector	= stats.strDetector
 		gstrCooling	= stats.strCooling
-		gstrExposure	= stats.strExposure
+		gnumExposure	= stats.numExposure
 		gstrBinning	= stats.strBinning
-		gstrWlFirst	= stats.strWlFirst
-		gstrWlLast	= stats.strWlLast
-		gstrWlDelta	= stats.strWlDelta
+		gnumEmissionStart	= stats.numEmissionStart
+		gnumEmissionEnd	= stats.numEmissionEnd
+		gnumEmissionDelta	= stats.numEmissionDelta
 		
 		gstrOperation		= stats.strOperation
 		gstrPower 		= stats.strPower
-		gstrWlShort		= stats.strWlShort
-		gstrWlLong		= stats.strWlLong
+		gnumExcitationStart	= stats.numExcitationStart
+		gnumExcitationEnd	= stats.numExcitationEnd
 		gstrWlBP		= stats.strWlBP
-		gstrWlStep		= stats.strWlStep
-		gstrNumberScans	= stats.strNumberScans
+		gnumExcitationStep		= stats.numExcitationStep
+		gnumNumberScans	= stats.numNumberScans
 		
 		gstrBackground	= stats.strBackground
 		gstrShutter		= stats.strShutter
-		
+		gnumCalibrationMode = stats.numCalibrationMode
+
 		SetDataFolder $strSaveDataFolder
 	endif
 End
@@ -1365,16 +1541,6 @@ Function PLEMd2statsCalculate(stats)
 	print "PLEMd2statsCalculate: Size: "+num2str(stats.numPLEMTotalX) + "x" + num2str(stats.numPLEMTotalY) + " Data Points."
 End
 
-//return igor path to PLE-Map with the Number numPLEM in gstrMapsAvailable
-Function/S PLEMd2FullPath(numPLEM)
-	Variable numPLEM	
-	PLEMd2init()
-	SVAR gstrMapsAvailable, gstrMapsFolder
-	String strMap = gstrMapsFolder + ":" + StringFromList(numPLEM, gstrMapsAvailable) + ":PLEM"
-	PLEMd2exit()
-	return strMap
-End
-
 Function/S PLEMd2FullPathByString(strPLEM)
 	String strPLEM	
 
@@ -1391,7 +1557,7 @@ Function/S PLEMd2FullPathByString(strPLEM)
 End
 
 //Get number of map. in Menu-List.
-Function PLEMd2strPLEM2numPLEM(strPLEM)
+Function PLEMd2numPLEM(strPLEM)
 	String strPLEM
 
 	String strSaveDataFolder = GetDataFolder(1)
@@ -1402,17 +1568,77 @@ Function PLEMd2strPLEM2numPLEM(strPLEM)
 
 	Variable numFound
 	numFound = FindListItem(strPLEM, gstrMapsAvailable)	
+	
 	SetDataFolder $strSaveDataFolder
 	return numFound
 End
 
-Function PLEMd2Display(numPLEM)
+Function/S PLEMd2strPLEM(numPLEM)
 	Variable numPLEM
-	PLEMd2statsMenu(numPLEM)//recalc stats
-	String strMap	
-	strMap = PLEMd2FullPath(numPLEM)
-	Display	
-	AppendImage $strMap
+	
+	String strSaveDataFolder = GetDataFolder(1)	
+	SVAR gstrPLEMd2root = root:gstrPLEMd2root
+	SetDataFolder $gstrPLEMd2root
+	SVAR gstrMapsAvailable, gstrMapsFolder
+	
+	String strMap = StringFromList(numPLEM, gstrMapsAvailable)
+
+	SetDataFolder $strSaveDataFolder	
+	return strMap
+End
+
+Function PLEMd2DisplayByNum(numPLEM)
+	Variable numPLEM
+	if (numPLEM < 0)
+		print "PLEMd2DisplayByNum: Wrong Function Call numPLEM out of range"
+		return 0
+	endif	
+	String strPLEM
+	strPLEM = PLEMd2strPLEM(numPLEM)
+	PLEMd2Display(strPLEM)
+End
+
+Function PLEMd2Display(strPLEM)
+	String strPLEM
+	
+	Struct PLEMd2Stats stats
+	String winPLEM
+	PLEMd2statsLoad(stats, strPLEM)
+		
+	if (strlen(stats.strFullPath)==0)
+		print "PLEMd2Display: Calculating Path for PLEM " + strPLEM
+		PLEMd2statsMap(stats, strPLEM)
+	endif
+	if (WaveExists($(stats.strFullPath)))
+		if (stats.numCalibrationMode == 1)
+			Display $(stats.strFullPath)
+			winPLEM = "win_" + stats.strPLEM
+			DoWindow/F $winPLEM
+			if (V_Flag == 0)
+				DoWindow/C/T $winPLEM, stats.strPLEM
+				ModifyGraph/W=$winPLEM standoff=0
+				SetAxis/W=$winPLEM/A left
+				Label/W=$winPLEM left "intensity / a.u."
+				Label/W=$winPLEM bottom "wavelength / nm (Excitation at "+num2str(stats.numExcitationStart)+"-"+num2str(stats.numExcitationEnd)+")"
+			endif
+		else
+			Display	
+			AppendImage $stats.strFullPath
+			winPLEM = "win_" + stats.strPLEM
+			DoWindow/F $winPLEM
+			if (V_Flag == 0)
+				DoWindow/C/T $winPLEM, stats.strPLEM
+				ModifyImage/W=$winPLEM ''#0 ctab= {*,*,Terrain256,0}
+				ModifyGraph/W=$winPLEM standoff=0
+				SetAxis/W=$winPLEM/A left
+				Label/W=$winPLEM left "center of excitation / nm"
+				Label/W=$winPLEM bottom "emission / nm"				
+			endif
+			
+		endif
+	else
+		print "PLEMd2Display: Wave Not Found"
+	endif
 End
 
 // Global Preferences stored in igor Folder
