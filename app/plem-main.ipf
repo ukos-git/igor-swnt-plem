@@ -1,5 +1,5 @@
 //Programmed by Matthias Kastner
-//Date 02.04.2015
+//Date 28.07.2015
 //Version 0: 	Skeleton
 //Version 1: 	Global Settings in binary file
 //Version 2: 	Dynamic paths for User Procedures directory
@@ -17,14 +17,20 @@
 //Version 12: Corrections in PLEMd2BuildMaps: DeltaX, DeltaY (should be moved to a PLEMd2statsCalculate)
 //ToDelete: PLEMd2statsMenu, PLEMd2statsAction, PLEMd2statsMap (used in display), PLEMd2statsCalculate
 //before PLEMd2BuildMaps is called there has to be a separate call to calculate the stats (separate to header)
+//Version 13: Added buggy power correction for all waves in Data Folder PLEMd2PowerCorrection and DataLoop
+//Added Power Correction Wave, search for next correction wave which is available.
+//hier weiterarbeiten. Interpolate
+// Datei noch nicht endgültig als v13 gespeichert.
+
+
 
 //			ToDo. Create Panel for Map-Updates
 //			ToDo: Mapper for Global Vars in PLEMd2 Folder?
-
+//			ToDo: Power Correction
 
 #pragma rtGlobals=3		// Use modern global access method and strict wave access.
 
-static Constant PLEMd2Version = 1105
+static Constant PLEMd2Version = 1302
 static StrConstant PLEMd2PackageName = "PLEM-displayer2"
 static StrConstant PLEMd2PrefsFileName = "PLEMd2Preferences.bin"
 static StrConstant PLEMd2WorkingDir = "C:users:matthias:Meine Dokumente:Documents:programs:local:igor:matthias:PLEM-displayer2:"
@@ -140,7 +146,12 @@ Function PLEMd2initVar()
 	NewDataFolder/O/S	 $gstrPLEMd1root
 	String/G gstrPLEMd1PathBase	 = SpecialDirPath("Igor Pro User Files", 0, 0, 0 ) + "User Procedures:Korrekturkurven:"	
 	//Load only specified waves from folder. Leave blank if all waves from directory above should be loaded.	
-	String/G gstrPLEMd1CorrectionToLoad = "500 nm Blaze & CCD @ +20 Ã‚Â°C.txt;500 nm Blaze & CCD @ -90 Ã‚Â°C.txt;1200 nm Blaze & CCD @ +20 Ã‚Â°C.txt;1200 nm Blaze & CCD @ -90 Ã‚Â°C.txt;1250 nm Blaze & CCD @ -90 Ã‚Â°C.txt;1200 nm Blaze & InGaAs @ +25 Ã‚Â°C.txt;1200 nm Blaze & InGaAs @ -90 Ã‚Â°C.txt;1250 nm Blaze & InGaAs @ -90 Ã‚Â°C.txt;760 nm Strahlenteiler (Chroma) Abs.txt;760 nm Strahlenteiler (Chroma) Em.txt"
+	String/G gstrPLEMd1CorrectionToLoad = "1200 nm Blaze & CCD @ +20 °C.txt;" + "1200 nm Blaze & CCD @ -90 °C.txt;"
+	gstrPLEMd1CorrectionToLoad += "1200 nm Blaze & InGaAs @ +25 °C.txt;" + "1200 nm Blaze & InGaAs @ -25 °C.txt;" + "1200 nm Blaze & InGaAs @ -90 °C.txt;"
+	gstrPLEMd1CorrectionToLoad += "1250 nm Blaze & CCD @ -90 °C.txt;" + "1250 nm Blaze & InGaAs @ -90 °C.txt;" 	
+	gstrPLEMd1CorrectionToLoad += "500 nm Blaze & CCD @ +20 °C.txt;" + "500 nm Blaze & CCD @ -90 °C.txt;"
+	gstrPLEMd1CorrectionToLoad += "760 nm Strahlenteiler (Chroma) Abs.txt;" + "760 nm Strahlenteiler (Chroma) Em.txt;"
+	
 	//the following waves and strings should be loaded to root if PLEMd1 is loaded. We use the info for killing the vars.
 	String/G gstrPLEMd1strings = "file_path;file_extension;file_name;left_PLE;right_PLE;"
 	String/G gstrPLEMd1variables = "background;start_wl;end_wl;increment;multiple;single;chroma_abs;chroma_em;nkt;power;photon;fermi_parameter;grating_detector;checked_a;checked_b;checked_c;checked_d;checked_e;mode;"
@@ -313,17 +324,15 @@ Function PLEMd2Open()
 	if (strlen(strFile)>0)
 		strFileName = ParseFilePath(3, strFile, ":", 0, 0)
 		strFileType  = ParseFilePath(4, strFile, ":", 0, 0)
-		strFileName = ReplaceString(" ",strFileName,"")
+
+		strPLEM = ReplaceString(" ",strFileName,"")
 		//ReplaceString(replaceThisStr, inStr, withThisStr  [, caseSense  [, maxReplace ] ])
 		//The ReplaceString function returns inStr  after replacing any instance of replaceThisStr  with withThisStr.
 		SetDataFolder $gstrMapsFolder
-		i=0
-		do
-			strDataFolder = strFileName + num2str(i)
-			i += 1;			
-		while (DataFolderExists(strDataFolder)!=0)
-		strPLEM = strDataFolder
-		NewDataFolder/S $strDataFolder
+		if (DataFolderExists(strPLEM))
+			print "PLEMd2Open: DataFolder already exists. Overwriting."
+		endif
+		NewDataFolder/O/S $strPLEM
 		strDataFolder = GetDataFolder(1)
 		print "PLEMd2Open: Using Data Folder " + strDataFolder
 		strswitch(strFileType)
@@ -374,7 +383,7 @@ Function PLEMd2ProcessIBW(strPLEM)
 	strDataFolder = stats.strPath
 	strWave = strDataFolder + "IBW"
 	SetDataFolder $strDataFolder
-	NewDataFolder/S ORIGINAL
+	NewDataFolder/O/S ORIGINAL
 	strDataFolder = GetDataFolder(1)
 	wave wavIBW = $(strWave)
 	if (WaveExists(wavIBW)==0)
@@ -404,7 +413,7 @@ Function PLEMd2ProcessIBW(strPLEM)
 		endfor
 		PLEMd2ExtractInfo(wavIBW, stats)
 		String strPower = PLEMd2ExtractPower(wavIBW)
-		Make/N=(ItemsInList(strPower, ";")) PW
+		Make/O/N=(ItemsInList(strPower, ";")) PW
 		PW = str2num(StringFromList(p, strPower, ";"))
 		PLEMd2statsSave(stats)
 		PLEMd2BuildMaps(strPLEM)
@@ -552,17 +561,23 @@ Function PLEMd2BuildMaps(strPLEM)
 		endfor
 		stats.numPLEMDeltaX /= (stats.numPLEMTotalX - 1)
 
-		//wave wavPower 	= $(strDataFolderOriginal + "PW")
-		//stats.wavPower 		= wavPower
-		stats.wavPhoton 		= 0	//ToDo
+		String strGratingWave = PLEMd2d1CorrectionConstructor(stats.numGrating,stats.numDetector,stats.numCooling, "correction")
 		
 		if (stats.numCalibrationMode == 1)
-			stats.wavExcitation = 0
+			stats.wavExcitation 	= (stats.numEmissionStart + stats.numEmissionEnd) / 2
 			wave wavMeasure 	= $(strDataFolderOriginal + StringFromList(0,strWavePL))
 			wave wavBackground 	= $(strDataFolderOriginal + StringFromList(0,strWaveBG))			
 			stats.wavMeasure		= wavMeasure
 			stats.wavBackground	= wavBackground
-			stats.wavCorrected	= 0 //ToDo
+			if (waveExists($strGratingWave))
+				String wl_temp = GetWavesDataFolder(stats.wavWavelength,2)
+				print "hier weitermachen"
+				//interpolate2/T=1/I=3/Y=correction_L/X=stats.wavWavelength, $(strGratingWave + WL), $strGratingWave
+				stats.wavCorrected	= 0 //ToDo
+			else
+				print "PLEMd2BuildMaps: Correction not possible. Please Add apropriate Correction Waves"
+				stats.wavCorrected	= 0 //ToDo
+			endif
 			stats.numPLEMDeltaY 	= stats.numEmissionDelta
 			stats.numPLEMBottomY 	= stats.numEmissionStart
 			stats.numPLEMTopY 		= stats.numEmissionEnd
@@ -590,6 +605,12 @@ Function PLEMd2BuildMaps(strPLEM)
 			SetScale/I x stats.numPLEMLeftX, stats.numPLEMRightX, "", stats.wavPLEM, stats.wavMeasure, stats.wavBackground, stats.wavCorrected
 			SetScale/I y stats.numPLEMBottomY, stats.numPLEMTopY, "", stats.wavPLEM, stats.wavMeasure, stats.wavBackground, stats.wavCorrected			
 		endif
+		
+		// power correction 
+		// requires stats.wavExcitation
+		wave wavPower 	= $(strDataFolderOriginal + "PW")
+		stats.wavPower 		= wavPower
+		stats.wavPhoton 		= (stats.wavPower * 1e-6) / (6.62606957e-34 * 2.99792458e+8 / (stats.wavExcitation * 1e-9)) 		// power is in uW and Excitation is in nm
 		stats.wavPLEM = stats.wavMeasure - stats.wavBackground
 		PLEMd2statsSave(stats)
 	endif
@@ -1296,6 +1317,7 @@ Function PLEMd2d1Init()
 		strFiles = IndexedFile(path,-1,".txt")
 		numFiles = PLEMd2GetListSize(strFiles)
 		print "PLEMd2d1Init: found " + num2str(numFiles) + " files"
+		print strFiles
 		numPLEMd1CorrectionWaves = PLEMd2GetListSize(gstrPLEMd1CorrectionToLoad)
 
 		//if there were no waves specified, load all Files from the current directory.		
@@ -1341,9 +1363,162 @@ Function PLEMd2d1Init()
 	endif
 End
 
+Function/S PLEMd2d1CorrectionWave(strWave)
+	//WAVES:wavelength_chroma_abs,transmission_chroma_abs,wavelength_chroma_em,transmission_chroma_em,WL_500_CCD_minus90,E_500_CCD_minus90,WL_1250_CCD_minus90,E_1250_CCD_minus90,WL_1200_CCD_plus20,E_1200_CCD_plus20,WL_1200_InGaAs_minus25,E_1200_InGaAs_minus25,WL_1200_InGaAs_minus90,E_1200_InGaAs_minus90,WL_1200_CCD_minus90,E_1200_CCD_minus90,WL_1200_InGaAs_plus25,E_1200_InGaAs_plus25,WL_1250_InGaAs_minus90,E_1250_InGaAs_minus90,WL_500_CCD_plus20,E_500_CCD_plus20;
+	String strWave
+	String strSaveDataFolder = GetDataFolder(1)
+
+	PLEMd2d1Init()
+	SVAR gstrPLEMd2root = root:gstrPLEMd2root
+	SVAR gstrPLEMd1root = $(gstrPLEMd2root + ":gstrPLEMd1root")
+	SetDataFolder $gstrPLEMd1root
+	SVAR gstrPLEMd1CorrectionAvailable
+
+	String strReturn = ""
+	
+	strReturn = gstrPLEMd1root + ":" + strWave
+	wave wavReturn = $strReturn
+	
+	SetDataFolder $strSaveDataFolder
+	
+	if (WaveExists(wavReturn))
+		return GetWavesDataFolder(wavReturn, 2)
+	else
+		print "PLEMd2d1CorrectionWave: correction (" + strWave +") not found in gstrPLEMd1CorrectionAvailable"
+		return ""
+	endif
+End
+
+Function/S PLEMd2d1CorrectionConstructor(intGrating, intDetector, intTemperature, strOutputWave)
+	Variable intGrating, intTemperature, intDetector
+	String strOutputWave
+	
+	String strDetector = ""
+	//Grating:
+	//1 = 500nm Blaze
+	//2 = 800nm Blaze
+	//3 = 1250nm Blaze
+	if (intGrating == 1)
+		intGrating = 500
+	elseif (intGrating == 2)
+		intGrating = 800
+	elseif (intGrating == 3)
+		intGrating = 1250
+	else
+		print "PLEMd2d1CorrectionConstructor: Grating not found"
+		intGrating = 0
+	endif
+	//Filter:
+	//1 = Langpass 320nm
+	//2 = Langpass 475nm
+	//3 = Langpass 715nm
+	//4 = Langpass 900nm
+	//5 = Leer
+	print "PLEMd2d1CorrectionConstructor: Filter not handled"
+	//Detektor:
+	//0 = CCD
+	//1 = InGaAs	
+	if (intDetector == 0)
+		strDetector = "CCD"
+	elseif (intDetector == 1)
+		strDetector = "InGaAs"
+	else
+		print "PLEMd2d1CorrectionConstructor: Detector not found"
+		strDetector = ""
+	endif
+
+	String strReturn = ""
+	String strConstructor = ""
+	String strX, strY
+	Variable lenReturn = 0
+	Variable intTemperatureNear = 0
+	Variable intTemperatureRange = 0
+	String strConstructorNear = ""
+	
+	strConstructor = num2str(intGrating) + "_" + strDetector + "_"
+	intTemperature = floor(intTemperature/10)*10
+	intTemperatureRange = 0
+	strConstructorNear = strConstructor
+	do
+		intTemperatureNear = intTemperature - intTemperatureRange
+		if (intTemperatureNear<0)
+			strConstructorNear = strConstructor + "minus"
+		elseif  (intTemperatureNear>0)
+			strConstructorNear = strConstructor + "plus"
+		else
+			strConstructorNear = strConstructor
+		endif
+		strConstructorNear += num2str(abs(intTemperatureNear))
+		strReturn = PLEMd2d1CorrectionWave("WL_" + strConstructorNear)
+		lenReturn =strlen(strReturn)
+		if (lenReturn == 0)
+			intTemperatureRange *= -1
+			intTemperatureNear = intTemperature - intTemperatureRange
+			if (intTemperatureNear<0)
+				strConstructorNear = strConstructor + "minus"
+			elseif  (intTemperatureNear>0)
+				strConstructorNear = strConstructor + "plus"
+			else
+				strConstructorNear = strConstructor
+			endif
+			strConstructorNear += num2str(abs(intTemperatureNear))
+			strReturn = PLEMd2d1CorrectionWave("WL_" + strConstructorNear)
+			lenReturn = strlen(strReturn)		
+		endif
+		if (intTemperatureNear<-273)
+			print "PLEMd2d1CorrectionConstructor: Correction Wave not found."
+			return ""
+		endif
+		if (lenReturn == 0)
+			intTemperatureRange = abs(intTemperatureRange) + 5
+		else
+			break
+		endif
+	while (lenReturn == 0)	
+	strConstructor = strConstructorNear
+	print "PLEMd2d1CorrectionConstructor: Found Correction Wave " + strConstructor
+	
+	strX = PLEMd2d1CorrectionWave("WL_" + strConstructor)
+	strY =  PLEMd2d1CorrectionWave("E_" + strConstructor)
+	
+	//strReturn = PLEMd2SetWaveScale($strX, $strY, strOutputWave)
+	duplicate/O $strY $strOutputWave
+	duplicate/O $strX $(strOutputWave + "_WL")
+	return GetWavesDataFolder($strOutputWave,2)
+End
 
 
-//Helper Functions
+
+//Helper Function
+
+Function/S PLEMd2SetWaveScale(wavX, wavY, strOut)
+	Wave wavX, wavY
+	String strOut
+	Variable numSize, numOffset, numDelta
+	if (!waveExists(wavX) && !waveExists(wavY))
+		print "Error: Waves Do not exist or user cancelled at Prompt"
+		return ""		
+	endif
+	
+	if (!WaveExists($strOut))
+		Duplicate/O wavY $strOut
+	else
+		if (!StringMatch(GetWavesDataFolder(wavY, 2),GetWavesDataFolder($strOut, 2)))
+			Duplicate/O wavY $strOut		
+		endif
+	endif
+	wave wavOut = $strOut
+	
+
+	numSize		= DimSize(wavX,0)
+	numOffset	= wavX[0]
+	numDelta 	= (wavX[(numSize-1)] - wavX[0]) / (numSize-1)
+	
+	SetScale/P x, numOffset, numDelta, "", wavOut
+	SetScale/P y, 1, 1, "", wavOut
+
+	return GetWavesDataFolder(wavOut, 2)
+End
 
 //Function returns the Number of Items in a list.
 //only items of size greater than zero are counted. ItemsInList returns even those.
@@ -1903,4 +2078,27 @@ static Function PLEMd2SavePackagePrefs(prefs)
 	STRUCT PLEMd2Prefs &prefs
 	//print "PLEMd2:SavePackagePrefs: Saving to " + SpecialDirPath("Packages", 0, 0, 0)
 	SavePackagePreferences PLEMd2PackageName, PLEMd2PrefsFileName, PLEMd2PrefsRecordID, prefs
+End
+
+
+//adapt these two Functions delete them by time
+
+Function PLEMd2PowerCorrection(wavName)
+wave wavName
+Variable numPower
+numPower = str2num(StringFromList(0,PLEMd2ExtractPower(wavName)))
+if (numPower>0)
+	wavName/=numPower
+	Print "corrected Wave " + GetWavesDataFolder(wavName, 2) + " to Power " + num2str(numPower)
+endif
+End
+
+Function PLEMd2DataLoop()
+string strWaves, strWave
+variable i
+strWaves = WaveList("*",";","")
+for (i=0;i<ItemsInList(strWaves);i+=1)	
+	strWave = StringFromList(i, strWaves)
+	PLEMd2PowerCorrection($strWave)
+endfor
 End
