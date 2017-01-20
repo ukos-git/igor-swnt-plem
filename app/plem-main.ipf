@@ -23,6 +23,7 @@
 //Version 13.3: Mainly Code CleanUp and more consistency to stats class.
 //Version 13.4: Converted Photon, Power, Grating to 2D-Waves, clean up of code, separation of Build from ProcessIBW
 //Version 13.5: Fixed Grating Correction. Some Cleanup. Deleted PLEMd2statsMenu, PLEMd2statsAction, PLEMd2statsMap, PLEMd2statsCalculate PLEMd2PowerCorrection etc.
+//Version 14: Changed Wavelength wave and scaling. Clean Igor wavescaling is now done and measured wave is interpolated.
 
 // 	ToDo: Correction Path is only at old dest
 //	ToDo: Maybe Delete Old Iport PLEMd2d1 function for further releases
@@ -31,7 +32,7 @@
 
 #pragma rtGlobals=3		// Use modern global access method and strict wave access.
 
-static Constant PLEMd2Version = 1350
+static Constant PLEMd2Version = 1400
 static StrConstant PLEMd2PackageName = "PLEM-displayer2"
 static StrConstant PLEMd2PrefsFileName = "PLEMd2Preferences.bin"
 static StrConstant PLEMd2WorkingDir0 = "C:users:matthias:Meine Dokumente:Documents:programs:local:igor:matthias:PLEM-displayer2:"
@@ -247,7 +248,8 @@ Function PLEMd2init()
 	SetDataFolder $gstrPLEMd2root
 	
 	//Save Original Path in Project Root
-	SVAR gstrSaveDataFolder	= strSaveDataFolder		
+	SVAR gstrSaveDataFolder	
+	gstrSaveDataFolder = strSaveDataFolder		
 End
 
 Function PLEMd2reset()
@@ -446,11 +448,11 @@ Function PLEMd2MapsAppendNotes(strPLEM)
 	
 	strHeader = Note(stats.wavIBW)
 	// copy header to 2d-waves
-	Note/K/NOCR stats.wavPLEM 		strHeader
-	Note/K/NOCR stats.wavMeasure	strHeader
+	Note/K/NOCR stats.wavPLEM 			strHeader
+	Note/K/NOCR stats.wavMeasure		strHeader
 	Note/K/NOCR stats.wavBackground 	strHeader
 	Note/K/NOCR stats.wavGrating 		strHeader
-	Note/K/NOCR stats.wavPower 		strHeader
+	Note/K/NOCR stats.wavPower 			strHeader
 	Note/K/NOCR stats.wavPhoton 		strHeader
 End
 
@@ -562,12 +564,13 @@ Function PLEMd2BuildMaps(strPLEM)
 		PLEMd2statsSave(stats)
 		PLEMd2statsLoad(stats, strPLEM) 
 		
-		// Interpolate Wavelength wave to equal spaces.
-		interpolate2 /T=1 /I=1 /Y=stats.wavWavelength wavWavelength		
-		stats.numPLEMDeltaX = PLEMd2Delta(stats.wavWavelength)
-		// update stats to new borders.
-		stats.numPLEMLeftX 	= stats.wavWavelength[0]		
-		stats.numPLEMRightX 	= stats.wavWavelength[(stats.numPLEMTotalX-1)]
+		// update stats
+		stats.numPLEMLeftX 		= wavWavelength[0]		
+		stats.numPLEMRightX 	= wavWavelength[(stats.numPLEMTotalX-1)]
+		stats.numPLEMDeltaX 	= PLEMd2Delta(wavWavelength)
+		
+		// create new wavelength wave with equal spaces.
+		stats.wavWavelength = stats.numPLEMLeftX + p * stats.numPLEMDeltaX
 		
 		// Grating Waves (requires wavWavelength)
 		String strGratingWave = PLEMd2d1CorrectionConstructor(stats.numGrating,stats.numDetector,stats.numCooling)
@@ -581,6 +584,7 @@ Function PLEMd2BuildMaps(strPLEM)
 			PLEMd2statsLoad(stats, strPLEM) //reload wave references. Do not save computer power! :-)
 		endif
 		
+		// different handling for spectra in calibration mode (1) and for maps (0)
 		if (stats.numCalibrationMode == 1)
 			// Original Waves: load
 			wave wavMeasure 	= $(stats.strDataFolderOriginal + StringFromList(0,strWavePL))
@@ -691,11 +695,12 @@ Function PLEMd2Delta(wavInput)
 			wavDeltaWave[i] = (wavInput[(i+1)] - wavInput[i])
 		endfor
 		WaveStats/Q/W wavDeltaWave
-		KillWaves/Z  wavDeltaWave
+		//KillWaves/Z  wavDeltaWave
 		wave M_WaveStats
 		numDelta = M_WaveStats[3] //average
+		print "Wave " + nameofwave(wavInput) + " has a Delta of " + num2str(numDelta) + " with a standard deviation of " + num2str(M_WaveStats[4])
 		//if X-Wave is not equally spaced, set the half minimum delta at all points.
-		// controll by calculating statistical error 2*sigma/rms
+		// controll by calculating statistical error 2*sigma/rms		
 		if ((2*M_WaveStats[4]/M_WaveStats[5]*100)>5)
 			print "PLEMd2Delta: Wave is not equally spaced. Check Code and calculate new Delta."
 			// minimum
@@ -1474,14 +1479,14 @@ Function/S PLEMd2d1CorrectionWave(strWave)
 	String strReturn = ""
 	
 	strReturn = gstrPLEMd1root + ":" + strWave
-	wave wavReturn = $strReturn
 	
 	SetDataFolder $strSaveDataFolder
 	
-	if (WaveExists(wavReturn))
+	if (WaveExists($strReturn))
+		wave wavReturn = $strReturn
 		return GetWavesDataFolder(wavReturn, 2)
 	else
-		//Too much noise in command prompt
+		//Too much noise in command prompt if every wave would be displayed
 		//print "PLEMd2d1CorrectionWave: correction (" + strWave +") not found in gstrPLEMd1CorrectionAvailable"
 		return ""
 	endif
@@ -1691,13 +1696,46 @@ Function PLEMd2statsLoad(stats, strMap)
 	else
 		strSaveDataFolder = GetDataFolder(1)
 		SetDataFolder $strMapFolder
-		Wave stats.wavPLEM = PLEM, stats.wavMeasure = MEASURE, stats.wavIBW = IBW
-		Wave stats.wavBackground = BACKGROUND, stats.wavGrating = GRATING
-		Wave stats.wavPower = POWER, stats.wavPhoton = PHOTON
-		Wave stats.wavExcitation = yExcitation
-		Wave stats.wavWavelength = xWavelength
-		Wave stats.wavYpower = yPower, stats.wavYphoton = yPhoton
-		Wave stats.wavXgrating = xGrating, stats.wavYgrating = yGrating
+		//<expression> ? <TRUE> : <FALSE>
+		if (WaveExists(:PLEM))
+			Wave stats.wavPLEM = PLEM
+		endif
+		if (WaveExists(:MEASURE))
+			Wave stats.wavMeasure = MEASURE
+		endif
+		if (WaveExists(:IBW))
+			Wave stats.wavIBW = IBW
+		endif
+		if (WaveExists(:BACKGROUND))
+			Wave stats.wavBackground = BACKGROUND
+		endif
+		if (WaveExists(:GRATING))
+			Wave stats.wavGrating = GRATING
+		endif
+		if (WaveExists(:POWER))
+			Wave stats.wavPower = POWER
+		endif
+		if (WaveExists(:PHOTON))
+			Wave stats.wavPhoton = PHOTON
+		endif
+		if (WaveExists(:yExcitation))
+			Wave stats.wavExcitation = yExcitation
+		endif
+		if (WaveExists(:xWavelength))
+			Wave stats.wavWavelength = xWavelength
+		endif
+		if (WaveExists(:yPower))
+			Wave stats.wavYpower = yPower
+		endif
+		if (WaveExists(:yPhoton))
+			Wave stats.wavYphoton = yPhoton
+		endif
+		if (WaveExists(:xGrating))
+			Wave stats.wavXgrating = xGrating
+		endif
+		if (WaveExists(:yGrating))
+			Wave stats.wavYgrating = yGrating
+		endif
 		SetDataFolder $strSaveDataFolder
 	endif	
 	if (!DataFolderExists(strMapInfoFolder))
