@@ -1,58 +1,17 @@
-#pragma TextEncoding = "UTF-8"		// For details execute DisplayHelpTopic "The TextEncoding Pragma"
-//Programmed by Matthias Kastner
-//Date 28.07.2015
-//Version 0: 	Skeleton
-//Version 1: 	Global Settings in binary file
-//Version 2: 	Dynamic paths for User Procedures directory
-//			Dynamic Delimited Text Load for old Gratings and other Correction Files.
-//Version 3:	Specified fixed Format for Loading Maps, Background etc.
-//Version 4:	Loading of PLEMd1 Correction Waves completed. Versioning System also for Global Variables Initialization.
-//Version 5:	Global Variables of PLEMd1 are saved in Subdirectory (avoid trash)
-//			Versioning System extended for subversions. Loading Procedure Corrected.
-//Version 6	Created Loading Dialog for Choosing the correct file Names.
-//Version 7:	Created Mapper for Parameters for Map-INFO-Folder
-//Version 8:	Loading Procedure for Igor Binary files. Extract Data to ORIGINAL-Folder
-//Version 9: 	Save Files to BACKGROUND, PLEM, usw. 
-//Version 10:	Update to new output files from 2015-04-14
-//Version 11:	Bug tracking for files from 2015-06-02 and 2015-06-08: wrong description given in LabView. Blank Spaces, Background etc.
-//Version 12: Corrections in PLEMd2BuildMaps: DeltaX, DeltaY (should be moved to a PLEMd2statsCalculate)
-//ToDelete: PLEMd2statsMenu, PLEMd2statsAction, PLEMd2statsMap (used in display), PLEMd2statsCalculate
-//before PLEMd2BuildMaps is called there has to be a separate call to calculate the stats (separate to header)
-//Version 13.0: Added buggy power correction for all waves in Data Folder PLEMd2PowerCorrection and DataLoop
-//Version 13.1: Added Power Correction Wave Added Search for correction waves available.
-//Version 13.2: Restructured BuildMaps. Added complete interpolation of measured data to igor Wave Format
-//Version 13.3: Mainly Code CleanUp and more consistency to stats class.
-//Version 13.4: Converted Photon, Power, Grating to 2D-Waves, clean up of code, separation of Build from ProcessIBW
-//Version 13.5: Fixed Grating Correction. Some Cleanup. Deleted PLEMd2statsMenu, PLEMd2statsAction, PLEMd2statsMap, PLEMd2statsCalculate PLEMd2PowerCorrection etc.
-//Version 14: Changed Wavelength wave and scaling. Clean Igor wavescaling is now done and measured wave is interpolated.
-//Version 15: Panel and Graph Window
-//Version 16: Integration of rudimentary Atlas Panel, Wave Normalization with gnumNormalization
-//Versopm 16.4 Minor bug fixes on strMapsAvailable and statsInitialization, extended menu size, added kill wave
-//Version 17 Added 2d-Peak fitting procedure
-//Version 17.1 minor bug fixes
-//Version 18 Added switches for calculation
-//Version 19 Improved 2Dfit to include tubes near the borders
-//Version 20.1 separation into different files, new Helper Functions for global Variables. Update of Save and Load Procedures.
-//Version 20.2 corrected Igor7 bug (search for "\r\n" to "\r" only)
-//Version 20.3 fixed initialization of global var for stats
-//Version 21	new panel, fixed interpolation
-//Version 22.1	corrected display vs wavelength instead of _calculated
-//Version 22.2 fixed calculation for Maps
-//Version 22.3 Image display to Auto Values after set
-//Version 22.4 BugFix for File Load with numbers at start and wave[inf] Out of Range Error in Igor 6
-// ToDo gstrPLEMd2corrections
+#pragma TextEncoding = "UTF-8"  // For details execute DisplayHelpTopic "The TextEncoding Pragma"
+#pragma rtGlobals = 3           // Use modern global access method and strict wave access.
 
+// Programmed by Matthias Kastner
+// mail@matthias-kastner.de
+// https://github.com/ukos-git/igor-swnt-plem
+//
+// LICENSE: MIT
+//
 
-//	ToDo: new Correction Waves for new setup gstrPLEMd2corrections
-//	ToDo: Maybe Delete Old Import PLEMd2d1 function for further releases
-//	ToDo: use prefs for global vars. fix base datafolder etc.
-
-#pragma rtGlobals=3		// Use modern global access method and strict wave access.
-
+// Variables for current Project only. See also the LoadPreferences towards the end of the procedure for additional settings that are saved system-wide.
 Constant 	cPLEMd2Version = 2202
 StrConstant cstrPLEMd2root = "root:PLEMd2"
 
-// Variables for current Project only. See also the LoadPreferences towards the end of the procedure for additional settings that are saved system-wide.
 Function PLEMd2initVar()
 	print "PLEMd2initVar: intialization of global variables"
 	//Init Data Folder
