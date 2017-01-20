@@ -14,8 +14,13 @@
 //Version 9: 	Save Files to BACKGROUND, PLEM, usw. 
 //Version 10:	Update to new output files from 2015-04-14
 //Version 11:	Bug tracking for files from 2015-06-02 and 2015-06-08: wrong description given in LabView. Blank Spaces, Background etc.
+//Version 12: Corrections in PLEMd2BuildMaps: DeltaX, DeltaY (should be moved to a PLEMd2statsCalculate)
+//ToDelete: PLEMd2statsMenu, PLEMd2statsAction, PLEMd2statsMap (used in display), PLEMd2statsCalculate
+//before PLEMd2BuildMaps is called there has to be a separate call to calculate the stats (separate to header)
+
 //			ToDo. Create Panel for Map-Updates
 //			ToDo: Mapper for Global Vars in PLEMd2 Folder?
+
 
 #pragma rtGlobals=3		// Use modern global access method and strict wave access.
 
@@ -535,13 +540,17 @@ Function PLEMd2BuildMaps(strPLEM)
 
 		stats.numPLEMLeftX	= wavWavelength[0]
 		stats.numPLEMRightX	= wavWavelength[(stats.numPLEMTotalX-1)]
-		stats.numPLEMDeltaX	= 0
+		
 
 		for (j=0; j<stats.numPLEMTotalX; j+=1)
 			stats.wavWavelength[j] = wavWavelength[j]
 			stats.numPLEMDeltaX += wavWavelength[j]
 		endfor
-		stats.numPLEMDeltaX /= stats.numPLEMTotalX
+		stats.numPLEMDeltaX	= 0
+		for (j=0; j<(stats.numPLEMTotalX-1); j+=1)
+			stats.numPLEMDeltaX += abs(wavWavelength[j]-wavWavelength[j+1])
+		endfor
+		stats.numPLEMDeltaX /= (stats.numPLEMTotalX - 1)
 
 		//wave wavPower 	= $(strDataFolderOriginal + "PW")
 		//stats.wavPower 		= wavPower
@@ -565,8 +574,8 @@ Function PLEMd2BuildMaps(strPLEM)
 			for (i=0; i<stats.numPLEMTotalY; i+=1)
 				numExcitationFrom 	= str2num(StringFromList(1,StringFromList(i,strWavePL),"_"))
 				numExcitationTo 		= str2num(StringFromList(2,StringFromList(i,strWavePL),"_"))
-				stats.numPLEMDeltaY	+= numExcitationFrom + numExcitationTo
-				stats.wavExcitation[i] 	= (numExcitationFrom + numExcitationFrom) / 2
+				stats.numPLEMDeltaY	+= abs(numExcitationFrom - numExcitationTo)
+				stats.wavExcitation[i] 	= (numExcitationFrom + numExcitationTo) / 2
 				wave wavMeasure 	= $(strDataFolderOriginal + StringFromList(i,strWavePL))
 				wave wavBackground 	= $(strDataFolderOriginal + StringFromList(i,strWaveBG))			
 				for (j=0; j<stats.numPLEMTotalX; j+=1)
@@ -577,7 +586,7 @@ Function PLEMd2BuildMaps(strPLEM)
 				wave wavBackground 	= $("")
 				wave wavMeasure 	= $("")
 			endfor
-			stats.numPLEMDeltaY /= stats.numPLEMTotalY * 2
+			stats.numPLEMDeltaY /= stats.numPLEMTotalY
 			SetScale/I x stats.numPLEMLeftX, stats.numPLEMRightX, "", stats.wavPLEM, stats.wavMeasure, stats.wavBackground, stats.wavCorrected
 			SetScale/I y stats.numPLEMBottomY, stats.numPLEMTopY, "", stats.wavPLEM, stats.wavMeasure, stats.wavBackground, stats.wavCorrected			
 		endif
@@ -1380,8 +1389,8 @@ Structure PLEMd2stats
 	Wave wavWavelength, wavPower, wavPhoton
 		
 	Variable numPLEMTotalX, numPLEMLeftX, numPLEMDeltaX, numPLEMRightX
-	Variable numPLEMTotalY, numPLEMBottomY, numPLEMDeltaY, numPLEMTopY
-	
+	Variable numPLEMTotalY, numPLEMBottomY, numPLEMDeltaY, numPLEMTopY 	//stats.numPLEMDeltaY
+
 	String strDate, strUser, strFileName
 	Variable numCalibrationMode, numSlit, numGrating, numFilter, numShutter, numWLcenter, numDetector, numCooling, numExposure, numBinning, numWLfirst, numWLlast, numWLdelta, numEmissionMode, numEmissionPower, numEmissionStart, numEmissionEnd, numEmissionDelta, numEmissionStep, numScans, numBackground
 Endstructure
