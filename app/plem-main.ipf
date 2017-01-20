@@ -25,6 +25,7 @@
 //Version 13.5: Fixed Grating Correction. Some Cleanup. Deleted PLEMd2statsMenu, PLEMd2statsAction, PLEMd2statsMap, PLEMd2statsCalculate PLEMd2PowerCorrection etc.
 //Version 14: Changed Wavelength wave and scaling. Clean Igor wavescaling is now done and measured wave is interpolated.
 //Version 15: Panel and Graph Window
+//Version 16: Integration of rudimentary Atlas Panel, Wave Normalization with gnumNormalization
 // 	ToDo: Correction Path is only at old dest
 //	ToDo: Maybe Delete Old Iport PLEMd2d1 function for further releases
 //	ToDo. Create Panel for Map-Updates
@@ -32,7 +33,7 @@
 
 #pragma rtGlobals=3		// Use modern global access method and strict wave access.
 
-static Constant PLEMd2Version = 1502
+static Constant PLEMd2Version = 1601
 static StrConstant PLEMd2PackageName = "PLEM-displayer2"
 static StrConstant PLEMd2PrefsFileName = "PLEMd2Preferences.bin"
 static StrConstant PLEMd2WorkingDir0 = "C:users:matthias:Meine Dokumente:Documents:programs:local:igor:matthias:PLEM-displayer2:"
@@ -61,6 +62,7 @@ Menu "PLE-Map", dynamic //create menu bar entry
 		"Open", PLEMd2open()
 		"Decorate Image",PLEMd2Decorate()
 		"Info", PLEMd2Panel()
+		"Atlas", PLEMd2PanelAtlas()
 //		"-"
 //		"Clean up Variables", PLEMd2Clean()
 //	End
@@ -667,7 +669,7 @@ Function PLEMd2BuildMaps(strPLEM)
 		SetScale/I x stats.numPLEMBottomY, stats.numPLEMTopY, "", stats.wavExcitation
 		
 		// calculate new map		
-		stats.wavPLEM = (stats.wavMeasure - stats.wavBackground) / stats.wavGrating / stats.wavPower
+		stats.wavPLEM = (stats.wavMeasure - stats.wavBackground) / stats.wavGrating / stats.wavPower / stats.numNormalization
 	else
 		print "PLEMd2BuildMaps: Map does not exist"
 	endif
@@ -956,6 +958,99 @@ Function PLEMd2FixWavenotes(strPLEM)
 	Endif
 End
 
+Function/S PLEMd2AtlasReload([strDataFolder])
+	String strDataFolder	
+	strDataFolder = selectstring(ParamIsDefault(strDataFolder), strDataFolder, GetDataFolder(1))
+	String strSaveDataFolder
+	//save folder and switch
+	strSaveDataFolder = GetDataFolder(1)
+	
+	if (DataFolderExists(strDataFolder))
+		SetDataFolder $strDataFolder
+	else
+		NewDataFolder/O/S $strDataFolder //has to be without trailing :
+		strDataFolder = GetDataFolder(1) //is with trailing :
+	endif
+
+	// create waves
+	Make/O/N=45/D s1nm
+	Make/O/N=45/D s2nm
+	Make/O/N=45/D chiralityn
+	Make/O/N=45/D chiralitym
+	Make/O/N=45/D commonness
+	// tell igor that those are waves
+	wave wavEnergyS1=s1nm
+	wave wavEnergyS2=s2nm	
+	wave wavChiralityn=chiralityn
+	wave wavChiralitym=chiralitym
+	wave wavCommonness=commonness
+	// fill waves with data
+	wavEnergyS1[0]= {613.783,688.801,738.001,765.334,821.087,861.001,898.436,939.274,939.274,961.118,1008,1033.2,1078.12,1097.21,1107,1116.97,1148,1148,1169.66,1227.57,1227.57,1239.84,1239.84,1239.84,1278.19}
+	wavEnergyS1[25]= {1291.5,1318.98,1347.65,1347.65,1347.65,1362.46,1377.6,1393.08,1441.68,1441.68,1441.68,1458.64,1458.64,1512,1549.8,1549.8}
+	wavEnergyS2[0]= {568.735,510.223,613.783,596.078,480.559,576.671,688.801,497.928,659.49,563.564,639.094,729.319,712.553,582.085,642.405,548.603,789.708,708.481,784.71,629.361,779.775,720.838,666.582,607.766}
+	wavEnergyS2[24]= {849.207,784.71,849.207,746.893,681.232,708.481,849.207,799.898,918.401,861.001,925.255,918.401,751.419,789.708,885.601,991.873,932.212}
+	wavChiralityn[0]= {6,5,8,7,5,6,9,7,8,6,7,10,9,8,7,9,12,8,11,10,10,8,9,11,13,9,12,10,12,11,11,9,15,10,14,13,13,12,10,16,12}
+	wavChiralitym[0]= {1,3,0,2,4,4,1,3,3,5,5,2,4,4,6,2,1,6,3,3,5,7,5,1,2,7,4,6,2,4,6,8,1,8,3,5,3,5,9,2,7}
+	wavCommonness[0]= {0,0,0,0,0,1,0,0,1,1,1,1,0,1,1,0,0,1,0,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}
+	PLEMd2AtlasCreateNM(wavChiralityn, wavChiralitym)
+	// reset original folder
+	SetDataFolder $strSaveDataFolder
+	return strDataFolder
+End
+
+Function/S PLEMd2AtlasCreateNM(wavN,wavM)
+	Wave wavN, wavM
+	Variable i
+	WaveStats/Q/M=1 wavN
+	//Make Text Wave, overwrite existing
+	Make/O/T/N=(V_npnts) chiralitynm
+	Wave/T wavChiralitynm=chiralitynm
+	for(i=0;i<V_npnts;i+=1)
+		wavChiralitynm[i]="("+num2str(wavN[i])+","+num2str(wavM[i])+")"
+	endfor
+	return GetWavesDataFolder(wavChiralitynm,2)
+End
+
+Function PLEMd2AtlasRecalculate(strPLEM)
+	String strPLEM
+	Struct PLEMd2stats stats
+	PLEMd2statsLoad(stats, strPLEM)	
+	String strMapChiralityFolder = stats.strDataFolder + "CHIRALITY"
+	PLEMd2AtlasReload(strDataFolder = strMapChiralityFolder)		
+	PLEMd2statsLoad(stats, strPLEM)	
+	Variable numPlank = 4.135667516E-12 //meV s
+	Variable numLight =  	299792458E9 //nm/s
+	stats.wavEnergyS1	= stats.wavEnergyS1 * numPlank * numLight / (numPlank * numLight - stats.wavEnergyS1 * stats.numS1offset)
+	stats.wavEnergyS2	= stats.wavEnergyS2 * numPlank * numLight / (numPlank * numLight - stats.wavEnergyS2 * stats.numS2offset)	
+End
+
+Function PLEMd2AtlasShow(strPLEM)
+	String strPLEM
+	Struct PLEMd2stats stats
+	PLEMd2statsLoad(stats, strPLEM)	
+	PLEMd2Display(strPLEM)
+	PLEMd2AtlasHide(strPLEM) //prevent multiple traces
+	PLEMd2AtlasRecalculate(strPLEM)
+	//wavEnergyS1, , wavChiralityn, wavChiralitym, wavCommonness
+	AppendToGraph stats.wavEnergyS2/TN=plem01 vs stats.wavEnergyS1
+	AppendToGraph stats.wavEnergyS2/TN=plem02 vs stats.wavEnergyS1
+	AppendToGraph stats.wavEnergyS2/TN=plem03 vs stats.wavEnergyS1
+	ModifyGraph mode=3
+	ModifyGraph marker(plem01)=16,marker(plem02)=1
+	ModifyGraph rgb(plem02)=(0,0,0)
+	ModifyGraph mrkThick(plem01)=0.25
+	ModifyGraph useMrkStrokeRGB(plem03)=1
+	ModifyGraph textMarker(plem03)={stats.wavChiralitynm,"default",0,0,5,0.00,10.00} //labels top
+	ModifyGraph mrkStrokeRGB(plem03)=(65535,65535,65535)		
+	ModifyImage ''#0 ctab= {0,*,Terrain256,0}			
+End
+Function PLEMd2AtlasHide(strPLEM)
+	String strPLEM
+	PLEMd2Display(strPLEM)
+	RemoveFromGraph/Z plem01
+	RemoveFromGraph/Z plem02	
+	RemoveFromGraph/Z plem03	
+End
 
 
 Function PLEMd2d1Open()
@@ -1661,10 +1756,17 @@ Structure PLEMd2stats
 	//1D-Waves
 	Wave wavExcitation, wavWavelength
 	Wave wavYpower, wavYphoton, wavXgrating, wavYgrating
-
+	// Normalization Value
+	Variable numNormalization
+	// chirality waves
+	Wave wavEnergyS1, wavEnergyS2, wavChiralityn, wavChiralitym, wavCommonness, wavChiralitynm
+	// Variables for chirality offset
+	Variable 	numS1offset, numS2offset
+	// calculated variables
 	Variable numPLEMTotalX, numPLEMLeftX, numPLEMDeltaX, numPLEMRightX
 	Variable numPLEMTotalY, numPLEMBottomY, numPLEMDeltaY, numPLEMTopY 	//stats.numPLEMDeltaY
-
+	
+	// variables from IBW file
 	String strDate, strUser, strFileName
 	Variable numCalibrationMode, numSlit, numGrating, numFilter, numShutter, numWLcenter, numDetector, numCooling, numExposure, numBinning, numWLfirst, numWLlast, numWLdelta, numEmissionMode, numEmissionPower, numEmissionStart, numEmissionEnd, numEmissionDelta, numEmissionStep, numScans, numBackground
 Endstructure
@@ -1672,9 +1774,10 @@ Endstructure
 Function PLEMd2statsCreateVar()
 	Variable/G gnumPLEM, gnumVersion
 	String/G gstrPLEM, gstrPLEMfull, gstrDataFolder, gstrDataFolderOriginal	
+	Variable/G gnumS1offset, gnumS2offset
 	Variable/G gnumPLEMTotalX, gnumPLEMLeftX, gnumPLEMDeltaX, gnumPLEMRightX
 	Variable/G gnumPLEMTotalY, gnumPLEMBottomY, gnumPLEMDeltaY, gnumPLEMTopY
-	
+	Variable/G gnumNormalization
 	String/G gstrDate, gstrUser, gstrFileName
 	Variable/G gnumCalibrationMode, gnumSlit, gnumGrating, gnumFilter, gnumShutter, gnumWLcenter, gnumDetector, gnumCooling, gnumExposure, gnumBinning, gnumScans, gnumBackground
 	Variable/G gnumWLfirst, gnumWLlast, gnumWLdelta
@@ -1689,7 +1792,8 @@ Function PLEMd2statsLoad(stats, strMap)
 	SVAR gstrMapsFolder = $(gstrPLEMd2root + ":gstrMapsFolder")
 	
 	String strMapFolder = gstrMapsFolder + ":" + strMap + ":"
-	String strMapInfoFolder = strMapFolder + "INFO:"
+	String strMapInfoFolder = strMapFolder + "INFO"
+	String strMapChiralityFolder = strMapFolder + "CHIRALITY"
 	String strSaveDataFolder
 
 	if (!DataFolderExists(strMapFolder))
@@ -1738,6 +1842,32 @@ Function PLEMd2statsLoad(stats, strMap)
 			Wave stats.wavYgrating = yGrating
 		endif
 		SetDataFolder $strSaveDataFolder
+	endif
+	if (!DataFolderExists(strMapChiralityFolder))
+		PLEMd2AtlasReload(strDataFolder = strMapChiralityFolder)
+	endif 
+	if (DataFolderExists(strMapChiralityFolder))
+		strSaveDataFolder = GetDataFolder(1)
+		SetDataFolder $strMapChiralityFolder	
+		if (WaveExists(:s1nm))
+			Wave stats.wavEnergyS1 = s1nm
+		endif
+		if (WaveExists(:s2nm))
+			Wave stats.wavEnergyS2 = s2nm
+		endif
+		if (WaveExists(:chiralityn))
+			Wave stats.wavChiralityn = chiralityn
+		endif
+		if (WaveExists(:chiralitym))
+			Wave stats.wavChiralitym = chiralitym
+		endif
+		if (WaveExists(:chiralitynm))
+			Wave stats.wavChiralitynm = chiralitynm
+		endif
+		if (WaveExists(:commonness))
+			Wave stats.wavCommonness = commonness
+		endif		
+		SetDataFolder $strSaveDataFolder							
 	endif	
 	if (!DataFolderExists(strMapInfoFolder))
 		print "PLEMd2statsLoad: Wrong call. Please Initialize stats with PLEMd2statsInitialize(" + strMap + ")"
@@ -1749,9 +1879,11 @@ Function PLEMd2statsLoad(stats, strMap)
 		SetDataFolder $strMapInfoFolder		
 		NVAR/Z gnumPLEM, gnumVersion
 		SVAR/Z gstrPLEM, gstrPLEMfull, gstrDataFolder, gstrDataFolderOriginal
+		SVAR/Z gstrDate, gstrUser, gstrFileName		
 		NVAR/Z gnumPLEMTotalX, gnumPLEMLeftX, gnumPLEMDeltaX, gnumPLEMRightX
 		NVAR/Z gnumPLEMTotalY, gnumPLEMBottomY, gnumPLEMDeltaY, gnumPLEMTopY
-		SVAR/Z gstrDate, gstrUser, gstrFileName
+		NVAR/Z gnumNormalization
+		NVAR/Z gnumS1offset, gnumS2offset //atlas data
 		NVAR/Z gnumCalibrationMode, gnumSlit, gnumGrating, gnumFilter, gnumShutter, gnumWLcenter, gnumDetector, gnumCooling, gnumExposure, gnumBinning, gnumScans, gnumBackground
 		NVAR/Z gnumWLfirst, gnumWLlast, gnumWLdelta
 		NVAR/Z gnumEmissionMode, gnumEmissionPower, gnumEmissionStart, gnumEmissionEnd, gnumEmissionDelta, gnumEmissionStep
@@ -1764,9 +1896,14 @@ Function PLEMd2statsLoad(stats, strMap)
 		stats.strDataFolder		= SelectString(SVAR_Exists(gstrDataFolder),"",gstrDataFolder)
 		stats.strDataFolderOriginal	= SelectString(SVAR_Exists(gstrDataFolderOriginal),"",gstrDataFolderOriginal)
 		
+		stats.numNormalization 	= SelectNumber(NVAR_Exists(gnumNormalization),1,gnumNormalization)
+		
+		stats.numS1offset 	= SelectNumber(NVAR_Exists(gnumS1offset),28,gnumS1offset)
+		stats.numS2offset 	= SelectNumber(NVAR_Exists(gnumS2offset),10,gnumS2offset)
+		
 		stats.numPLEMTotalX = gnumPLEMTotalX
 		stats.numPLEMLeftX	= gnumPLEMLeftX
-		stats.numPLEMDeltaX 	= gnumPLEMDeltaX
+		stats.numPLEMDeltaX = gnumPLEMDeltaX
 		stats.numPLEMRightX	= gnumPLEMRightX
 		
 		stats.numPLEMTotalY	= gnumPLEMTotalY
@@ -1842,6 +1979,8 @@ Function PLEMd2statsSave(stats)
 		SVAR/Z gstrPLEM, gstrPLEMfull, gstrDataFolder, gstrDataFolderOriginal	
 		NVAR/Z gnumPLEMTotalX, gnumPLEMLeftX, gnumPLEMDeltaX, gnumPLEMRightX
 		NVAR/Z gnumPLEMTotalY, gnumPLEMBottomY, gnumPLEMDeltaY, gnumPLEMTopY
+		NVAR/Z gnumNormalization
+		NVAR/Z gnumS1offset, gnumS2offset //atlas data
 		SVAR/Z gstrDate, gstrUser, gstrFileName
 		NVAR/Z gnumCalibrationMode, gnumSlit, gnumGrating, gnumFilter, gnumShutter, gnumWLcenter, gnumDetector, gnumCooling, gnumExposure, gnumBinning, gnumScans, gnumBackground
 		NVAR/Z gnumWLfirst, gnumWLlast, gnumWLdelta
@@ -1855,6 +1994,11 @@ Function PLEMd2statsSave(stats)
 		gstrDataFolder		= stats.strDataFolder
 		gstrDataFolderOriginal	= stats.strDataFolderOriginal
 		
+		gnumNormalization = stats.numNormalization
+		
+		gnumS1offset = stats.numS1offset
+		gnumS2offset = stats.numS2offset
+				
 		gnumPLEMTotalX	= stats.numPLEMTotalX
 		gnumPLEMLeftX	= stats.numPLEMLeftX
 		gnumPLEMDeltaX = stats.numPLEMDeltaX
@@ -2067,7 +2211,7 @@ Function PLEMd2Display(strPLEM)
 	// 	0 no such window
 	// 	2 window is hidden. 	
 	if (V_flag == 1)
-		print "PLEMd2Display: Graph already exists"
+		//print "PLEMd2Display: Graph already exists" //verbosity problem on atlas show
 		return 0
 	elseif (V_flag == 2)
 		print "PLEMd2Display: Graph was hidden. Case not handled. check code"
@@ -2085,6 +2229,7 @@ Function PLEMd2Display(strPLEM)
 			PLEMd2Decorate(strWinPLEM = winPLEM)
 		endif
 		PLEMd2Panel(strWinPLEM = winPLEM)
+		PLEMd2PanelAtlas(strWinPLEM = winPLEM)
 	endif
 End
 
@@ -2200,16 +2345,99 @@ Function PLEMd2Panel([strWinPLEM])
 	SetVariable gnumEmissionDelta,		value=$(strDataFolderInfo + "gnumEmissionDelta"),		pos={150,190}, 	size={130,0}
 	SetVariable gnumEmissionStep,		value=$(strDataFolderInfo + "gnumEmissionStep"),		pos={150,210}, 	size={130,0}
 	Button ProcessIBW,pos={150, 230},size={130,30},proc=ButtonProcProcessIBW,title="Re-Process IBW"
-	Button BuildMaps,pos={150, 260},size={130,30},proc=ButtonProcBuildMaps,title="Re-Build Map"
+	Button BuildMaps,pos={150, 260},size={130,30},proc=ButtonProcBuildMaps,title="Re-Build Map"	
 	//gnumPLEM;gnumVersion;gstrPLEM;gstrPLEMfull;gstrDataFolder;gstrDataFolderOriginal;gstrDate;gstrUser;gstrFileName;
 	//gnumPLEMTotalX;gnumPLEMLeftX;gnumPLEMDeltaX;gnumPLEMRightX;gnumPLEMTotalY;gnumPLEMBottomY;gnumPLEMDeltaY;gnumPLEMTopY;gnumCalibrationMode;
 	//gnumBackground; gnumSlit;gnumGrating;gnumFilter;
 	//gnumShutter;gnumWLcenter;gnumDetector;gnumCooling;gnumExposure;gnumBinning;gnumScans;gnumWLfirst;gnumWLlast;gnumWLdelta;
 	//gnumEmissionMode;gnumEmissionPower;gnumEmissionStart;gnumEmissionEnd;gnumEmissionDelta;gnumEmissionStep;
 	DoWindow PLEMd2Panel
-
 End
 
+Function PLEMd2PanelAtlas([strWinPLEM])
+	String strWinPLEM
+	String strImages, strTraces, strDataFolderMap, strDataFolderInfo
+	// if no argument was selected, take top graph window
+	if (ParamIsDefault(strWinPLEM))
+		strWinPLEM = WinName(0, 1, 1)
+	endif
+	if (strlen(strWinPLEM) == 0)
+		Print "PLEMd2Atlas: No window to append to"
+		return 0
+	endif	
+	
+	// if the panel is already shown, do nothing
+	DoUpdate /W=$strWinPLEM#PLEMd2PanelAtlas
+	if (V_flag != 0)
+		Print "PLEMd2Atlas: Panel already exists."
+		return 0
+	endif	
+
+	// get the image name and wave reference.
+	strImages = ImageNameList(strWinPLEM, ";")
+	if (ItemsInList(strImages) == 0)
+		strTraces = TraceNameList(strWinPLEM, ";",1)
+		if (ItemsInList(strTraces) == 1)
+			wave wavPLEM = TraceNameToWaveRef(strWinPLEM,StringFromList(0,strTraces))	
+			Print "PLEMd2Atlas: Traces not yet handled"
+			return 0
+		else
+			Print "PLEMd2Atlas: No Image found. More than one or no trace found in top graph."
+			return 0
+		endif
+	elseif (ItemsInList(strImages) > 1)
+		Print "PLEMd2Atlas: More than one image found in top graph."
+		return 0
+	else	
+		wave wavPLEM = ImageNameToWaveRef(strWinPLEM,StringFromList(0,strImages))	
+	endif
+	// check for INFO folder
+	strDataFolderMap = GetWavesDataFolder(wavPLEM,1)
+	strDataFolderInfo = strDataFolderMap + "INFO:"
+	if (DataFolderExists(strDataFolderInfo) == 0)
+		Print "PLEMd2Panel: INFO Data Folder for Image in top graph not found."
+		return 0
+	endif
+	NewPanel /N=PLEMd2Panel/W=(0,0,525,100) /EXT=2 /HOST=$strWinPLEM
+	SetVariable 	gnumS1offset,			value=$(strDataFolderInfo + "gnumS1offset"),	pos={10,10}, 	size={130,0}
+	SetVariable 	gnumS2offset,			value=$(strDataFolderInfo + "gnumS2offset"),	pos={10,30}, 	size={130,0}
+	Button 		AtlasShow,		proc=ButtonProcAtlasShow,	title="Atlas show",			pos={150, 10},	size={130,30}
+	Button		AtlasHide,		proc=ButtonProcAtlasHide,		title="Atlas hide",			pos={150, 40},	size={130,30}
+	//gnumPLEM;gnumVersion;gstrPLEM;gstrPLEMfull;gstrDataFolder;gstrDataFolderOriginal;gstrDate;gstrUser;gstrFileName;
+	//gnumPLEMTotalX;gnumPLEMLeftX;gnumPLEMDeltaX;gnumPLEMRightX;gnumPLEMTotalY;gnumPLEMBottomY;gnumPLEMDeltaY;gnumPLEMTopY;gnumCalibrationMode;
+	//gnumBackground; gnumSlit;gnumGrating;gnumFilter;
+	//gnumShutter;gnumWLcenter;gnumDetector;gnumCooling;gnumExposure;gnumBinning;gnumScans;gnumWLfirst;gnumWLlast;gnumWLdelta;
+	//gnumEmissionMode;gnumEmissionPower;gnumEmissionStart;gnumEmissionEnd;gnumEmissionDelta;gnumEmissionStep;
+	DoWindow PLEMd2PanelAtlas
+End
+
+Function ButtonProcAtlasShow(ba) : ButtonControl
+	STRUCT WMButtonAction &ba
+	switch( ba.eventCode )
+		case 2: // mouse up
+			String strPLEM
+			strPLEM = PLEMd2window2strPLEM(ba.win)
+			PLEMd2AtlasShow(strPLEM)
+			break
+		case -1: // control being killed
+			break
+	endswitch
+	return 0
+End
+
+Function ButtonProcAtlasHide(ba) : ButtonControl
+	STRUCT WMButtonAction &ba
+	switch( ba.eventCode )
+		case 2: // mouse up
+			String strPLEM
+			strPLEM = PLEMd2window2strPLEM(ba.win)
+			PLEMd2AtlasHide(strPLEM)
+			break
+		case -1: // control being killed
+			break
+	endswitch
+	return 0
+End
 Function ButtonProcProcessIBW(ba) : ButtonControl
 	STRUCT WMButtonAction &ba
 	switch( ba.eventCode )
