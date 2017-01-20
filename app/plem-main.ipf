@@ -1,13 +1,14 @@
 //Programmed by Matthias Kastner
 //Date 16.03.2015
-//Version 0: Skeleton
-//Version 1: Global Settings in binary file
+//Version 0: 	Skeleton
+//Version 1: 	Global Settings in binary file
 //Version 2: 	Dynamic paths for User Procedures directory
 //			Dynamic Delimited Text Load for old Gratings and other Correction Files.
+//Version 3:	Specified fixed Format for Loading Maps, Background etc.
 
 #pragma rtGlobals=3		// Use modern global access method and strict wave access.
 
-static Constant PLEMd2Version = 2
+static Constant PLEMd2Version = 3
 static StrConstant PLEMd2PackageName = "PLEM-displayer2"
 static StrConstant PLEMd2PrefsFileName = "PLEMd2Preferences.bin"
 static Constant PLEMd2PrefsRecordID = 0
@@ -189,7 +190,7 @@ Function PLEMd2d1Import([numKillWavesAfterwards])
 	String strSearchStrings, strSearchString
 	
 	Variable numMaps, numWaves, numSearchstrings, numFiles
-	
+	Variable numTotalX, numTotalY	 //used for measuring the Dimensions of the Map
 	Variable i,j,k
 	
 	strMaps = PLEMd2d1Find()
@@ -212,20 +213,20 @@ Function PLEMd2d1Import([numKillWavesAfterwards])
 		endif
 
 		//Copy Original Data Waves in Subdirectory
+		strSearchStrings	 = "_bg_;_corr_m_;_"
+		numSearchstrings = PLEMd2GetListSize(strSearchStrings)		
 		if (DataFolderExists("ORIGINAL"))
 			SetDataFolder ORIGINAL
 		else
 			NewDataFolder/O/S ORIGINAL
 		endif
-		
-		strSearchStrings	 = "_bg_;_corr_m_;_"
-		numSearchstrings = PLEMd2GetListSize(strSearchStrings)		
-		for (k=0;k<numSearchstrings;k+=1)
-			strSearchString = StringFromList(k, strSearchStrings)
-			for (j=0;j<numFiles;j+=1)
-				wave wavDummy = $("root:" + strMap + strSearchString + num2str(j))
+		for (j=0;j<numSearchstrings;j+=1)
+			strSearchString = StringFromList(j, strSearchStrings)
+			for (k=0;k<numFiles;k+=1)
+				strWave = strMap + strSearchString + num2str(k)
+				wave wavDummy = $("root:" + strWave)
 				if (WaveExists(wavDummy))
-					Duplicate/O wavDummy $(strWave)
+					Duplicate/O wavDummy $strWave
 					if (numKillWavesAfterwards == 1)
 						Killwaves/Z wavDummy
 					endif
@@ -236,12 +237,69 @@ Function PLEMd2d1Import([numKillWavesAfterwards])
 		SetDataFolder $strMap
 		
 		//Copy Map
-		wave wavPLEM = $("root:PLE_map_" + strMap)
+		wave wavPLEM = $("root:PLE_map_" + strMap)		
 		if (WaveExists(wavPLEM))
+			numTotalX	= DimSize(wavPLEM,0)
+			numTotalY	= DimSize(wavPLEM,1)		
+			if (numTotalY != numFiles)
+				print "PLEMd2d1Import: Size Missmatch in Map: " + strMap
+			endif
 			Duplicate/O wavPLEM PLEM
 			if (numKillWavesAfterwards == 1)
 				Killwaves/Z wavPLEM
 			endif
+			
+			wave wavPLEM = PLEM		
+			//Create Measurement Wave from Files.
+			Duplicate/O wavPLEM MEASURE
+			wave wavMeasure	= MEASURE
+			
+			for (j=0;j<numTotalY;j+=1)
+				strWave = gstrMapsFolder + ":" + strMap + ":ORIGINAL:" + strMap + "_" + num2str(j)
+				wave wavCurrent = $strWave
+				if (WaveExists(wavCurrent))
+					for (k=0;k<numTotalX;k+=1)
+						wavMeasure[k][j] = wavCurrent[k]
+					endfor
+				endif
+			endfor
+			
+			//Create Background Wave from Files.
+			Duplicate/O wavPLEM BACKGROUND
+			wave wavBackground	= BACKGROUND			
+			numFiles	= PLEMd2d1CountFiles(gstrMapsFolder + ":" + strMap + ":ORIGINAL:" + strMap + "_bg")
+
+			for (j=0;j<numTotalY;j+=1)
+				if (numFiles > 1)
+					strWave = gstrMapsFolder + ":" + strMap + ":ORIGINAL:" + strMap + "_bg_" + num2str(j)
+				else
+					strWave = gstrMapsFolder + ":" + strMap + ":ORIGINAL:" + strMap + "_bg_0"
+				endif
+				wave wavCurrent = $strWave
+				if (WaveExists(wavCurrent))
+					for (k=0;k<numTotalX;k+=1)
+						wavBackground[k][j] = wavCurrent[k]
+					endfor
+				else
+					for (k=0;k<numTotalX;k+=1)
+						wavBackground[k][j] = 0
+					endfor				
+				endif
+			endfor
+
+			//Create Corrected Wave from Files.
+			Duplicate/O wavPLEM CORRECTED
+			wave wavBackground	= CORRECTED
+			
+			for (j=0;j<numTotalY;j+=1)
+				strWave = gstrMapsFolder + ":" + strMap + ":ORIGINAL:" + strMap + "_corr_m_" + num2str(j)
+				wave wavCurrent = $strWave
+				if (WaveExists(wavCurrent))
+					for (k=0;k<numTotalX;k+=1)
+						wavBackground[k][j] = wavCurrent[k]
+					endfor
+				endif
+			endfor			
 		endif
 		
 		//Copy Wavelength Wave
