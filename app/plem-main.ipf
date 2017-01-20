@@ -30,10 +30,13 @@
 //Version 17 Added 2d-Peak fitting procedure
 //Version 17.1 minor bug fixes
 //Version 18 Added switches for calculation
+//current
+//Version 19.1 Improved 2Dfit to include tubes near the borders
 
 //	ToDo: new Correction Waves for new setup
-//	ToDo: Maybe Delete Old Iport PLEMd2d1 function for further releases
+//	ToDo: Maybe Delete Old Import PLEMd2d1 function for further releases
 //	ToDo: use prefs for global vars. fix base datafolder etc.
+
 
 #pragma rtGlobals=3		// Use modern global access method and strict wave access.
 
@@ -1032,70 +1035,89 @@ End
 
 
 
-Function/S PLEMd2AtlasReload([strDataFolder])
-	String strDataFolder	
-	strDataFolder = selectstring(ParamIsDefault(strDataFolder), strDataFolder, GetDataFolder(1))
-	String strSaveDataFolder
-	//save folder and switch
-	strSaveDataFolder = GetDataFolder(1)
+Function PLEMd2AtlasReload(strPLEM)
+	String strPLEM
+	Struct PLEMd2stats stats
+	PLEMd2statsLoad(stats, strPLEM)
 	
-	if (DataFolderExists(strDataFolder))
-		SetDataFolder $strDataFolder
-	else
-		NewDataFolder/O/S $strDataFolder //has to be without trailing :
-		strDataFolder = GetDataFolder(1) //is with trailing :
-	endif
+	// switch folder
+	String strSaveDataFolder = GetDataFolder(1)
+	String strDataFolder = stats.strDataFolder + "CHIRALITY"
+	SetDataFolder $strDataFolder
 
 	// create waves
-	Make/O/N=45/D s1nm
-	Make/O/N=45/D s2nm
-	Make/O/N=45/D chiralityn
-	Make/O/N=45/D chiralitym
-	Make/O/N=45/D commonness
+	Make/O/N=45/D atlasS1nm
+	Make/O/N=45/D atlasS2nm
+	Make/O/N=45/D atlasN
+	Make/O/N=45/D atlasM
+
 	// tell igor that those are waves
-	wave wavEnergyS1=s1nm
-	wave wavEnergyS2=s2nm	
-	wave wavChiralityn=chiralityn
-	wave wavChiralitym=chiralitym
-	wave wavCommonness=commonness
+	wave wavAtlasS1nm=atlasS1nm
+	wave wavAtlasS2nm=atlasS2nm	
+	wave wavAtlasN=atlasN
+	wave wavAtlasM=atlasM
+
 	// fill waves with data
-	wavEnergyS1[0]= {613.783,688.801,738.001,765.334,821.087,861.001,898.436,939.274,939.274,961.118,1008,1033.2,1078.12,1097.21,1107,1116.97,1148,1148,1169.66,1227.57,1227.57,1239.84,1239.84,1239.84,1278.19}
-	wavEnergyS1[25]= {1291.5,1318.98,1347.65,1347.65,1347.65,1362.46,1377.6,1393.08,1441.68,1441.68,1441.68,1458.64,1458.64,1512,1549.8,1549.8}
-	wavEnergyS2[0]= {568.735,510.223,613.783,596.078,480.559,576.671,688.801,497.928,659.49,563.564,639.094,729.319,712.553,582.085,642.405,548.603,789.708,708.481,784.71,629.361,779.775,720.838,666.582,607.766}
-	wavEnergyS2[24]= {849.207,784.71,849.207,746.893,681.232,708.481,849.207,799.898,918.401,861.001,925.255,918.401,751.419,789.708,885.601,991.873,932.212}
-	wavChiralityn[0]= {6,5,8,7,5,6,9,7,8,6,7,10,9,8,7,9,12,8,11,10,10,8,9,11,13,9,12,10,12,11,11,9,15,10,14,13,13,12,10,16,12}
-	wavChiralitym[0]= {1,3,0,2,4,4,1,3,3,5,5,2,4,4,6,2,1,6,3,3,5,7,5,1,2,7,4,6,2,4,6,8,1,8,3,5,3,5,9,2,7}
-	wavCommonness[0]= {0,0,0,0,0,1,0,0,1,1,1,1,0,1,1,0,0,1,0,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}
-	PLEMd2AtlasCreateNM(wavChiralityn, wavChiralitym)
+	wavAtlasS1nm[0]= {613.783,688.801,738.001,765.334,821.087,861.001,898.436,939.274,939.274,961.118,1008,1033.2,1078.12,1097.21,1107,1116.97,1148,1148,1169.66,1227.57,1227.57,1239.84,1239.84,1239.84,1278.19}
+	wavAtlasS1nm[25]= {1291.5,1318.98,1347.65,1347.65,1347.65,1362.46,1377.6,1393.08,1441.68,1441.68,1441.68,1458.64,1458.64,1512,1549.8,1549.8}
+	wavAtlasS2nm[0]= {568.735,510.223,613.783,596.078,480.559,576.671,688.801,497.928,659.49,563.564,639.094,729.319,712.553,582.085,642.405,548.603,789.708,708.481,784.71,629.361,779.775,720.838,666.582,607.766}
+	wavAtlasS2nm[24]= {849.207,784.71,849.207,746.893,681.232,708.481,849.207,799.898,918.401,861.001,925.255,918.401,751.419,789.708,885.601,991.873,932.212}
+	wavAtlasN[0]	= {6, 5, 8, 7, 5, 6, 9, 7, 8, 6, 7, 10,9, 8, 7, 9,12, 8,11,10,10,8,9,11,13,9,12,10,12,11,11,9,15,10,14,13,13,12,10,16,12}
+	wavAtlasM[0]	= {1, 3, 0, 2, 4, 4, 1, 3, 3, 5, 5, 2, 4, 4, 6, 2, 1, 6, 3,3,5,7,5,1,2,7,4,6,2,4,6,8,1,8,3,5,3,5,9,2,7}
+	
 	// reset original folder
 	SetDataFolder $strSaveDataFolder
-	return strDataFolder
 End
 
-Function/S PLEMd2AtlasCreateNM(wavN,wavM)
-	Wave wavN, wavM
+Function PLEMd2AtlasCreateNM(strPLEM)
+	String strPLEM
+	Struct PLEMd2stats stats
+	PLEMd2statsLoad(stats, strPLEM)	
+	
 	Variable i
-	WaveStats/Q/M=1 wavN
-	//Make Text Wave, overwrite existing
-	Make/O/T/N=(V_npnts) chiralitynm
-	Wave/T wavChiralitynm=chiralitynm
+	
+	WaveStats/Q/M=1 stats.wavChiralityn
+	Redimension/N=(V_npnts) stats.wavChiralitynm
 	for(i=0;i<V_npnts;i+=1)
-		wavChiralitynm[i]="("+num2str(wavN[i])+","+num2str(wavM[i])+")"
+		stats.wavChiralitynm[i]="("+num2str(stats.wavChiralityN[i])+","+num2str(stats.wavChiralityM[i])+")"
 	endfor
-	return GetWavesDataFolder(wavChiralitynm,2)
+
 End
 
 Function PLEMd2AtlasRecalculate(strPLEM)
 	String strPLEM
 	Struct PLEMd2stats stats
 	PLEMd2statsLoad(stats, strPLEM)	
-	String strMapChiralityFolder = stats.strDataFolder + "CHIRALITY"
-	PLEMd2AtlasReload(strDataFolder = strMapChiralityFolder)		
-	PLEMd2statsLoad(stats, strPLEM)	
 	Variable numPlank = 4.135667516E-12 //meV s
 	Variable numLight =  	299792458E9 //nm/s
-	stats.wavEnergyS1	= stats.wavEnergyS1 * numPlank * numLight / (numPlank * numLight - stats.wavEnergyS1 * stats.numS1offset)
-	stats.wavEnergyS2	= stats.wavEnergyS2 * numPlank * numLight / (numPlank * numLight - stats.wavEnergyS2 * stats.numS2offset)	
+	stats.wavEnergyS1	= numPlank * numLight / (numPlank * numLight / stats.wavAtlasS1nm - stats.numS1offset)
+	stats.wavEnergyS2	= numPlank * numLight / (numPlank * numLight / stats.wavAtlasS2nm - stats.numS2offset)	
+End
+
+Function PLEMd2AtlasInit(strPLEM)
+	String strPLEM
+	Struct PLEMd2stats stats
+
+	PLEMd2AtlasReload(strPLEM) // also populates wave references
+	PLEMd2statsLoad(stats, strPLEM)	// so we have to load afterwards
+	
+	Duplicate/O stats.wavAtlasS1nm stats.wavEnergyS1
+	Duplicate/O stats.wavAtlasS2nm stats.wavEnergyS2
+	Duplicate/O stats.wavAtlasN stats.wavchiralityn
+	Duplicate/O stats.wavAtlasM stats.wavchiralitym
+	
+	// create waves of appropriate dimensions
+	Duplicate/O stats.wavAtlasN stats.wav2Dfit
+	Duplicate/O stats.wavAtlasN stats.wav1Dfit	
+	stats.wav2Dfit = 0
+	stats.wav1Dfit = 0
+	
+	stats.numS1offset = 0 // set to zero to avoid confusion. old values could be preserved.
+	stats.numS2offset = 0
+	// no recalculation needed
+	PLEMd2AtlasCreateNM(strPLEM) // creates chiralitynm
+	PLEMd2statsSave(stats)
+	
 End
 
 Function PLEMd2AtlasEdit(strPLEM)
@@ -1113,7 +1135,7 @@ Function PLEMd2AtlasEdit(strPLEM)
 	winPLEMedit = "win_" + stats.strPLEM + "_edit"
 	DoWindow/F $winPLEMedit
 	if (V_flag == 0)
-		Edit stats.wavchiralitynm, stats.wavcommonness, stats.wavEnergyS1, stats.wavEnergyS2
+		Edit stats.wavchiralitynm, stats.wav2Dfit, stats.wav1Dfit, stats.wavEnergyS1, stats.wavEnergyS2, stats.wavChiralityn, stats.wavChiralityM
 		DoWindow/C/N/R $winPLEMedit
 	endif	
 	
@@ -1123,27 +1145,31 @@ Function PLEMd2AtlasClean(strPLEM)
 	Struct PLEMd2stats stats
 	Variable i, numPoints
 	
-	if (PLEMd2MapExists(strPLEM) == 0)
-		print "PLEMd2AtlasFit: Map does not exist properly"
-		return 0
-	endif
-	
 	PLEMd2statsLoad(stats, strPLEM)
 	numPoints = DimSize(stats.wavchiralitynm,0)
 	for (i=0; i<DimSize(stats.wavchiralitynm,0); i+=1)
-		if (stats.wavCommonness[i] == 0)
+		if (stats.wav2Dfit[i] == 0)
 			DeletePoints i,1, stats.wavchiralitynm, stats.wavchiralityn, stats.wavchiralitym
-			DeletePoints i,1, stats.wavCommonness, stats.wavEnergyS1, stats.wavEnergyS2
+			DeletePoints i,1, stats.wav2Dfit, stats.wav1Dfit, stats.wavEnergyS1, stats.wavEnergyS2
 			i-=1
 		endif		
 	endfor
 End
-Function PLEMd2AtlasFit(strPLEM)
+Function PLEMd2AtlasFit1D(strPLEM)
+	String strPLEM
+	Struct PLEMd2stats stats
+	PLEMd2statsLoad(stats, strPLEM)	
+End
+Function PLEMd2AtlasFit2D(strPLEM)
 	String strPLEM
 	Struct PLEMd2stats stats
 	
 	Variable numS1,numS2
 	Variable numDeltaS1, numDeltaS2
+	Variable numDeltaS1left, numDeltaS1right, numDeltaS2bottom, numDeltaS2top
+	Variable V_fitOptions=4 // used to suppress CurveFit dialog
+	Variable V_FitQuitReason // stores the CurveFit Quit Reason
+	Variable V_FitError // Curve Fit error
 	String strChirality = ""
 	String strWavPLEMfitSingle, strWavPLEMfit
 	String winPLEMfit, winPLEM
@@ -1170,33 +1196,86 @@ Function PLEMd2AtlasFit(strPLEM)
 	//Display
 	//AppendImage stats.wavPLEM
 	
+	numDeltaS1 = 50
+	numDeltaS2 = 50	
 	// input
 	i=0
-	numDeltaS1 = 30
-	numDeltaS2 = 30
 	for (i=0;i<numpnts(stats.wavEnergyS1);i+=1)	
 		stats.wavPLEMfit[][][i]=0
-		stats.wavcommonness[i] = 0
+		stats.wav2Dfit[i] = 0
 		numS1 = stats.wavEnergyS1[i] //x
-		numS2 = stats.wavEnergyS2[i] //y
-		strChirality = "(" + num2str(stats.wavChiralityn[i]) + "," + num2str(stats.wavChiralitym[i]) + ")"
-		if ((numS1-numDeltaS1)<stats.numPLEMleftX)
-			//print strChirality + " not in Map S1 Data Range"
-		elseif ((numS1+numDeltaS1)>stats.numPLEMrightX)
-			//print strChirality + " not in Map S1Data Range"
-		elseif ((numS2-numDeltaS2)<stats.numPLEMbottomY)
-			//print strChirality + " not in Map S1Data Range"
-		elseif ((numS2+numDeltaS2)>stats.numPLEMtopY)
-			//print strChirality + " not in Map S1Data Range"						
+		numS2 = stats.wavEnergyS2[i] //y	
+		
+		numDeltaS1left 	= numDeltaS1/2
+		numDeltaS1right 	= numDeltaS1/2
+		numDeltaS2bottom = numDeltaS2/2
+		numDeltaS2top 	= numDeltaS2/2
+		
+		if ((numS1-numDeltaS1left)<stats.numPLEMleftX)
+			//print "chirality not in Map S1 Data Range"
+			numDeltaS1left = numS1 - stats.numPLEMleftX
+			if (numDeltaS1left<0)
+				numDeltaS1left = 0
+			endif
+		endif
+		if ((numS1+numDeltaS1right)>stats.numPLEMrightX)
+			//print "chirality not in Map S1Data Range"
+			numDeltaS1right = stats.numPLEMrightX - numS1
+			if (numDeltaS1right<0)
+				numDeltaS1right = 0
+			endif
+		endif
+		if ((numS2-numDeltaS2bottom)<stats.numPLEMbottomY)
+			//print "chirality not in Map S1Data Range"
+			numDeltaS2bottom = numS2 - stats.numPLEMbottomY
+			if (numDeltaS2bottom<0)
+				numDeltaS2bottom = 0
+			endif			
+		endif
+		if ((numS2+numDeltaS2top)>stats.numPLEMtopY)
+			//print "chirality not in Map S1Data Range"
+			numDeltaS2top = stats.numPLEMtopY - numS2
+			if (numDeltaS2top<0)
+				numDeltaS2top = 0
+			endif
+		endif
+		if ((numDeltaS1<0) | (numDeltaS2<0))
+			stats.wavPLEMfit[][][i] = 0
+			stats.wav2Dfit[i] = 0			
 		else
-			CurveFit/Q gauss2D  stats.wavPLEM(numS1-numDeltaS1,numS1+numDeltaS1)(numS2-numDeltaS2,numS2+numDeltaS2)
-			Wave W_coef
-			stats.wavPLEMfit[][][i] = Gauss2D(W_coef, x, y)
-			stats.wavEnergyS1[i] = W_coef[2]
-			stats.wavEnergyS2[i] = W_coef[4]
-			stats.wavcommonness[i] = W_coef[1]*2*pi* W_coef[3]* W_coef[5]*sqrt(1-W_coef[6]^2) // volume of 2d gauss without baseline
-			W_coef = 0
-			WaveClear W_coef
+			V_FitError = 0
+			//Make/O/T fitConstraints={"K6 = 0"}
+			//Make/FREE/O W_coef = {0,1,stats.wavEnergyS1[i], (sqrt(stats.wav2Dfit[i]/(2*pi))), stats.wavEnergyS2[i], (sqrt(stats.wav2Dfit[i]/(2*pi))), 0}
+			// gauss2d=K0+K1*exp((-1/(2*(1-K6^2)))*(((x-K2)/K3)^2 + ((y-K4)/K5)^2 - (2*K6*(x-K2)*(y-K4)/(K3*K5))))
+			CurveFit/Q gauss2D stats.wavPLEM(numS1-numDeltaS1left,numS1+numDeltaS1right)(numS2-numDeltaS2bottom,numS2+numDeltaS2top)
+			//FuncFit/Q PLEMd2SimpleGaussian2D, W_coef stats.wavPLEM(numS1-numDeltaS1left,numS1+numDeltaS1right)(numS2-numDeltaS2bottom,numS2+numDeltaS2top)
+			if (V_FitError == 0)				
+				Wave W_coef
+				stats.wavPLEMfit[][][i] = Gauss2D(W_coef, x, y)
+				stats.wavEnergyS1[i] = W_coef[2]
+				stats.wavEnergyS2[i] = W_coef[4]
+				stats.wav2Dfit[i] = W_coef[1]*2*pi* W_coef[3]* W_coef[5]*sqrt(1-W_coef[6]^2) // volume of 2d gauss without baseline
+				
+				//stats.wavPLEMfit[][][i] = PLEMd2SimpleGaussian2D(W_coef, x, y)
+				//stats.wavEnergyS1[i] = W_coef[2]
+				//stats.wavEnergyS2[i] = W_coef[4]
+				//stats.wav2Dfit[i] = W_coef[1]*2*pi* W_coef[3]* W_coef[5] // volume of simpleGaussian
+
+				W_coef = 0
+				WaveClear W_coef
+			else
+				stats.wavPLEMfit[][][i] = 0
+				stats.wav2Dfit[i] = 0
+			endif
+			// error checking
+			if ((stats.wavEnergyS1[i]<0) | (stats.wavEnergyS2[i]<0) | (stats.wav2Dfit[i]<0))
+				stats.wavPLEMfit[][][i] = 0
+				stats.wav2Dfit[i] = 0			
+			endif
+			if ( (abs((numS1-stats.wavEnergyS1[i])/numS1)>0.25 ) | (abs((numS2-stats.wavEnergyS2[i])/numS2)>0.25 ))
+				stats.wavPLEMfit[][][i] = 0
+				stats.wav2Dfit[i] = 0			
+			endif
 		endif
 	endfor
 	// add all maps to one map
@@ -1242,7 +1321,7 @@ Function PLEMd2SimpleGaussian2D(w,x,y):Fitfunc
     //w[2] = x centre
     //w[3] = peak width
     //w[4] = y centre
-    return    w[0]+w[1]*exp(-(((x-w[2])/w[3])^2)-(((y-w[4])/w[3])^2))
+    return    w[0]+w[1]*exp(-( (x-w[2])^2/(2 * w[3]^2) - (y-w[4])/(2 * w[5]^2)   ))
 End
 
 Function PLEMd2AtlasMerge3d(wave3d,wave2d)
@@ -1265,7 +1344,7 @@ Function PLEMd2AtlasShow(strPLEM)
 	PLEMd2statsLoad(stats, strPLEM)	
 	PLEMd2Display(strPLEM)
 	PLEMd2AtlasHide(strPLEM) //prevent multiple traces
-	//wavEnergyS1, , wavChiralityn, wavChiralitym, wavCommonness
+	//wavEnergyS1, , wavChiralityn, wavChiralitym, wav2Dfit
 	AppendToGraph stats.wavEnergyS2/TN=plem01 vs stats.wavEnergyS1
 	AppendToGraph stats.wavEnergyS2/TN=plem02 vs stats.wavEnergyS1
 	AppendToGraph stats.wavEnergyS2/TN=plem03 vs stats.wavEnergyS1
@@ -2076,7 +2155,9 @@ Structure PLEMd2stats
 	// Switches for calculation
 	Variable booBackground, booPower, booPhoton, booGrating, booQuantumEfficiency, booNormalization, booFilter
 	// chirality waves
-	Wave wavEnergyS1, wavEnergyS2, wavChiralityn, wavChiralitym, wavCommonness, wavChiralitynm
+	Wave/D wavAtlasS1nm, wavAtlasS2nm, wavAtlasN, wavAtlasM, wavAtlasNM
+	Wave/D wavEnergyS1, wavEnergyS2, wavChiralityn, wavChiralitym, wav2Dfit, wav1Dfit
+	Wave/T wavChiralitynm
 	Wave wavPLEMfit, wavPLEMfitSingle
 	// Variables for chirality offset
 	Variable 	numS1offset, numS2offset
@@ -2172,33 +2253,66 @@ Function PLEMd2statsLoad(stats, strMap)
 		SetDataFolder $strSaveDataFolder
 	endif
 	if (!DataFolderExists(strMapChiralityFolder))
-		PLEMd2AtlasReload(strDataFolder = strMapChiralityFolder)
+		NewDataFolder/O $strMapChiralityFolder
 	endif 
 	if (DataFolderExists(strMapChiralityFolder))
 		strSaveDataFolder = GetDataFolder(1)
-		SetDataFolder $strMapChiralityFolder	
-		if (WaveExists(:s1nm))
-			Wave stats.wavEnergyS1 = s1nm
+		SetDataFolder $strMapChiralityFolder
+		Variable numAtlasDimension = 41 // maximum dimension (does not exceed maximum atlas chiralities)
+		// PLEmap data for displaying
+		if (!WaveExists(:PLEMs1nm))
+			Make/O/N=(numAtlasDimension)/D :PLEMs1nm
 		endif
-		if (WaveExists(:s2nm))
-			Wave stats.wavEnergyS2 = s2nm
+		Wave/D stats.wavEnergyS1 = :PLEMs1nm
+		if (!WaveExists(:PLEMs2nm))
+			Make/O/N=(numAtlasDimension)/D :PLEMs2nm
 		endif
-		if (WaveExists(:chiralityn))
-			Wave stats.wavChiralityn = chiralityn
+		Wave/D stats.wavEnergyS2 = :PLEMs2nm
+		if (!WaveExists(:PLEMchiralityn))
+			Make/O/N=(numAtlasDimension)/D :PLEMchiralityn
 		endif
-		if (WaveExists(:chiralitym))
-			Wave stats.wavChiralitym = chiralitym
+		Wave/D stats.wavChiralityn = :PLEMchiralityn		
+		if (!WaveExists(:PLEMchiralitym))
+			Make/O/N=(numAtlasDimension)/D :PLEMchiralitym
 		endif
-		if (WaveExists(:chiralitynm))
-			Wave stats.wavChiralitynm = chiralitynm
+		Wave/D stats.wavChiralitym = :PLEMchiralitym
+		if (!WaveExists(:PLEMchirality))
+			Make/T/O/N=(numAtlasDimension) :PLEMchirality
 		endif
-		if (WaveExists(:commonness))
-			Wave stats.wavCommonness = commonness
+		Wave/T stats.wavChiralitynm = :PLEMchirality
+		
+		// atlas (original dataset)
+		if (!WaveExists(:atlasS1nm))
+			Make/O/N=(numAtlasDimension)/D :atlasS1nm
 		endif
-		if (!WaveExists(:PLEMfit))
-			Make PLEMfit
+		Wave/D stats.wavAtlasS1nm = :atlasS1nm		
+		if (!WaveExists(:atlasS2nm))
+			Make/O/N=(numAtlasDimension)/D :atlasS2nm
 		endif
-		Wave stats.wavPLEMfit = :PLEMfit
+		Wave/D stats.wavAtlasS2nm = :atlasS2nm		
+		if (!WaveExists(:atlasN))
+			Make/O/N=(numAtlasDimension)/D :atlasN
+		endif
+		Wave/D stats.wavAtlasN = :atlasN		
+		if (!WaveExists(:atlasM))
+			Make/O/N=(numAtlasDimension)/D :atlasM
+		endif
+		Wave/D stats.wavAtlasM = :atlasM
+		
+		// fitting waves
+		if (!WaveExists(:fit1D))
+			Make/O/N=(numAtlasDimension)/D :fit1D
+		endif
+		Wave/D stats.wav1Dfit = :fit1D
+		if (!WaveExists(:fit2D))
+			Make/O/N=(numAtlasDimension)/D :fit2D
+		endif
+		Wave/D stats.wav2Dfit = :fit2D
+		if (!WaveExists(:fitPLEM))
+			Make/O/D :fitPLEM
+		endif
+		Wave/D stats.wavPLEMfit = :fitPLEM
+				
 		SetDataFolder $strSaveDataFolder							
 	endif	
 	if (!DataFolderExists(strMapInfoFolder))
@@ -2802,10 +2916,11 @@ Function PLEMd2PanelAtlas([strWinPLEM])
 	NewPanel /N=PLEMd2PanelAtlas/W=(0,0,300,100) /EXT=2 /HOST=$strWinPLEM
 	SetVariable 	gnumS1offset,	proc=VariableProcAtlasRecalculate,	value=$(strDataFolderInfo + "gnumS1offset"),	pos={10,10}, 	size={130,0}
 	SetVariable 	gnumS2offset,	proc=VariableProcAtlasRecalculate,	value=$(strDataFolderInfo + "gnumS2offset"),	pos={10,30}, 	size={130,0}
-	//Button 		AtlasRecalc,		proc=ButtonProcAtlasRecalculate,	title="set",			pos={10, 50},	size={50,25}
+	Button 		AtlasReset,		proc=ButtonProcAtlasReset,	title="reset",			pos={10, 50},	size={50,25}
 	Button 		AtlasShow,		proc=ButtonProcAtlasShow,	title="show",			pos={150, 10},	size={50,25}
 	Button		AtlasHide,		proc=ButtonProcAtlasHide,		title="hide",			pos={150, 40},	size={50,25}
-	Button		AtlasFit,			proc=ButtonProcAtlasFit,		title="fit",				pos={200, 10},	size={50,25}
+	Button		AtlasFit2D,		proc=ButtonProcAtlasFit2D,	title="fit2D",			pos={200, 10},	size={50,25}
+	Button		AtlasFit1D,		proc=ButtonProcAtlasFit1D,	title="fit1D",			pos={200, 40},	size={50,25}
 	Button		AtlasEdit,		proc=ButtonProcAtlasEdit,		title="edit",		pos={250, 10},	size={50,25}
 	Button		AtlasClean,		proc=ButtonProcAtlasClean,	title="clean",		pos={250, 40},	size={50,25}
 	//gnumPLEM;gnumVersion;gstrPLEM;gstrPLEMfull;gstrDataFolder;gstrDataFolderOriginal;gstrDate;gstrUser;gstrFileName;
@@ -2843,13 +2958,13 @@ Function ButtonProcAtlasHide(ba) : ButtonControl
 	endswitch
 	return 0
 End
-Function ButtonProcAtlasRecalculate(ba) : ButtonControl
+Function ButtonProcAtlasReset(ba) : ButtonControl
 	STRUCT WMButtonAction &ba
 	switch( ba.eventCode )
 		case 2: // mouse up
 			String strPLEM
 			strPLEM = PLEMd2window2strPLEM(ba.win)
-			PLEMd2AtlasRecalculate(strPLEM)
+			PLEMd2AtlasInit(strPLEM)
 			break
 		case -1: // control being killed
 			break
@@ -2875,13 +2990,26 @@ Function VariableProcAtlasRecalculate(sva) : SetVariableControl
 
 	return 0
 End
-Function ButtonProcAtlasFit(ba) : ButtonControl
+Function ButtonProcAtlasFit2D(ba) : ButtonControl
 	STRUCT WMButtonAction &ba
 	switch( ba.eventCode )
 		case 2: // mouse up
 			String strPLEM
 			strPLEM = PLEMd2window2strPLEM(ba.win)
-			PLEMd2AtlasFit(strPLEM)
+			PLEMd2AtlasFit2D(strPLEM)
+			break
+		case -1: // control being killed
+			break
+	endswitch
+	return 0
+End
+Function ButtonProcAtlasFit1D(ba) : ButtonControl
+	STRUCT WMButtonAction &ba
+	switch( ba.eventCode )
+		case 2: // mouse up
+			String strPLEM
+			strPLEM = PLEMd2window2strPLEM(ba.win)
+			PLEMd2AtlasFit1D(strPLEM)
 			break
 		case -1: // control being killed
 			break
