@@ -24,7 +24,7 @@
 //Version 13.4: Converted Photon, Power, Grating to 2D-Waves, clean up of code, separation of Build from ProcessIBW
 //Version 13.5: Fixed Grating Correction. Some Cleanup. Deleted PLEMd2statsMenu, PLEMd2statsAction, PLEMd2statsMap, PLEMd2statsCalculate PLEMd2PowerCorrection etc.
 //Version 14: Changed Wavelength wave and scaling. Clean Igor wavescaling is now done and measured wave is interpolated.
-
+//Version 15: Panel and Graph Window
 // 	ToDo: Correction Path is only at old dest
 //	ToDo: Maybe Delete Old Iport PLEMd2d1 function for further releases
 //	ToDo. Create Panel for Map-Updates
@@ -32,7 +32,7 @@
 
 #pragma rtGlobals=3		// Use modern global access method and strict wave access.
 
-static Constant PLEMd2Version = 1400
+static Constant PLEMd2Version = 1502
 static StrConstant PLEMd2PackageName = "PLEM-displayer2"
 static StrConstant PLEMd2PrefsFileName = "PLEMd2Preferences.bin"
 static StrConstant PLEMd2WorkingDir0 = "C:users:matthias:Meine Dokumente:Documents:programs:local:igor:matthias:PLEM-displayer2:"
@@ -59,7 +59,8 @@ Menu "PLE-Map", dynamic //create menu bar entry
 //	SubMenu "Displayer2"
 //		"Init", PLEMd2()
 		"Open", PLEMd2open()
-//		"Configuration", PLEMd2Panel()
+		"Decorate Image",PLEMd2Decorate()
+		"Info", PLEMd2Panel()
 //		"-"
 //		"Clean up Variables", PLEMd2Clean()
 //	End
@@ -386,6 +387,7 @@ Function PLEMd2ProcessIBW(strPLEM)
 	String strWaveNames, strWaveExtract
 	Variable numTotalX, numTotalY, i, j
 	
+	//print "PLEMd2ProcessIBW: Started with " + strPLEM
 	// check if IBW file was loaded prior to function call.
 	if (WaveExists(stats.wavIBW)==0)
 		print "PLEMd2ProcessIBW: IBW Wave does not exist. Check Code."
@@ -670,7 +672,6 @@ Function PLEMd2BuildMaps(strPLEM)
 		print "PLEMd2BuildMaps: Map does not exist"
 	endif
 	print "PLEMd2BuildMaps: Building finished. Full Path to Wave is"
-	print stats.strDataFolder
 	print stats.strPLEMfull
 	SetDataFolder $strSaveDataFolder	
 End
@@ -695,10 +696,10 @@ Function PLEMd2Delta(wavInput)
 			wavDeltaWave[i] = (wavInput[(i+1)] - wavInput[i])
 		endfor
 		WaveStats/Q/W wavDeltaWave
-		//KillWaves/Z  wavDeltaWave
+		KillWaves/Z  wavDeltaWave
 		wave M_WaveStats
 		numDelta = M_WaveStats[3] //average
-		print "Wave " + nameofwave(wavInput) + " has a Delta of " + num2str(numDelta) + " with a standard deviation of " + num2str(M_WaveStats[4])
+		//print "Wave " + nameofwave(wavInput) + " has a Delta of " + num2str(numDelta) + " with a standard deviation of " + num2str(M_WaveStats[4])
 		//if X-Wave is not equally spaced, set the half minimum delta at all points.
 		// controll by calculating statistical error 2*sigma/rms		
 		if ((2*M_WaveStats[4]/M_WaveStats[5]*100)>5)
@@ -895,7 +896,7 @@ Function PLEMd2DuplicateByNum(numPLEM)
 	PLEMd2Duplicate(strPLEM)
 End
 
-Function 	PLEMd2Duplicate(strPLEM)
+Function/S	PLEMd2Duplicate(strPLEM)
 	String strPLEM
 
 	Struct PLEMd2Stats stats
@@ -918,8 +919,10 @@ Function 	PLEMd2Duplicate(strPLEM)
 		wave wavTemp =$("")
 	endif
 	Duplicate PLEM $strWavename
+	wave wavDuplicated = $strWavename
 	print "PLEMd2Duplicate: WaveName is " + strWavename	
-	SetDataFolder root:	
+	SetDataFolder root:
+	return GetwavesDataFolder(wavDuplicated,2)
 End
 
 //PLEMd2FixWavenotes
@@ -953,9 +956,7 @@ Function PLEMd2FixWavenotes(strPLEM)
 	Endif
 End
 
-Function PLEMd2Panel()
-	DoWindow PLEMd2Panel
-End
+
 
 Function PLEMd2d1Open()
 
@@ -2045,42 +2046,205 @@ Function PLEMd2Display(strPLEM)
 	String strPLEM
 	
 	Struct PLEMd2Stats stats
-	String winPLEM
+	String winPLEM	
 	PLEMd2statsLoad(stats, strPLEM)
-		
-	if (strlen(stats.strPLEMfull)==0)
+	
+	// check if spectrum is a valid input
+	if ((strlen(stats.strPLEMfull)==0) || (strlen(stats.strPLEM)==0))
 		print "PLEMd2Display: Error stats.strPLEMfull not set for Map: " + strPLEM + " check code"
+		return 0
 	endif
-	if (WaveExists($(stats.strPLEMfull)))
-		if (stats.numCalibrationMode == 1)
-			Display $(stats.strPLEMfull)
-			winPLEM = "win_" + stats.strPLEM
-			DoWindow/F $winPLEM
-			if (V_Flag == 0)
-				DoWindow/C/T $winPLEM, stats.strPLEM
-				ModifyGraph/W=$winPLEM standoff=0
-				SetAxis/W=$winPLEM/A left
-				Label/W=$winPLEM left "intensity / a.u."
-				Label/W=$winPLEM bottom "wavelength / nm (Excitation at "+num2str(stats.numEmissionStart)+"-"+num2str(stats.numEmissionEnd)+")"
-			endif
-		else
-			Display	
-			AppendImage $stats.strPLEMfull
-			winPLEM = "win_" + stats.strPLEM
-			DoWindow/F $winPLEM
-			if (V_Flag == 0)
-				DoWindow/C/T $winPLEM, stats.strPLEM
-				ModifyImage/W=$winPLEM ''#0 ctab= {*,*,Terrain256,0}
-				ModifyGraph/W=$winPLEM standoff=0
-				SetAxis/W=$winPLEM/A left
-				Label/W=$winPLEM left "center of excitation / nm"
-				Label/W=$winPLEM bottom "emission / nm"				
-			endif
-			
-		endif
-	else
+	if (WaveExists($(stats.strPLEMfull)) == 0)
 		print "PLEMd2Display: Wave Not Found"
+		return 0
+	endif	
+	
+	// check if window already exists
+	winPLEM = "win_" + stats.strPLEM
+	DoWindow/F $winPLEM
+	// DoWindow sets the variable V_flag: 
+	// 	1 window existed
+	// 	0 no such window
+	// 	2 window is hidden. 	
+	if (V_flag == 1)
+		print "PLEMd2Display: Graph already exists"
+		return 0
+	elseif (V_flag == 2)
+		print "PLEMd2Display: Graph was hidden. Case not handled. check code"
+	elseif (V_flag == 0)
+		Display
+		DoWindow/C/N/R $winPLEM
+		if (stats.numCalibrationMode == 1)
+			AppendToGraph $(stats.strPLEMfull)		
+			ModifyGraph/W=$winPLEM standoff=0
+			SetAxis/W=$winPLEM/A left
+			Label/W=$winPLEM left "intensity / a.u."
+			Label/W=$winPLEM bottom "wavelength / nm (Excitation at "+num2str(stats.numEmissionStart)+"-"+num2str(stats.numEmissionEnd)+")"
+		else
+			AppendImage $stats.strPLEMfull
+			PLEMd2Decorate(strWinPLEM = winPLEM)
+		endif
+		PLEMd2Panel(strWinPLEM = winPLEM)
 	endif
+End
+
+Function PLEMd2Decorate([strWinPLEM])
+	String strWinPLEM	
+	Variable numZmin, numZmax
+	Variable numXmin, numXmax
+	Variable numYmin, numYmax
+	String strImages
+	
+	// if no argument was selected, take top graph window
+	if (ParamIsDefault(strWinPLEM))
+		strWinPLEM = WinName(0, 1, 1)
+	endif
+	if (strlen(strWinPLEM) == 0)
+		Print "PLEMd2Decorate: No window to append to"
+		return 0
+	endif	
+	
+	// get the image name and wave reference.
+	strImages = ImageNameList(strWinPLEM, ";")
+	if (ItemsInList(strImages) != 1)
+		Print "PLEMd2Decorate: No Image found in top graph or More than one Image present"
+	endif
+	wave wavImage = ImageNameToWaveRef(strWinPLEM,StringFromList(0,strImages))
+	
+	// get min and max of wave (statistically corrected)
+	WaveStats/Q/W wavImage	
+	wave M_WaveStats
+	numZmin = M_WaveStats[10]	//minimum
+	numZmin = M_WaveStats[3]-sign(M_WaveStats[3])*2*M_WaveStats[4] //statistical minimum
+	if (numZmin<0)
+		numZmin = 0
+	endif
+	numZmax = M_WaveStats[12]	//maximum
+	//Images start a little earlier as the minimum due to the quadratic size of a pixel.
+	numYmin 	= DimOffset(wavImage,1) + sign(DimOffset(wavImage,1)) * (-1) * DimDelta(wavImage,1)/2
+	numYmax 	= DimOffset(wavImage,1) + DimDelta(wavImage,1)*(DimSize(wavImage,1)-1) + sign(DimOffset(wavImage,1)) * (+1) * DimDelta(wavImage,1)/2
+	numXmin 	= DimOffset(wavImage,0) + sign(DimOffset(wavImage,0)) * (-1) * DimDelta(wavImage,0)/2
+	numXmax 	= DimOffset(wavImage,0) + DimDelta(wavImage,0)*(DimSize(wavImage,0)-1) + sign(DimOffset(wavImage,0)) * (+1) * DimDelta(wavImage,0)/2
+	Killwaves/Z M_Wavestats
+	
+	ModifyImage/W=$strWinPLEM ''#0 ctab= {numZmin,numZmax,Terrain256,0}
+	ModifyGraph/W=$strWinPLEM standoff=0, height={Aspect,((numYmax-numYmin)/(numXmax-numXmin))}
+	SetAxis/W=$strWinPLEM left,numYmin, numYmax
+	SetAxis/W=$strWinPLEM bottom,numXmin,numXmax
+	Label/W=$strWinPLEM left "center of excitation / nm"
+	Label/W=$strWinPLEM bottom "emission / nm"				
+End
+
+Function PLEMd2Panel([strWinPLEM])
+	String strWinPLEM
+	String strImages, strTraces, strDataFolderMap, strDataFolderInfo
+	// if no argument was selected, take top graph window
+	if (ParamIsDefault(strWinPLEM))
+		strWinPLEM = WinName(0, 1, 1)
+	endif
+	if (strlen(strWinPLEM) == 0)
+		Print "PLEMd2Panel: No window to append to"
+		return 0
+	endif	
+	
+	// if the panel is already shown, do nothing
+	DoUpdate /W=$strWinPLEM#PLEMd2Panel
+	if (V_flag != 0)
+		Print "PLEMd2Panel: Panel already exists."
+		return 0
+	endif	
+
+	// get the image name and wave reference.
+	strImages = ImageNameList(strWinPLEM, ";")
+	if (ItemsInList(strImages) == 0)
+		strTraces = TraceNameList(strWinPLEM, ";",1)
+		if (ItemsInList(strTraces) == 1)
+			wave wavPLEM = TraceNameToWaveRef(strWinPLEM,StringFromList(0,strTraces))	
+		else
+			Print "PLEMd2Panel: No Image found. More than one or no trace found in top graph."
+			return 0
+		endif
+	elseif (ItemsInList(strImages) > 1)
+		Print "PLEMd2Panel: More than one image found in top graph."
+		return 0
+	else	
+		wave wavPLEM = ImageNameToWaveRef(strWinPLEM,StringFromList(0,strImages))	
+	endif
+	// check for INFO folder
+	strDataFolderMap = GetWavesDataFolder(wavPLEM,1)
+	strDataFolderInfo = strDataFolderMap + "INFO:"
+	if (DataFolderExists(strDataFolderInfo) == 0)
+		Print "PLEMd2Panel: INFO Data Folder for Image in top graph not found."
+		return 0
+	endif
+	NewPanel /N=PLEMd2Panel/W=(0,0,300,300) /EXT=0 /HOST=$strWinPLEM
+	TitleBox/Z gstrPLEMfull	variable=$(strDataFolderInfo + "gstrPLEMfull"), 						pos={10,10}, 	size={130,0}, disable=0, frame=0, font="Helvetica"
+	TitleBox/Z gstrDate		variable=$(strDataFolderInfo + "gstrDate"), 							pos={10,30}, 	size={130,0}, disable=0, frame=0, font="Helvetica"
+	TitleBox/Z gstrUser		variable=$(strDataFolderInfo + "gstrUser"), 							pos={10,50}, 	size={130,0}, disable=0, frame=0, font="Helvetica"
+	TitleBox/Z gstrFileName	variable=$(strDataFolderInfo + "gstrFileName"), 						pos={10,70}, 	size={130,0}, disable=0, frame=0, font="Helvetica"
+	SetVariable gnumBackground,			value=$(strDataFolderInfo + "gnumBackground"),			pos={10,90}, 	size={130,0}
+	SetVariable gnumSlit,					value=$(strDataFolderInfo + "gnumSlit"),					pos={10,110}, 	size={130,0}
+	SetVariable gnumGrating,				value=$(strDataFolderInfo + "gnumGrating"),				pos={10,130}, 	size={130,0}
+	SetVariable gnumFilter,				value=$(strDataFolderInfo + "gnumFilter"),				pos={10,150}, 	size={130,0}
+	SetVariable gnumShutter,				value=$(strDataFolderInfo + "gnumShutter"),				pos={10,170}, 	size={130,0}
+	SetVariable gnumWLcenter,			value=$(strDataFolderInfo + "gnumWLcenter"),			pos={10,190}, 	size={130,0}
+	SetVariable gnumDetector,				value=$(strDataFolderInfo + "gnumDetector"),			pos={10,210}, 	size={130,0}
+	SetVariable gnumCooling,				value=$(strDataFolderInfo + "gnumCooling"),				pos={10,230}, 	size={130,0}
+	SetVariable gnumExposure,			value=$(strDataFolderInfo + "gnumExposure"),			pos={10,250}, 	size={130,0}
+	SetVariable gnumBinning,				value=$(strDataFolderInfo + "gnumBinning"),				pos={10,270}, 	size={130,0}
+	SetVariable gnumScans,				value=$(strDataFolderInfo + "gnumScans"),				pos={150,90}, 	size={130,0}
+	SetVariable gnumEmissionMode,		value=$(strDataFolderInfo + "gnumEmissionMode"),		pos={150,110}, 	size={130,0}
+	SetVariable gnumEmissionPower,		value=$(strDataFolderInfo + "gnumEmissionPower"),		pos={150,130}, 	size={130,0}
+	SetVariable gnumEmissionStart,		value=$(strDataFolderInfo + "gnumEmissionStart"),		pos={150,150}, 	size={130,0}
+	SetVariable gnumEmissionEnd,			value=$(strDataFolderInfo + "gnumEmissionEnd"),			pos={150,170}, 	size={130,0}
+	SetVariable gnumEmissionDelta,		value=$(strDataFolderInfo + "gnumEmissionDelta"),		pos={150,190}, 	size={130,0}
+	SetVariable gnumEmissionStep,		value=$(strDataFolderInfo + "gnumEmissionStep"),		pos={150,210}, 	size={130,0}
+	Button ProcessIBW,pos={150, 230},size={130,30},proc=ButtonProcProcessIBW,title="Re-Process IBW"
+	Button BuildMaps,pos={150, 260},size={130,30},proc=ButtonProcBuildMaps,title="Re-Build Map"
+	//gnumPLEM;gnumVersion;gstrPLEM;gstrPLEMfull;gstrDataFolder;gstrDataFolderOriginal;gstrDate;gstrUser;gstrFileName;
+	//gnumPLEMTotalX;gnumPLEMLeftX;gnumPLEMDeltaX;gnumPLEMRightX;gnumPLEMTotalY;gnumPLEMBottomY;gnumPLEMDeltaY;gnumPLEMTopY;gnumCalibrationMode;
+	//gnumBackground; gnumSlit;gnumGrating;gnumFilter;
+	//gnumShutter;gnumWLcenter;gnumDetector;gnumCooling;gnumExposure;gnumBinning;gnumScans;gnumWLfirst;gnumWLlast;gnumWLdelta;
+	//gnumEmissionMode;gnumEmissionPower;gnumEmissionStart;gnumEmissionEnd;gnumEmissionDelta;gnumEmissionStep;
+	DoWindow PLEMd2Panel
+
+End
+
+Function ButtonProcProcessIBW(ba) : ButtonControl
+	STRUCT WMButtonAction &ba
+	switch( ba.eventCode )
+		case 2: // mouse up
+			String strPLEM
+			strPLEM = PLEMd2window2strPLEM(ba.win)
+			PLEMd2ProcessIBW(strPLEM)
+			break
+		case -1: // control being killed
+			break
+	endswitch
+	return 0
+End
+
+Function ButtonProcBuildMaps(ba) : ButtonControl
+	STRUCT WMButtonAction &ba
+	switch( ba.eventCode )
+		case 2: // mouse up
+			String strPLEM
+			strPLEM = PLEMd2window2strPLEM(ba.win)
+			PLEMd2BuildMaps(strPLEM)
+			break
+		case -1: // control being killed
+			break
+	endswitch
+	return 0
+End
+
+Function/S PLEMd2window2strPLEM(strWindow)
+	String strWindow
+	Variable numStart, numEnd
+	
+	numEnd = strsearch(strWindow, "#",0)
+	numStart = strsearch(strWindow, "win_", 0)
+	return strWindow[numStart+4,numEnd-1]
 End
 
 // Global Preferences stored in igor Folder
