@@ -2,37 +2,37 @@
 
 Function PLEMd2Display(strPLEM)
 	String strPLEM
-	
+
 	Struct PLEMd2Stats stats
-	String winPLEM	
+	String winPLEM
 	PLEMd2statsLoad(stats, strPLEM)
-	
+
 	// check if spectrum is a valid input
-	if ((strlen(stats.strPLEMfull)==0) || (strlen(stats.strPLEM)==0))
+	if((strlen(stats.strPLEMfull)==0) || (strlen(stats.strPLEM)==0))
 		print "PLEMd2Display: Error stats.strPLEMfull not set for Map: " + strPLEM + " check code"
 		return 0
 	endif
-	if (WaveExists($(stats.strPLEMfull)) == 0)
+	if(WaveExists($(stats.strPLEMfull)) == 0)
 		print "PLEMd2Display: Wave Not Found"
 		return 0
-	endif	
-	
+	endif
+
 	// check if window already exists
 	winPLEM = "win_" + stats.strPLEM
 	DoWindow/F $winPLEM
-	// DoWindow sets the variable V_flag: 
+	// DoWindow sets the variable V_flag:
 	// 	1 window existed
 	// 	0 no such window
-	// 	2 window is hidden. 	
-	if (V_flag == 1)
+	// 	2 window is hidden.
+	if(V_flag == 1)
 		CheckDisplayed/W=$winPLEM stats.wavPLEM
 		if(V_Flag)
 			print stats.strPLEM, "window found"
 		endif
 		return 0
-	elseif (V_flag == 2)
+	elseif(V_flag == 2)
 		print "PLEMd2Display: Graph was hidden. Case not handled. check code"
-	elseif (V_flag == 0)
+	elseif(V_flag == 0)
 		Display
 		DoWindow/C/N/R $winPLEM
 		if((stats.numCalibrationMode == 1) && (stats.numReadOutMode != 1))
@@ -51,10 +51,10 @@ End
 
 Function PLEMd2DisplayByNum(numPLEM)
 	Variable numPLEM
-	if (numPLEM < 0)
+	if(numPLEM < 0)
 		print "PLEMd2DisplayByNum: Wrong Function Call numPLEM out of range"
 		return 0
-	endif	
+	endif
 	String strPLEM
 	strPLEM = PLEMd2strPLEM(numPLEM)
 	PLEMd2Display(strPLEM)
@@ -67,33 +67,33 @@ Function PLEMd2Decorate([strWinPLEM, booImage])
 	Variable numXmin, numXmax
 	Variable numYmin, numYmax
 	String strImages
-	
+
 	// if no argument was selected, take top graph window
-	if (ParamIsDefault(strWinPLEM))
+	if(ParamIsDefault(strWinPLEM))
 		strWinPLEM = WinName(0, 1, 1)
 	endif
 	if(ParamIsDefault(booImage))
 		booImage = 0
 	endif
 
-	if (strlen(strWinPLEM) == 0)
+	if(strlen(strWinPLEM) == 0)
 		Print "PLEMd2Decorate: No window to append to"
 		return 0
-	endif	
-	
+	endif
+
 	// get the image name and wave reference.
 	strImages = ImageNameList(strWinPLEM, ";")
-	if (ItemsInList(strImages) != 1)
+	if(ItemsInList(strImages) != 1)
 		Print "PLEMd2Decorate: No Image found in top graph or More than one Image present"
 	endif
 	wave wavImage = ImageNameToWaveRef(strWinPLEM,StringFromList(0,strImages))
-	
+
 	// get min and max of wave (statistically corrected)
-	WaveStats/Q/W wavImage	
+	WaveStats/Q/W wavImage
 	wave M_WaveStats
 	numZmin = M_WaveStats[10]	//minimum
 	numZmin = M_WaveStats[3]-sign(M_WaveStats[3])*2*M_WaveStats[4] //statistical minimum
-	if (numZmin<0)
+	if(numZmin<0)
 		numZmin = 0
 	endif
 	numZmax = M_WaveStats[12]	//maximum
@@ -103,13 +103,13 @@ Function PLEMd2Decorate([strWinPLEM, booImage])
 	numXmin 	= DimOffset(wavImage,0) + sign(DimOffset(wavImage,0)) * (-1) * DimDelta(wavImage,0)/2
 	numXmax 	= DimOffset(wavImage,0) + DimDelta(wavImage,0)*(DimSize(wavImage,0)-1) + sign(DimOffset(wavImage,0)) * (+1) * DimDelta(wavImage,0)/2
 	Killwaves/Z M_Wavestats
-	
+
 	ModifyImage/W=$strWinPLEM ''#0 ctab= {numZmin,numZmax,Terrain256,0}
 	ModifyImage/W=$strWinPLEM ''#0 ctab= {*,*,Terrain256,0}
 	ModifyGraph/W=$strWinPLEM standoff=0
 	ModifyGraph/W=$strWinPLEM height={Aspect,((numYmax-numYmin)/(numXmax-numXmin))}
 	ModifyGraph/W=$strWinPLEM height = 0
-	
+
 	SetAxis/W=$strWinPLEM left,numYmin, numYmax
 	SetAxis/W=$strWinPLEM/A left
 	SetAxis/W=$strWinPLEM bottom,numXmin,numXmax
@@ -127,16 +127,16 @@ End
 
 Function PLEMd2ShowNote([strWinPLEM])
 	String strWinPLEM
-	
+
 	String strWinPLEMbase, strPLEM
 	String strImages, strTraces, strDataFolderMap, strDataFolderInfo
 	Struct PLEMd2Stats stats
-	
+
 	// if no argument was selected, take top graph window
-	if (ParamIsDefault(strWinPLEM))
+	if(ParamIsDefault(strWinPLEM))
 		strWinPLEM = WinName(0, 1, 1)
 	endif
-	if (strlen(strWinPLEM) == 0)
+	if(strlen(strWinPLEM) == 0)
 		Print "PLEMd2ShowNote: base window not found"
 		return 0
 	endif
@@ -144,10 +144,10 @@ Function PLEMd2ShowNote([strWinPLEM])
 	strWinPLEMbase = strWinPLEM[0,(strsearch(strWinPLEM, "#",0)-1)]
 	// if the panel is already shown, do nothing
 	DoUpdate /W=$strWinPLEMbase#PLEMd2WaveNote
-	if (V_flag != 0)
+	if(V_flag != 0)
 		Print "PLEMd2ShowNote: Panel already exists."
 		return 0
-	endif	
+	endif
 
 	// get the image name and wave reference.
 	strPLEM = PLEMd2window2strPLEM(strWinPLEMbase)
@@ -157,7 +157,7 @@ Function PLEMd2ShowNote([strWinPLEM])
 	if( V_Flag != 1 )
 		print "PLEMd2ShowNote: wrong panel. wave not found"
 	endif
-	
+
 	// display Note
 	String strWavenote = note(wavPLEM)
 	NewPanel /N=PLEMd2WaveNote/W=(0,0,300,400) /EXT=0 /HOST=$strWinPLEMbase
@@ -170,41 +170,41 @@ Function PLEMd2Panel([strWinPLEM])
 	String strWinPLEM
 	String strImages, strTraces, strDataFolderMap, strDataFolderInfo
 	// if no argument was selected, take top graph window
-	if (ParamIsDefault(strWinPLEM))
+	if(ParamIsDefault(strWinPLEM))
 		strWinPLEM = WinName(0, 1, 1)
 	endif
-	if (strlen(strWinPLEM) == 0)
+	if(strlen(strWinPLEM) == 0)
 		Print "PLEMd2Panel: No window to append to"
 		return 0
-	endif	
-	
+	endif
+
 	// if the panel is already shown, do nothing
 	DoUpdate /W=$strWinPLEM#PLEMd2Panel
-	if (V_flag != 0)
+	if(V_flag != 0)
 		Print "PLEMd2Panel: Panel already exists."
 		return 0
-	endif	
+	endif
 
 	// get the image name and wave reference.
 	strImages = ImageNameList(strWinPLEM, ";")
-	if (ItemsInList(strImages) == 0)
+	if(ItemsInList(strImages) == 0)
 		strTraces = TraceNameList(strWinPLEM, ";",1)
-		if (ItemsInList(strTraces) == 1)
-			wave wavPLEM = TraceNameToWaveRef(strWinPLEM,StringFromList(0,strTraces))	
+		if(ItemsInList(strTraces) == 1)
+			wave wavPLEM = TraceNameToWaveRef(strWinPLEM,StringFromList(0,strTraces))
 		else
 			Print "PLEMd2Panel: No Image found. More than one or no trace found in top graph."
 			return 0
 		endif
-	elseif (ItemsInList(strImages) > 1)
+	elseif(ItemsInList(strImages) > 1)
 		Print "PLEMd2Panel: More than one image found in top graph."
 		return 0
-	else	
-		wave wavPLEM = ImageNameToWaveRef(strWinPLEM,StringFromList(0,strImages))	
+	else
+		wave wavPLEM = ImageNameToWaveRef(strWinPLEM,StringFromList(0,strImages))
 	endif
 	// check for INFO folder
 	strDataFolderMap = GetWavesDataFolder(wavPLEM,1)
 	strDataFolderInfo = strDataFolderMap + "INFO:"
-	if (DataFolderExists(strDataFolderInfo) == 0)
+	if(DataFolderExists(strDataFolderInfo) == 0)
 		Print "PLEMd2Panel: INFO Data Folder for Image in top graph not found."
 		return 0
 	endif
@@ -220,10 +220,10 @@ Function PLEMd2Panel([strWinPLEM])
 	CheckBox boxNormalization		variable=$(strDataFolderInfo + "gbooNormalization"), 		pos={10,80}, 	title="normalization", proc=CheckProcCalculate
 	CheckBox boxFilter				variable=$(strDataFolderInfo + "gbooFilter"), 				pos={10,140}, 	title="filter", proc=CheckProcCalculate
 	CheckBox boxInterpolate			variable=$(strDataFolderInfo + "gbooInterpolate"), 			pos={10,100}, 	title="interpolate", proc=CheckProcCalculate
-	
+
 	Button ProcessIBW, pos={150, 30}, size={130,30}, proc=ButtonProcProcessIBW,title="reset"
 //	Button BuildMaps, pos={150, 180}, size={130,30}, proc=ButtonProcBuildMaps,title="calculate"
-	Button ShowNote, pos={150, 140}, size={130,30}, proc=ButtonProcShowNote,title="WaveNote"	
+	Button ShowNote, pos={150, 140}, size={130,30}, proc=ButtonProcShowNote,title="WaveNote"
 	DoWindow PLEMd2Panel
 End
 
@@ -231,43 +231,42 @@ Function PLEMd2PanelAtlas([strWinPLEM])
 	String strWinPLEM
 	String strImages, strTraces, strDataFolderMap, strDataFolderInfo
 	// if no argument was selected, take top graph window
-	if (ParamIsDefault(strWinPLEM))
+	if(ParamIsDefault(strWinPLEM))
 		strWinPLEM = WinName(0, 1, 1)
 	endif
-	if (strlen(strWinPLEM) == 0)
+	if(strlen(strWinPLEM) == 0)
 		Print "PLEMd2Atlas: No window to append to"
 		return 0
-	endif	
-	
+	endif
+
 	// if the panel is already shown, do nothing
 	DoUpdate /W=$strWinPLEM#PLEMd2PanelAtlas
-	if (V_flag != 0)
+	if(V_flag != 0)
 		Print "PLEMd2Atlas: Panel already exists."
-		//return 0
-	endif	
+	endif
 
 	// get the image name and wave reference.
 	strImages = ImageNameList(strWinPLEM, ";")
-	if (ItemsInList(strImages) == 0)
+	if(ItemsInList(strImages) == 0)
 		strTraces = TraceNameList(strWinPLEM, ";",1)
-		if (ItemsInList(strTraces) == 1)
-			wave wavPLEM = TraceNameToWaveRef(strWinPLEM,StringFromList(0,strTraces))	
+		if(ItemsInList(strTraces) == 1)
+			wave wavPLEM = TraceNameToWaveRef(strWinPLEM,StringFromList(0,strTraces))
 			Print "PLEMd2Atlas: Traces not yet handled"
 			return 0
 		else
 			Print "PLEMd2Atlas: No Image found. More than one or no trace found in top graph."
 			return 0
 		endif
-	elseif (ItemsInList(strImages) > 1)
+	elseif(ItemsInList(strImages) > 1)
 		Print "PLEMd2Atlas: More than one image found in top graph."
 		return 0
-	else	
-		wave wavPLEM = ImageNameToWaveRef(strWinPLEM,StringFromList(0,strImages))	
+	else
+		wave wavPLEM = ImageNameToWaveRef(strWinPLEM,StringFromList(0,strImages))
 	endif
 	// check for INFO folder
 	strDataFolderMap = GetWavesDataFolder(wavPLEM,1)
 	strDataFolderInfo = strDataFolderMap + "INFO:"
-	if (DataFolderExists(strDataFolderInfo) == 0)
+	if(DataFolderExists(strDataFolderInfo) == 0)
 		Print "PLEMd2Panel: INFO Data Folder for Image in top graph not found."
 		return 0
 	endif
@@ -317,6 +316,7 @@ Function ButtonProcAtlasHide(ba) : ButtonControl
 	endswitch
 	return 0
 End
+
 Function ButtonProcAtlasReset(ba) : ButtonControl
 	STRUCT WMButtonAction &ba
 	switch( ba.eventCode )
@@ -330,6 +330,7 @@ Function ButtonProcAtlasReset(ba) : ButtonControl
 	endswitch
 	return 0
 End
+
 Function VariableProcAtlasRecalculate(sva) : SetVariableControl
 	STRUCT WMSetVariableAction &sva
 
@@ -341,7 +342,7 @@ Function VariableProcAtlasRecalculate(sva) : SetVariableControl
 			String sval = sva.sval
 			String strPLEM
 			strPLEM = PLEMd2window2strPLEM(sva.win)
-			PLEMd2AtlasRecalculate(strPLEM)			
+			PLEMd2AtlasRecalculate(strPLEM)
 			break
 		case -1: // control being killed
 			break
@@ -349,6 +350,7 @@ Function VariableProcAtlasRecalculate(sva) : SetVariableControl
 
 	return 0
 End
+
 Function ButtonProcAtlasFit3D(ba) : ButtonControl
 	STRUCT WMButtonAction &ba
 	switch( ba.eventCode )
@@ -362,6 +364,7 @@ Function ButtonProcAtlasFit3D(ba) : ButtonControl
 	endswitch
 	return 0
 End
+
 Function ButtonProcAtlasFit2D(ba) : ButtonControl
 	STRUCT WMButtonAction &ba
 	switch( ba.eventCode )
@@ -375,6 +378,7 @@ Function ButtonProcAtlasFit2D(ba) : ButtonControl
 	endswitch
 	return 0
 End
+
 Function ButtonProcAtlasFit1D(ba) : ButtonControl
 	STRUCT WMButtonAction &ba
 	switch( ba.eventCode )
@@ -388,6 +392,7 @@ Function ButtonProcAtlasFit1D(ba) : ButtonControl
 	endswitch
 	return 0
 End
+
 Function ButtonProcAtlasEdit(ba) : ButtonControl
 	STRUCT WMButtonAction &ba
 	switch( ba.eventCode )
@@ -401,6 +406,7 @@ Function ButtonProcAtlasEdit(ba) : ButtonControl
 	endswitch
 	return 0
 End
+
 Function ButtonProcAtlasClean(ba) : ButtonControl
 	STRUCT WMButtonAction &ba
 	switch( ba.eventCode )
@@ -414,6 +420,7 @@ Function ButtonProcAtlasClean(ba) : ButtonControl
 	endswitch
 	return 0
 End
+
 Function ButtonProcProcessIBW(ba) : ButtonControl
 	STRUCT WMButtonAction &ba
 	switch( ba.eventCode )
@@ -427,6 +434,7 @@ Function ButtonProcProcessIBW(ba) : ButtonControl
 	endswitch
 	return 0
 End
+
 Function ButtonProcShowNote(ba) : ButtonControl
 	STRUCT WMButtonAction &ba
 	switch( ba.eventCode )
@@ -480,7 +488,7 @@ Function SetVarProcCalculate(sva) : SetVariableControl
 		case 2: // Enter key
 		case 3: // Live update
 			Variable dval = sva.dval
-			if (dval != 0)
+			if(dval != 0)
 				String strPLEM
 				strPLEM = PLEMd2window2strPLEM(sva.win)
 				PLEMd2BuildMaps(strPLEM)
@@ -496,14 +504,13 @@ End
 Function/S PLEMd2window2strPLEM(strWindow)
 	String strWindow
 	Variable numStart, numEnd
-	
+
 	numEnd = strsearch(strWindow, "#",0)
 	numStart = strsearch(strWindow, "win_", 0)
 
-	if (numEnd == -1 && numStart != -1)
+	if(numEnd == -1 && numStart != -1)
 		return strWindow[numStart+4,inf]
 	else
 		return strWindow[numStart+4,numEnd-1]
 	endif
 End
-

@@ -27,13 +27,13 @@ static Function PLEMd2DefaultPackagePrefsStruct(prefs)
 	prefs.panelCoords[1] = 40		// Top
 	prefs.panelCoords[2] = 5+190	// Right
 	prefs.panelCoords[3] = 40+125	// Bottom
-	
+
 	GetFileFolderInfo/Q/Z=1 PLEMd2WorkingDir0
-	if (V_flag == 0)
+	if(V_flag == 0)
 		prefs.strMapsPath = PLEMd2WorkingDir0
 	else
 		//fallback
-		prefs.strMapsPath = PLEMd2WorkingDir1		
+		prefs.strMapsPath = PLEMd2WorkingDir1
 	endif
 	Variable i
 	for(i=0; i<100; i+=1)
@@ -48,7 +48,7 @@ static Function PLEMd2SyncPackagePrefsStruct(prefs)
 
 	// Panel does exists. Set prefs to match panel settings.
 	prefs.version = cPLEMd2Version
-	
+
 	GetWindow  PLEMd2Panel wsize
 	// NewPanel uses device coordinates. We therefore need to scale from
 	// points (returned by GetWindow) to device units for windows created
@@ -58,10 +58,10 @@ static Function PLEMd2SyncPackagePrefsStruct(prefs)
 	prefs.panelCoords[1] = V_top * scale
 	prefs.panelCoords[2] = V_right * scale
 	prefs.panelCoords[3] = V_bottom * scale
-	
+
 //	ControlInfo /W=PLEMd2Panel PhaseLock
 //	prefs.phaseLock = V_Value		// 0=unchecked; 1=checked
-	
+
 End
 
 // InitPackagePrefsStruct(prefs)
@@ -70,7 +70,7 @@ static Function PLEMd2InitPackagePrefsStruct(prefs)
 	STRUCT PLEMd2Prefs &prefs
 
 	DoWindow PLEMd2Panel
-	if (V_flag == 0)
+	if(V_flag == 0)
 		// Panel does not exist. Set prefs struct to default.
 		PLEMd2DefaultPackagePrefsStruct(prefs)
 	else
@@ -86,7 +86,7 @@ Function PLEMd2LoadPackagePrefs(prefs)
 	LoadPackagePreferences PLEMd2PackageName, PLEMd2PrefsFileName, PLEMd2PrefsRecordID, prefs
 
 	// If error or prefs not found or not valid, initialize them.
-	if (V_flag!=0 || V_bytesRead==0 || prefs.version!= cPLEMd2Version)
+	if(V_flag!=0 || V_bytesRead==0 || prefs.version!= cPLEMd2Version)
 		//print "PLEMd2:LoadPackagePrefs: Loading from " + SpecialDirPath("Packages", 0, 0, 0)
 		PLEMd2InitPackagePrefsStruct(prefs)	// Set based on panel if it exists or set to default values.
 		PLEMd2SavePackagePrefs(prefs)		// Create initial prefs record.
