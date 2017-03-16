@@ -294,15 +294,6 @@ Function PLEMd2ProcessIBW(strPLEM)
 	endif
 	
 	PLEMd2ExtractInfo(stats)	
-		
-	//correction for obviously wrong background (LabView Error)
-	wave wavBackground = BG
-	if ((stats.numbackground == 1) && (WaveExists(wavBackground))) //maybe also check for stats.numCalibrationMode == 1
-		print "PLEMd2BuildMaps: Background was set wrong in LabView Code. Using single Background to proceed: " + num2str(stats.numBackground)
-		stats.numbackground = 0
-	endif
-	WaveClear wavBackground
-	
 	PLEMd2statsSave(stats)
 End
 
@@ -356,6 +347,7 @@ Function PLEMd2BuildMaps(strPLEM)
 		// collect strWavePL und strWaveBG
 		switch(stats.numbackground)
 			case 0:
+			case 1:
 			//single background
 				if (WaveExists(wavBackground))									
 					strWavePL = WaveList("PL*",";","") //must also match 1)condition
@@ -369,7 +361,7 @@ Function PLEMd2BuildMaps(strPLEM)
 					print "PLEMd2BuildMaps: Error, wave BG does not exist in folder :ORIGINAL"
 				endif
 				break
-			case 1:
+			case 2:
 			//multiple background
 				strWavePL = WaveList("PL_*",";","")				
 				strWaveBG = WaveList("BG_*",";","")
