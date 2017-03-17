@@ -481,7 +481,6 @@ Function PLEMd2BuildMaps(strPLEM)
 			interpolate2 /T=1 /I=3 /Y=stats.wavGrating/X=stats.wavWavelength stats.wavXgrating, stats.wavYgrating
 			// Excitation wave			
 			stats.wavExcitation 	= (stats.numEmissionStart + stats.numEmissionEnd) / 2
-			
 			// Stats: update
 			stats.numPLEMDeltaY 		= stats.numEmissionDelta
 			stats.numPLEMBottomY 	= stats.numEmissionStart
@@ -520,7 +519,12 @@ Function PLEMd2BuildMaps(strPLEM)
 				// Excitation wave
 				numExcitationFrom 	= str2num(StringFromList(1,StringFromList(i,strWavePL),"_"))
 				numExcitationTo 		= str2num(StringFromList(2,StringFromList(i,strWavePL),"_"))
-				stats.wavExcitation[i] 	= (numExcitationFrom + numExcitationTo) / 2				
+				stats.wavExcitation[i] 	= (numExcitationFrom + numExcitationTo) / 2
+				
+				// since PLEMv3.0 excitation is saved multiplied by 10.
+				if(stats.wavExcitation[i] > 1e3)
+					stats.wavExcitation[i] /= 10
+				endif
 			endfor
 			
 			// Interpolate Correction Waves (will be the same all over the for loop …)
@@ -533,7 +537,13 @@ Function PLEMd2BuildMaps(strPLEM)
 			// Stats: update
 			stats.numPLEMBottomY	= (str2num(StringFromList(1,StringFromList(0,strWavePL),"_")) + str2num(StringFromList(2,StringFromList(0,strWavePL),"_"))) / 2
 			stats.numPLEMTopY		= (str2num(StringFromList(1,StringFromList((stats.numPLEMTotalY-1),strWavePL),"_")) + str2num(StringFromList(2,StringFromList((stats.numPLEMTotalY-1),strWavePL),"_"))) / 2		
-			stats.numPLEMDeltaY 	= 0			
+			stats.numPLEMDeltaY 	= 0	
+			
+			// since PLEMv3.0 excitation is saved multiplied by 10.
+			if(stats.numPLEMBottomY > 1e3)
+				stats.numPLEMBottomY /= 10
+				stats.numPLEMTopY /= 10
+			endif		
 		endif
 
 		// Stats: update
