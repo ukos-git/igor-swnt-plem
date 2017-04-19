@@ -34,7 +34,11 @@ Structure PLEMd2stats
 	Variable numPLEMTotalY, numPLEMBottomY, numPLEMDeltaY, numPLEMTopY 	//stats.numPLEMDeltaY
 	
 	// nanostage position
-	variable numPositionX, numPositionY, numPositionZ
+	variable numPositionX, numPositionY, numPositionZ, booSwitchX, booSwitchY
+	
+	// image mode information (PLEMv3.3)
+	variable numReadOutMode, numLaserPositionX, numLaserPositionY, numMagnification
+	
 	// variables from IBW file
 	String strDate, strUser, strFileName
 	Variable numCalibrationMode, numSlit, numGrating, numFilter, numShutter, numWLcenter, numDetector, numCooling, numExposure, numBinning, numWLfirst, numWLlast, numWLdelta, numEmissionMode, numEmissionPower, numEmissionStart, numEmissionEnd, numEmissionDelta, numEmissionStep, numScans, numBackground
@@ -137,6 +141,13 @@ Function PLEMd2statsLoad(stats, strMap)
 	stats.numPositionX = getMapVariable(strMap, "gnumPositionX")
 	stats.numPositionY = getMapVariable(strMap, "gnumPositionY")
 	stats.numPositionZ = getMapVariable(strMap, "gnumPositionZ")
+	stats.booSwitchX = getMapVariable(strMap, "gbooSwitchX")
+	stats.booSwitchY = getMapVariable(strMap, "gbooSwitchY")
+	
+	stats.numReadOutMode = getMapVariable(strMap, "gnumReadOutMode")
+	stats.numLaserPositionX = getMapVariable(strMap, "gnumLaserPositionX")
+	stats.numLaserPositionY = getMapVariable(strMap, "gnumLaserPositionY")
+	stats.numMagnification = getMapVariable(strMap, "gnumMagnification")
 End
 
 Function PLEMd2statsSave(stats)
@@ -204,6 +215,13 @@ Function PLEMd2statsSave(stats)
 	setMapVariable(strMap,"gnumPositionX", stats.numPositionX)
 	setMapVariable(strMap,"gnumPositionY", stats.numPositionY)
 	setMapVariable(strMap,"gnumPositionZ", stats.numPositionZ)
+	setMapVariable(strMap,"gbooSwitchX", stats.booSwitchX)
+	setMapVariable(strMap,"gbooSwitchY", stats.booSwitchY)
+	
+	setMapVariable(strMap,"gnumReadOutMode", stats.numReadOutMode)
+	setMapVariable(strMap,"gnumLaserPositionX", stats.numLaserPositionX)
+	setMapVariable(strMap,"gnumLaserPositionY", stats.numLaserPositionY)
+	setMapVariable(strMap,"gnumMagnification", stats.numMagnification)
 End
 
 Function PLEMd2statsInitialize(strMap)
@@ -228,7 +246,7 @@ Function PLEMd2statsInitialize(strMap)
 	stats.numNormalization = 1
 	
 	stats.booBackground 	= 1
-	stats.booPower 		= 1
+	stats.booPower 		= 0
 	stats.booPhoton 		= 0
 	stats.booGrating  	= 0
 	stats.booQuantumEfficiency = 0
