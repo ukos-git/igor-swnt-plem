@@ -35,7 +35,7 @@ Function PLEMd2Display(strPLEM)
 	elseif (V_flag == 0)
 		Display
 		DoWindow/C/N/R $winPLEM
-		if (stats.numCalibrationMode == 1)
+		if((stats.numCalibrationMode == 1) && (stats.numReadOutMode != 1))
 			AppendToGraph stats.wavPLEM vs stats.wavWavelength
 			ModifyGraph/W=$winPLEM standoff=0
 			SetAxis/W=$winPLEM/A left
@@ -44,7 +44,7 @@ Function PLEMd2Display(strPLEM)
 		else
 			//AppendImage stats.wavPLEM vs {stats.wavWavelength, stats.wavExcitation}
 			AppendImage stats.wavPLEM
-			PLEMd2Decorate(strWinPLEM = winPLEM)
+			PLEMd2Decorate(strWinPLEM = winPLEM, booImage = (stats.numReadOutMode == 1))
 		endif
 	endif
 End
@@ -60,8 +60,9 @@ Function PLEMd2DisplayByNum(numPLEM)
 	PLEMd2Display(strPLEM)
 End
 
-Function PLEMd2Decorate([strWinPLEM])
-	String strWinPLEM	
+Function PLEMd2Decorate([strWinPLEM, booImage])
+	String strWinPLEM
+	Variable booImage
 	Variable numZmin, numZmax
 	Variable numXmin, numXmax
 	Variable numYmin, numYmax
@@ -71,6 +72,10 @@ Function PLEMd2Decorate([strWinPLEM])
 	if (ParamIsDefault(strWinPLEM))
 		strWinPLEM = WinName(0, 1, 1)
 	endif
+	if(ParamIsDefault(booImage))
+		booImage = 0
+	endif
+
 	if (strlen(strWinPLEM) == 0)
 		Print "PLEMd2Decorate: No window to append to"
 		return 0
@@ -109,9 +114,15 @@ Function PLEMd2Decorate([strWinPLEM])
 	SetAxis/W=$strWinPLEM/A left
 	SetAxis/W=$strWinPLEM bottom,numXmin,numXmax
 	SetAxis/W=$strWinPLEM/A bottom
-	
-	Label/W=$strWinPLEM left "excitation / nm"
-	Label/W=$strWinPLEM bottom "emission / nm"				
+
+	if(booImage)
+		ModifyGraph zero=1
+		Label/W=$strWinPLEM left "position / µm"
+		Label/W=$strWinPLEM bottom "position / µm"
+	else
+		Label/W=$strWinPLEM left "excitation / nm"
+		Label/W=$strWinPLEM bottom "emission / nm"
+	endif
 End
 
 Function PLEMd2ShowNote([strWinPLEM])
