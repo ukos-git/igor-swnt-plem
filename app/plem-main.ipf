@@ -322,6 +322,7 @@ Function PLEMd2BuildMaps(strPLEM)
 	Struct PLEMd2stats stats
 	String strWaveBG, strWavePL
 	Variable numExcitationFrom, numExcitationTo, numPixelPitch, numRotation
+	Variable numLaserPositionX, numLaserPositionY
 	Variable i,j, numItems
 
 	if(PLEMd2MapExists(strPLEM))
@@ -538,30 +539,32 @@ Function PLEMd2BuildMaps(strPLEM)
 			// correct LaserPosition (x,y) for new image
 			SetScale/P x, 0, 1, stats.wavPLEM
 			SetScale/P y, 0, 1, stats.wavPLEM
+			stats.wavPLEM = stats.wavMEASURE
 			stats.wavPLEM = 0
 			stats.wavPLEM[stats.numLaserPositionX][stats.numLaserPositionY] = 1000
-			ImageRotate/E=0/O/A=(numRotation) stats.wavPLEM
+			ImageRotate/E=(NaN)/O/A=(numRotation) stats.wavPLEM
 			WaveStats/Q stats.wavPLEM
-			stats.numLaserPositionX = V_maxRowLoc
-			stats.numLaserPositionY = V_maxColLoc
-
+			numLaserPositionX = V_maxRowLoc
+			numLaserPositionY = V_maxColLoc
+			print numLaserPositionX, numLaserPositionY
 			stats.numPLEMTotalX = DimSize(stats.wavPLEM, 0)
 			stats.numPLEMTotalY = DimSize(stats.wavPLEM, 1)
 
-			ImageRotate/O/A=(numRotation) stats.wavMeasure
-			ImageRotate/O/A=(numRotation) stats.wavBackground
-			// for images only need to really redimension PLEM
+			ImageRotate/E=(NaN)/O/A=(numRotation) stats.wavMeasure
+			ImageRotate/E=(NaN)/O/A=(numRotation) stats.wavBackground
+			// for images only need to really redimension PLEM (if not rotated before...)
 			Redimension/N=((stats.numPLEMTotalX),(stats.numPLEMTotalY)) stats.wavPLEM
+			stats.wavPLEM = stats.wavMeasure
 		endif
 
 		if(stats.numCalibrationMode == 1)
 			if(stats.numReadOutMode == 1)
-				stats.numPLEMDeltaX =  (stats.booSwitchX == 1 ? +1 : -1) * numPixelPitch / stats.numMagnification
-				stats.numPLEMLeftX 	=  stats.numPositionY - stats.numPLEMDeltaX * (stats.numLaserPositionX)
+				stats.numPLEMDeltaX =  (stats.booSwitchY == 1 ? +1 : -1) * numSizeAdjustment * numPixelPitch / stats.numMagnification
+				stats.numPLEMLeftX 	=  stats.numPositionY - stats.numPLEMDeltaX * (numLaserPositionX)
 				stats.numPLEMRightX = stats.numPLEMLeftX + stats.numPLEMTotalX * stats.numPLEMDeltaX
 
-				stats.numPLEMDeltaY 	= (stats.booSwitchY == 1 ? -1 : +1) * numPixelPitch / stats.numMagnification
-				stats.numPLEMBottomY 	= stats.numPositionX - stats.numPLEMDeltaY * stats.numLaserPositionY
+				stats.numPLEMDeltaY 	= (stats.booSwitchX == 1 ? -1 : +1) * numSizeAdjustment * numPixelPitch / stats.numMagnification
+				stats.numPLEMBottomY 	= stats.numPositionX - stats.numPLEMDeltaY * numLaserPositionY
 				stats.numPLEMTopY 		= stats.numPLEMBottomY  - stats.numPLEMTotalY * stats.numPLEMDeltaY
 			else
 				stats.numPLEMDeltaY 		= stats.numEmissionDelta
