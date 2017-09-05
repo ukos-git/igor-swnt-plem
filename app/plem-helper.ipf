@@ -269,17 +269,3 @@ Function setAtlasVariable(strMap, var, value)
 	DFREF dfrAtlas = returnMapChiralityFolder(strMap)
 	setGvar(var, value, dfrAtlas)
 End
-
-// Abbreviated Functions for Debugging
-Function MapWaveSize(strMap, strWave, dimension)
-	String strMap, strWave
-	Variable dimension
-	return Dimsize(getMapWave(strMap, strWave), dimension)
-End
-
-Function MapWaveExists(strMap, strWave)
-	String strMap, strWave
-	Variable dimension
-	Wave myWave = getMapWave(strMap, strWave)
-	return WaveExists(myWave)
-End
