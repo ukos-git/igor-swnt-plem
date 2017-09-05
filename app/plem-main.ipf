@@ -526,7 +526,11 @@ Function PLEMd2BuildMaps(strPLEM)
 			// Andor iDus
 		elseif(stats.numDetector == 2)
 			// Andor Clara
-			numPixelPitch = 6.45
+			numPixelPitch = 6.45 //6.45um from manual trial and error
+			NVAR/Z numSizeAdjustment = root:numSizeAdjustment
+			if(!NVAR_EXISTS(numSizeAdjustment))
+				Variable/G root:numSizeAdjustment = 0.960
+			endif
 			numRotation = -0.8
 		endif
 
