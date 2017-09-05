@@ -158,13 +158,13 @@ Function PLEMd2Clean()
 	strStrings	= StringList("S_*",";")
 
 	numAvailable = ItemsInList(strVariables)
-	for (i=0;i<numAvailable;i+=1)
+	for(i = 0; i < numAvailable; i += 1)
 		strAvailable = StringFromList(i, strVariables)
 		Killvariables/Z $("root:" + strAvailable)
 	endfor
 
 	numAvailable = ItemsInList(strStrings)
-	for (i=0;i<numAvailable;i+=1)
+	for(i = 0; i < numAvailable; i += 1)
 		strAvailable = StringFromList(i, strStrings)
 		Killstrings/Z $("root:" + strAvailable)
 	endfor
@@ -262,8 +262,8 @@ Function PLEMd2ProcessIBW(strPLEM)
 
 	// load waves from IBW file
 	strWaveNames = PLEMd2ExtractWaveList(stats.wavIBW)
-	numTotalX	= DimSize(stats.wavIBW,0)
-	numTotalY	= DimSize(stats.wavIBW,1)
+	numTotalX	= DimSize(stats.wavIBW, 0)
+	numTotalY	= DimSize(stats.wavIBW, 1)
 	if(numTotalY == 0 || numTotalX == 0)
 		print "PLEMd2ProcessIBW: Binary File has no waves"
 	endif
@@ -273,11 +273,11 @@ Function PLEMd2ProcessIBW(strPLEM)
 	endif
 	if(numTotalY == ItemsInList(strWaveNames))
 		//Extract Columns from Binary Wave and give them proper names
-		for (i=0; i<numTotalY; i+=1)
+		for(i = 0; i < numTotalY; i += 1)
 			strWaveExtract = StringFromList(i, strWaveNames)
 			Make/D/O/N=(numTotalX) $strWaveExtract
 			Wave wavExtract = $strWaveExtract
-			for (j=0; j<numTotalX; j+=1)
+			for(j = 0; j < numTotalX; j += 1)
 				wavExtract[j] = stats.wavIBW[j][i]
 			endfor
 			WaveClear wavExtract
@@ -340,7 +340,7 @@ Function PLEMd2BuildMaps(strPLEM)
 				// fill strWaveBG with dummy "BG"
 				numItems = ItemsInList(strWavePL, ";")
 				strWaveBG = ""
-				for (i=0; i<numItems; i+=1)
+				for(i = 0; i < numItems; i += 1)
 					strWaveBG += "BG;"
 				endfor
 
@@ -349,7 +349,6 @@ Function PLEMd2BuildMaps(strPLEM)
 					print "PLEMd2BuildMaps: Error, wave BG does not exist in folder :ORIGINAL"
 				endif
 				WaveClear wavBackground
-
 
 				break
 			case 2:
@@ -452,7 +451,7 @@ Function PLEMd2BuildMaps(strPLEM)
 			// Excitation wave
 			stats.wavExcitation 	= (stats.numEmissionStart + stats.numEmissionEnd) / 2
 		else
-			for (i=0; i<stats.numPLEMTotalY; i+=1)
+			for(i = 0; i < stats.numPLEMTotalY; i += 1)
 				// Original Waves: load
 				wave wavMeasure 	= $(stats.strDataFolderOriginal + StringFromList(i,strWavePL))
 				wave wavBackground 	= $(stats.strDataFolderOriginal + StringFromList(i,strWaveBG))
@@ -618,7 +617,7 @@ Function PLEMd2Delta(wavInput, [normal])
 		else
 			// calculate numDelta
 			Make/FREE/O/N=(numSize-1) wavDeltaWave
-			for (i=0; i<(numSize-1); i+=1)
+			for(i = 0; i < (numSize - 1); i += 1)
 				wavDeltaWave[i] = (wavInput[(i+1)] - wavInput[i])
 			endfor
 			WaveStats/Q/W wavDeltaWave
@@ -784,7 +783,7 @@ Function/S PLEMd2ExtractWaveList(wavIBW)
 	endif
 
 	strList = ""
-	for (i=0; i<numListWaveNames; i+=1)
+	for(i = 0; i < numListWaveNames; i += 1)
 		strItem = StringFromList(i, strListWaveNames, ";")
 		numItem = str2num(StringFromList(i, strListWaveNumbers, ";"))
 		if(strlen(strItem) > 0)
@@ -817,7 +816,7 @@ Function/S PLEMd2ExtractPower(wavIBW)
 	numCount = ItemsInList(strListParse)
 	strListPower = ""
 	//assure to return numbers (not strings) in liststring
-	for (i=0;i<numCount; i=i+1)
+	for(i = 0; i < numCount; i += 1)
 		numItem = str2num(StringFromList(i, strListParse))
 		strListPower = AddListItem(num2str(numItem), strListPower,";",Inf)
 	endfor
@@ -943,7 +942,7 @@ Function PLEMd2AtlasCreateNM(strPLEM)
 
 	WaveStats/Q/M=1 stats.wavChiralityn
 	Redimension/N=(V_npnts) stats.wavChiralitynm
-	for(i=0;i<V_npnts;i+=1)
+	for(i = 0; i < V_npnts; i += 1)
 		stats.wavChiralitynm[i]="("+num2str(stats.wavChiralityN[i])+","+num2str(stats.wavChiralityM[i])+")"
 	endfor
 
@@ -1063,8 +1062,8 @@ Function PLEMd2AtlasClean(strPLEM)
 	xmin = V_min
 	xmax = V_max
 
-	numPoints = DimSize(stats.wavchiralitynm,0)
-	for (i=0; i<DimSize(stats.wavchiralitynm,0); i+=1)
+	numPoints = DimSize(stats.wavchiralitynm, 0)
+	for(i = 0; i < DimSize(stats.wavchiralitynm, 0); i += 1)
 		if((stats.wav1Dfit[i] == 0) || (stats.wavEnergyS2[i] < ymin) || (stats.wavEnergyS2[i] > ymax) || (stats.wavEnergyS1[i] < xmin) || (stats.wavEnergyS1[i] > xmax))
 			print "deleting " + stats.wavchiralitynm[i]
 			print (stats.wavEnergyS2[i]), (stats.wavEnergyS1[i])
@@ -1250,7 +1249,7 @@ Function PLEMd2AtlasFit3D(strPLEM)
 	numDeltaS2 = 50
 	// input
 	i=0
-	for (i=0;i<numpnts(stats.wavEnergyS1);i+=1)
+	for(i = 0; i < numpnts(stats.wavEnergyS1); i += 1)
 		stats.wavPLEMfit[][][i]=0
 		stats.wav2Dfit[i] = 0
 		numS1 = stats.wavEnergyS1[i] //x
@@ -1340,7 +1339,7 @@ Function PLEMd2AtlasFit3D(strPLEM)
 	// 	2 window is hidden.
 	if(V_flag == 1)
 		String listContour = ContourNameList("", ";")
-		for (i=0;i<ItemsInList(listContour);i+=1)
+		for(i = 0; i < ItemsInList(listContour); i += 1)
 			RemoveContour $(StringFromList(i, listContour))
 		endfor
 		AppendMatrixContour stats.wavPLEMfitSingle
@@ -1378,8 +1377,8 @@ Function PLEMd2AtlasMerge3d(wave3d,wave2d)
 	Wave wave3d,wave2d
 	Variable i
 	Duplicate/O/R=[][][0] wave3d wave2d
-	Redimension/N=(Dimsize(wave3d,0),Dimsize(wave3d,1)) wave2d
-	for(i=1;i<Dimsize(wave3d,2);i+=1)
+	Redimension/N=(Dimsize(wave3d, 0),Dimsize(wave3d, 1)) wave2d
+	for(i = 1; i < Dimsize(wave3d, 2); i += 1)
 		wave2d += wave3d[p][q][i]
 	endfor
 End
@@ -1430,7 +1429,7 @@ Function PLEMd2AtlasHide(strPLEM)
 
 	Variable i
 	String listContour = ContourNameList("", ";")
-	for (i=0;i<ItemsInList(listContour);i+=1)
+	for(i = 0; i < ItemsInList(listContour); i += 1)
 		RemoveContour $(StringFromList(i, listContour))
 	endfor
 End
@@ -1513,7 +1512,7 @@ Function PLEMd2d1Import(numKillWavesAfterwards)
 	print "PLEMd2d1Import: found " + num2str(numMaps) + " old map(s)"
 
 	// copy all the map data to the new project structure
-	for (i=0;i<numMaps;i+=1)
+	for(i = 0; i < numMaps; i += 1)
 		SetDataFolder $gstrMapsFolder
 		strMap 		= StringFromList(i, strMaps)
 		numFiles	= PLEMd2d1CountFiles("root:" + strMap)
@@ -1538,9 +1537,9 @@ Function PLEMd2d1Import(numKillWavesAfterwards)
 		else
 			NewDataFolder/O/S ORIGINAL
 		endif
-		for (j=0;j<numSearchstrings;j+=1)
+		for(j = 0; j < numSearchstrings; j += 1)
 			strSearchString = StringFromList(j, strSearchStrings)
-			for (k=0;k<numFiles;k+=1)
+			for(k = 0; k < numFiles; k += 1)
 				strWave = strMap + strSearchString + num2str(k)
 				wave wavDummy = $("root:" + strWave)
 				if(WaveExists(wavDummy))
@@ -1572,11 +1571,11 @@ Function PLEMd2d1Import(numKillWavesAfterwards)
 			Duplicate/O wavPLEM MEASURE
 			wave wavMeasure	= MEASURE
 
-			for (j=0;j<numTotalY;j+=1)
+			for(j = 0; j < numTotalY; j += 1)
 				strWave = gstrMapsFolder + ":" + strMap + ":ORIGINAL:" + strMap + "_" + num2str(j)
 				wave wavCurrent = $strWave
 				if(WaveExists(wavCurrent))
-					for (k=0;k<numTotalX;k+=1)
+					for(k = 0; k < numTotalX; k += 1)
 						wavMeasure[k][j] = wavCurrent[k]
 					endfor
 				endif
@@ -1587,7 +1586,7 @@ Function PLEMd2d1Import(numKillWavesAfterwards)
 			wave wavBackground	= BACKGROUND
 			//count background files
 			numFiles	= PLEMd2d1CountFiles(gstrMapsFolder + ":" + strMap + ":ORIGINAL:" + strMap + "_bg")
-			for (j=0;j<numTotalY;j+=1)
+			for(j = 0; j < numTotalY; j += 1)
 				if(numFiles > 1)
 					strWave = gstrMapsFolder + ":" + strMap + ":ORIGINAL:" + strMap + "_bg_" + num2str(j)
 				else
@@ -1596,12 +1595,12 @@ Function PLEMd2d1Import(numKillWavesAfterwards)
 				endif
 				wave wavCurrent = $strWave
 				if(WaveExists(wavCurrent))
-					for (k=0;k<numTotalX;k+=1)
+					for(k = 0; k < numTotalX; k += 1)
 						wavBackground[k][j] = wavCurrent[k]
 					endfor
 				else
 					//background file not found. Zero it out.
-					for (k=0;k<numTotalX;k+=1)
+					for(k = 0; k < numTotalX; k += 1)
 						wavBackground[k][j] = 0
 					endfor
 				endif
@@ -1611,11 +1610,11 @@ Function PLEMd2d1Import(numKillWavesAfterwards)
 			Duplicate/O wavPLEM CORRECTED
 			wave wavBackground	= CORRECTED
 
-			for (j=0;j<numTotalY;j+=1)
+			for(j = 0; j < numTotalY; j += 1)
 				strWave = gstrMapsFolder + ":" + strMap + ":ORIGINAL:" + strMap + "_corr_m_" + num2str(j)
 				wave wavCurrent = $strWave
 				if(WaveExists(wavCurrent))
-					for (k=0;k<numTotalX;k+=1)
+					for(k = 0; k < numTotalX; k += 1)
 						wavBackground[k][j] = wavCurrent[k]
 					endfor
 				endif
@@ -1751,7 +1750,7 @@ Function PLEMd2MapStringReInit()
 	gnumMapsAvailable 	= 0
 	numMapsAvailable = CountObjects(gstrMapsFolder, 4) // number of data folders
 
-	for (i=0;i<numMapsAvailable;i+=1)
+	for(i = 0; i < numMapsAvailable; i += 1)
 		strMap = GetIndexedObjName(gstrMapsFolder,4,i)
 		gstrMapsAvailable += strMap + ";"
 	endfor
@@ -1817,7 +1816,7 @@ Function PLEMd2d1Kill(strWhichOne)
 	numAvailable = ItemsInList(strListAvailable)
 	numKillme = ItemsInList(strListKillMe)
 	numCount = 0
-	for (i=0;i<numAvailable;i+=1)
+	for(i = 0; i < numAvailable; i += 1)
 		strAvailable = StringFromList(i, strListAvailable)
 		if(FindListItem(strAvailable, strListKillMe) != -1)
 			switch(numWhichOne)
@@ -1959,7 +1958,7 @@ Function PLEMd2d1Init()
 
 		gstrPLEMd1CorrectionAvailable = ""
 		strFilesLoaded = ""
-		for (i=0;i<numFiles;i+=1)
+		for(i = 0; i < numFiles; i += 1)
 			strFile = StringFromList(i, strFiles)
 			if(FindListItem(strFile, strPLEMd1CorrectionWaves) != -1)
 				LoadWave/P=path/O/J/D/W/A/K=0/Q (strFile)
