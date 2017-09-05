@@ -296,6 +296,7 @@ Function PLEMd2BuildMaps(strPLEM)
 	String strWaveBG, strWavePL
 	Variable numExcitationFrom, numExcitationTo, numPixelPitch, numRotation
 	Variable numLaserPositionX, numLaserPositionY
+	Variable dim0, dim1
 	Variable i,j, numItems
 
 	DFREF packageRoot = $cstrPLEMd2root
@@ -371,29 +372,25 @@ Function PLEMd2BuildMaps(strPLEM)
 		// image mode. currently no information for images is saved
 		stats.numPLEMTotalY = 1040
 		stats.numPLEMTotalX = 1392
-		Redimension/N=(stats.numPLEMTotalX) wavWavelength
 	endif
 
-	// create new Waves, overwrite existing
-	SetDataFolder $(stats.strDataFolder)
+	// Redimension the Waves to proper size
+	dim0 = stats.numPLEMTotalX
+	dim1 = stats.numPLEMTotalY
 	if(stats.numPLEMTotalY == 1)
-		Make/D/O/N=(stats.numPLEMTotalX) PLEM, MEASURE, BACKGROUND
-	else
-		Make/D/O/N=((stats.numPLEMTotalX),(stats.numPLEMTotalY)) PLEM, MEASURE, BACKGROUND
+		dim1 = 0
 	endif
+	Redimension/N=(dim0, dim1) stats.wavPLEM, stats.wavMeasure, stats.wavBackground
 	PLEMd2MapsAppendNotes(stats.strPLEM)
-	Make/D/O/N=(stats.numPLEMTotalX) xWavelength, xGrating
-	Make/D/O/N=(stats.numPLEMTotalY) yExcitation, yPower, yPhoton
-	// save stats and reload wave references
-	PLEMd2statsSave(stats)
-	PLEMd2statsLoad(stats, strPLEM)
+	if(stats.numReadOutMode == 1)
+		dim0 = 0
+		dim1 = 1
+	endif
+	Redimension/N=(dim0) stats.wavWavelength, stats.wavGrating
+	Redimension/N=(dim1) stats.wavExcitation, stats.wavYpower, stats.wavYphoton
 
 	// set x-Scaling
 	stats.wavWavelength = wavWavelength
-	stats.numPLEMLeftX = stats.wavWavelength[0]
-	stats.numPLEMDeltaX = PLEMd2Delta(stats.wavWavelength, normal = 1)
-	stats.numPLEMRightX = stats.numPLEMLeftX + stats.numWLdelta * (stats.numPLEMTotalX - 1)
-	SetScale/I x stats.numPLEMLeftX, stats.numPLEMRightX, "", stats.wavPLEM, stats.wavMeasure, stats.wavBackground
 
 	// Grating Waves (requires wavWavelength)
 	String strGratingWave = PLEMd2d1CorrectionConstructor(stats.numGrating,stats.numDetector,stats.numCooling)
@@ -411,24 +408,18 @@ Function PLEMd2BuildMaps(strPLEM)
 		wave wavMeasure 	= dfr:$(StringFromList(0, strWavePL))
 		wave wavBackground 	= dfr:$(StringFromList(0, strWaveBG))
 
-		// linearly Interpolate measurement waves  to equal distances (igor wave form)
-		if(stats.booInterpolate == 1)
-			interpolate2 /T=1 /I=3 /Y=stats.wavMeasure stats.wavWavelength, wavMeasure
-			interpolate2 /T=1 /I=3 /Y=stats.wavBackground stats.wavWavelength, wavBackground
+		if(stats.numReadOutMode == 1)
+			// image mode. currently no information for images is saved
+			stats.wavMeasure = wavMeasure[p + stats.numPLEMTotalX * q]
+			stats.wavBackground = wavBackground[p + stats.numPLEMTotalX * q]
 		else
-			if(stats.numReadOutMode == 1)
-				// image mode. currently no information for images is saved
-				stats.wavMeasure = wavMeasure[p + stats.numPLEMTotalX * q]
-				stats.wavBackground = wavBackground[p + stats.numPLEMTotalX * q]
-			else
-				stats.wavMeasure 	= wavMeasure
-				stats.wavBackground = wavBackground
-			endif
+			stats.wavMeasure 	= wavMeasure
+			stats.wavBackground = wavBackground
 		endif
 
 		if(stats.numReadOutMode == 1)
 			// image mode. currently no information for images is saved
-			stats.wavMeasure = wavMeasure[p+stats.numPLEMTotalX*q]
+			stats.wavMeasure = wavMeasure[p + stats.numPLEMTotalX * q]
 			stats.wavBackground = wavBackground[p+stats.numPLEMTotalX*q]
 		endif
 
@@ -443,25 +434,8 @@ Function PLEMd2BuildMaps(strPLEM)
 			wave wavMeasure 	= dfr:$(StringFromList(i, strWavePL))
 			wave wavBackground 	= dfr:$(StringFromList(i, strWaveBG))
 
-			// Interpolate to scaled wave to be more accurate when not plotting against Wavelength
-			if(stats.booInterpolate == 1)
-				Duplicate/O/FREE/R=[][i] stats.wavMeasure wavTempMeasure
-				Redimension/N=(-1,0) wavTempMeasure
-				Duplicate/O/FREE/R=[][i] stats.wavBackground wavTempBackground
-				Redimension/N=(-1,0) wavTempBackground
-
-				Interpolate2 /T=1 /I=3 /Y=wavTempMeasure stats.wavWavelength, wavMeasure
-				interpolate2 /T=1 /I=3 /Y=wavTempBackground stats.wavWavelength, wavBackground
-
-				stats.wavMeasure[][i] 		= wavTempMeasure[p]
-				stats.wavBackground[][i] 	= wavTempBackground[p]
-
-				WaveClear wavTempMeasure
-				WaveClear wavTempBackground
-			else
-				stats.wavMeasure[][i] 		= wavMeasure[p]
-				stats.wavBackground[][i] 	= wavBackground[p]
-			endif
+			stats.wavMeasure[][i] 		= wavMeasure[p]
+			stats.wavBackground[][i] 	= wavBackground[p]
 
 			// Original Waves: unload
 			WaveClear wavBackground
@@ -532,6 +506,10 @@ Function PLEMd2BuildMaps(strPLEM)
 			stats.numPLEMTopY 		= stats.numEmissionEnd
 		endif
 	else
+		stats.numPLEMLeftX = stats.wavWavelength[0]
+		stats.numPLEMDeltaX = PLEMd2Delta(stats.wavWavelength, normal = 1)
+		stats.numPLEMRightX = stats.numPLEMLeftX + stats.numWLdelta * (stats.numPLEMTotalX - 1)
+
 		stats.numPLEMBottomY	= (str2num(StringFromList(1,StringFromList(0,strWavePL),"_")) + str2num(StringFromList(2,StringFromList(0,strWavePL),"_"))) / 2
 		stats.numPLEMTopY		= (str2num(StringFromList(1,StringFromList((stats.numPLEMTotalY-1),strWavePL),"_")) + str2num(StringFromList(2,StringFromList((stats.numPLEMTotalY-1),strWavePL),"_"))) / 2		
 		stats.numPLEMDeltaY	= PLEMd2Delta(stats.wavExcitation)
@@ -557,6 +535,22 @@ Function PLEMd2BuildMaps(strPLEM)
 	SetScale/I x stats.numPLEMBottomY, stats.numPLEMTopY, "", stats.wavExcitation
 
 	// calculate new map
+	if(stats.booInterpolate == 1)
+		for(i = 0; i < dim1; i += 1)
+			Duplicate/FREE/R=[][i] stats.wavMeasure wavTempMeasure
+			Redimension/N=(-1, 0) wavTempMeasure
+			Duplicate/FREE/R=[][i] stats.wavBackground wavTempBackground
+			Redimension/N=(-1, 0) wavTempBackground
+
+			Interpolate2 /T=1 /I=3 /Y=wavTempMeasure stats.wavWavelength, wavMeasure
+			interpolate2 /T=1 /I=3 /Y=wavTempBackground stats.wavWavelength, wavBackground
+
+			stats.wavMeasure[][i] 		= wavTempMeasure[p]
+			stats.wavBackground[][i] 	= wavTempBackground[p]
+
+			WaveClear wavTempBackground, wavTempMeasure
+		endfor
+	endif
 	if(stats.booBackground)
 		stats.wavPLEM = (stats.wavMeasure - stats.wavBackground)
 	else
