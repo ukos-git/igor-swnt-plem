@@ -171,9 +171,6 @@ Function PLEMd2Open([strFile, display])
 	String strFile
 	Variable display
 
-	//INIT
-	Struct PLEMd2Prefs prefs
-	PLEMd2LoadPackagePrefs(prefs)
 	PLEMd2init()
 
 	SVAR gstrMapsFolder, gstrMapsAvailable
@@ -187,7 +184,7 @@ Function PLEMd2Open([strFile, display])
 	Variable i,j
 
 	if(ParamIsDefault(strFile))
-		strFile=PLEMd2PopUpChooseFile(prefs)
+		strFile = PLEMd2PopUpChooseFile()
 	endif
 	if(ParamIsDefault(display))
 		display = 1
@@ -1434,10 +1431,8 @@ Function PLEMd2d1Open()
 End
 
 //adapted from function OpenFileDialog on http://www.entorb.net/wickie/IGOR_Pro
-Function/S PLEMd2PopUpChooseFile(prefs,[strPrompt])
-	STRUCT PLEMd2Prefs &prefs
+Function/S PLEMd2PopUpChooseFile([strPrompt])
 	String strPrompt
-	strPrompt = selectstring(paramIsDefault(strPrompt), strPrompt, "choose file")
 
 	Variable refNum
 	String strOutputPath = ""
@@ -1445,9 +1440,11 @@ Function/S PLEMd2PopUpChooseFile(prefs,[strPrompt])
 	String fileFilters = "Igor Binary File (*.ibw):.ibw;General Text Files (*.txt, *.csv):.txt,.csv;All Files:.*;"
 	String strPath = ""
 
-	//load Path from Preferences.
+	Struct PLEMd2Prefs prefs
+	PLEMd2LoadPackagePrefs(prefs)
 	strPath = prefs.strMapsPath
 
+	strPrompt = selectstring(paramIsDefault(strPrompt), strPrompt, "choose file")
 	GetFileFolderInfo/Q/Z=1 strPath
 
 	if(V_Flag != 0)
@@ -1469,10 +1466,11 @@ Function/S PLEMd2PopUpChooseFile(prefs,[strPrompt])
 	if(V_flag == 0)
 		GetFileFolderInfo/Q/Z=1 ParseFilePath(1, strOutputFile, ":", 1, 0)
 		if(V_isFolder == 1)
-			//print "PLEMd2PopUpChooseFile: Remembering Current Path"
 			prefs.strMapsPath = S_Path
+			PLEMd2SavePackagePrefs(prefs)
 		endif
 	endif
+
 
 	return strOutputFile
 
