@@ -8,11 +8,11 @@ Function PLEMd2Display(strPLEM)
 	PLEMd2statsLoad(stats, strPLEM)
 
 	// check if spectrum is a valid input
-	if((strlen(stats.strPLEMfull)==0) || (strlen(stats.strPLEM)==0))
-		print "PLEMd2Display: Error stats.strPLEMfull not set for Map: " + strPLEM + " check code"
+	if(strlen(stats.strPLEM) == 0)
+		print "PLEMd2Display: Error stats.strPLEM not set for Map: " + strPLEM + " check code"
 		return 0
 	endif
-	if(WaveExists($(stats.strPLEMfull)) == 0)
+	if(!WaveExists(stats.wavPLEM))
 		print "PLEMd2Display: Wave Not Found"
 		return 0
 	endif

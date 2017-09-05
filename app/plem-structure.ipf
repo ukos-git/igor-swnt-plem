@@ -6,12 +6,11 @@ Structure PLEMd2stats
 	//Versioning System to update/create new Global vars.
 	Variable numVersion
 	//strPLEM is Name of Map
-	//strPLEMfull is path containing wave name
 	//strDataFolder is Folder to Main directory
 	//strDataFolderOriginal is Folder to Processed IBW data Main:ORIGINAL
 	//numPLEM is number of Map in Menu Entry-List
 	//wavPLEM is the wave reference to :PLEM
-	String strPLEM, strPLEMfull, strDataFolder, strDataFolderOriginal
+	String strPLEM, strDataFolder, strDataFolderOriginal
 	Variable numPLEM
 	//2D-Waves
 	Wave wavPLEM, wavMeasure, wavIBW, wavBackground
@@ -78,7 +77,6 @@ Function PLEMd2statsLoad(stats, strMap)
 
 	stats.numPLEM 						= getMapVariable(strMap, "gnumPLEM")
 	stats.strPLEM						= getMapString(strMap, "gstrPLEM") // no magic here
-	stats.strPLEMfull 				= getMapString(strMap, "gstrPLEMfull")
 	stats.strDataFolder				= getMapString(strMap, "gstrDataFolder")
 	stats.strDataFolderOriginal	= getMapString(strMap, "gstrDataFolderOriginal")
 
@@ -153,7 +151,6 @@ Function PLEMd2statsSave(stats)
 
 	setMapVariable(strMap,"gnumPLEM", stats.numPLEM)
 	setMapString(strMap,"gstrPLEM", stats.strPLEM)
-	setMapString(strMap,"gstrPLEMfull", stats.strPLEMfull)
 	setMapString(strMap,"gstrDataFolder", stats.strDataFolder)
 	setMapString(strMap,"gstrDataFolderOriginal", stats.strDataFolderOriginal)
 
@@ -235,7 +232,6 @@ Function PLEMd2statsInitialize(strMap)
 	stats.numPLEM = PLEMd2AddMap(strMap)
 	stats.strPLEM = strMap
 	stats.strDataFolder =  GetDataFolder(1, returnMapFolder(strMap))
-	stats.strPLEMfull = getWavesDataFolder(getMapWave(strMap, "PLEM"),2)
 	stats.numVersion = cPLEMd2Version
 
 	stats.numNormalization = 1

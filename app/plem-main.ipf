@@ -561,8 +561,8 @@ Function PLEMd2BuildMaps(strPLEM)
 		endif
 
 		// Stats: update
-		stats.strPLEMfull = GetWavesDataFolder(stats.wavPLEM,2)
 		PLEMd2statsSave(stats)
+
 		// Power correction
 		// requires Excitation wave for Photon Energy
 		stats.wavYpower 		= str2num(StringFromList(p, PLEMd2ExtractPower(stats.wavIBW), ";"))
@@ -597,7 +597,7 @@ Function PLEMd2BuildMaps(strPLEM)
 	else
 		print "PLEMd2BuildMaps: Map does not exist"
 	endif
-	print stats.strPLEMfull
+	print GetWavesDataFolder(stats.wavPLEM, 2)
 	SetDataFolder $strSaveDataFolder
 End
 
