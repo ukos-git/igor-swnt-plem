@@ -308,7 +308,6 @@ Function PLEMd2MapsAppendNotes(strPLEM)
 	Note/K/NOCR stats.wavGrating 		strHeader
 	Note/K/NOCR stats.wavPower 			strHeader
 	Note/K/NOCR stats.wavPhoton 		strHeader
-	Note/K/NOCR stats.wavFilter 			strHeader
 End
 
 Function PLEMd2BuildMaps(strPLEM)
@@ -399,10 +398,10 @@ Function PLEMd2BuildMaps(strPLEM)
 		SetDataFolder $(stats.strDataFolder)
 		if(stats.numPLEMTotalY == 1)
 			Make/D/O/N=(stats.numPLEMTotalX) PLEM, MEASURE, BACKGROUND
-			Make/D/O/N=(stats.numPLEMTotalX) GRATING, POWER, PHOTON, FILTER
+			Make/D/O/N=(stats.numPLEMTotalX) GRATING, POWER, PHOTON
 		else
 			Make/D/O/N=((stats.numPLEMTotalX),(stats.numPLEMTotalY)) PLEM, MEASURE, BACKGROUND
-			Make/D/O/N=((stats.numPLEMTotalX),(stats.numPLEMTotalY)) GRATING, POWER, PHOTON, FILTER
+			Make/D/O/N=((stats.numPLEMTotalX),(stats.numPLEMTotalY)) GRATING, POWER, PHOTON
 		endif
 		PLEMd2MapsAppendNotes(stats.strPLEM)
 		Make/D/O/N=(stats.numPLEMTotalX) xWavelength, xGrating, yGrating
@@ -431,9 +430,6 @@ Function PLEMd2BuildMaps(strPLEM)
 			PLEMd2statsSave(stats)
 			PLEMd2statsLoad(stats, strPLEM)
 		endif
-
-		//wavQuantumEfficiency, wavFilter not handled yet
-		stats.wavFilter = 1
 
 		// different handling for spectra in calibration mode (1) and for maps (0)
 		if(stats.numCalibrationMode == 1)
