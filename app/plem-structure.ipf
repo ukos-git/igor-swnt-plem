@@ -14,7 +14,7 @@ Structure PLEMd2stats
 	String strPLEM, strPLEMfull, strDataFolder, strDataFolderOriginal
 	Variable numPLEM
 	//2D-Waves
-	Wave wavPLEM, wavMeasure, wavIBW, wavBackground, wavGrating, wavPower, wavPhoton, wavQE, wavFilter
+	Wave wavPLEM, wavMeasure, wavIBW, wavBackground, wavGrating, wavPower, wavPhoton, wavFilter
 	//1D-Waves
 	Wave wavExcitation, wavWavelength
 	Wave wavYpower, wavYphoton, wavXgrating, wavYgrating
@@ -57,7 +57,6 @@ Function PLEMd2statsLoad(stats, strMap)
 	Wave stats.wavPower 			= getMapWave(strMap, "POWER")
 	Wave stats.wavPhoton 		= getMapWave(strMap, "PHOTON")
 	Wave stats.wavFilter 		= getMapWave(strMap, "FILTER")
-	Wave stats.wavQE 				= getMapWave(strMap, "QUANTUM")
 	Wave stats.wavExcitation 	= getMapWave(strMap, "yExcitation")
 	Wave stats.wavWavelength 	= getMapWave(strMap, "xWavelength")
 	Wave stats.wavYpower 		= getMapWave(strMap, "yPower")
