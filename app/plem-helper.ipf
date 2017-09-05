@@ -212,8 +212,9 @@ End
 
 Function/WAVE getMapWave(strMap, strWave)
 	String strMap, strWave
+
 	DFREF dfrMap = returnMapFolder(strMap)
-	WAVE myWave = getWAVE(strWave, dfrMap)
+
 	return getWAVE(strWave, dfrMap)
 End
 
