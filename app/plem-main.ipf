@@ -268,9 +268,6 @@ Function PLEMd2ProcessIBW(strPLEM)
 		print "PLEMd2ProcessIBW: Binary File has no waves"
 	endif
 	if(numTotalY != ItemsInList(strWaveNames))
-		print "PLEMd2ProcessIBW: Error WaveNames not correct in WaveNotes. Trying to correct WaveNotes"
-		print strWaveNames
-		print num2str(numTotalY)
 		PLEMd2FixWavenotes(strPLEM)
 		strWaveNames = PLEMd2ExtractWaveList(stats.wavIBW)
 	endif
@@ -884,10 +881,13 @@ End
 
 Function PLEMd2FixWavenotes(strPLEM)
 	String strPLEM
-	Struct PLEMd2Stats stats
-	String strHeader
-	PLEMd2statsLoad(stats, strPLEM)
 
+	String strHeader
+	Struct PLEMd2Stats stats
+
+	print "PLEMd2ProcessIBW: Error WaveNames not correct in WaveNotes. Trying to correct WaveNotes"
+
+	PLEMd2statsLoad(stats, strPLEM)
 	strHeader = Note(stats.wavIBW)
 
 	if((StringMatch(strHeader, "*IGOR2:*")) == 0)
