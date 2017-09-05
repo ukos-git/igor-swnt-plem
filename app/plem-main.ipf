@@ -73,7 +73,7 @@ Function PLEMd2isInit()
 	//numInit only chages if all the tests are ok.
 	Variable numInit = 0
 	String strGlobalVariables = ""
-	String strSaveDataFolder = GetDataFolder(1)
+	DFREF saveDFR = GetDataFolderDFR()
 
 	SetDataFolder root:
 
@@ -92,7 +92,7 @@ Function PLEMd2isInit()
 			endif
 	endif
 
-	SetDataFolder $strSaveDataFolder
+	SetDataFolder saveDFR
 	return numInit
 End
 
@@ -106,12 +106,10 @@ Function PLEMd2init()
 		PLEMd2initVar()
 	endif
 
-	//Change DataFolder to Project Root
-	SetDataFolder $cstrPLEMd2root
-
 	//Save Original Path in Project Root
-	SVAR gstrSaveDataFolder
-	gstrSaveDataFolder = strSaveDataFolder
+	DFREF packageRoot = $cstrPLEMd2root
+	SVAR savedfr = packageRoot:gstrSaveDataFolder
+	savedfr = strSaveDataFolder
 End
 
 Function PLEMd2reset()
@@ -123,14 +121,11 @@ Function PLEMd2reset()
 End
 
 Function PLEMd2exit()
-	//Change DataFolder to Project Root
-	SetDataFolder $cstrPLEMd2root
+	DFREF packageRoot = $cstrPLEMd2root
+	SVAR savedfr = packageRoot:gstrSaveDataFolder
+	DFREF dfr = $savedfr
 
-	//Get Original Folder from VAR
-	SVAR gstrSaveDataFolder
-
-	// Move Back to original Folder
-	SetDataFolder $gstrSaveDataFolder
+	SetDataFolder dfr
 End
 
 Function PLEMd2()
