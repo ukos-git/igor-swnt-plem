@@ -11,9 +11,9 @@ static Function/DF returnDataFolderReference(strDataFolder)
 	String strDataFolder
 	NewDataFolder/O $strDataFolder
 	DFREF myDFR = $strDataFolder
-	if (DataFolderRefStatus(myDFR) == 0) // DFR is invalid
+	if(DataFolderRefStatus(myDFR) == 0) // DFR is invalid
 		Abort "Data Folder could not be created"
-	endif	
+	endif
 	return myDFR
 End
 
@@ -33,7 +33,7 @@ End
 // Function returns DataFolder reference to base directory of map specified by strMap
 Function/DF returnMapFolder(strMap)
 	String strMap
-	if (strlen(strMap) == 0)
+	if(strlen(strMap) == 0)
 		Abort "Can not create such a folder"
 	endif
 	DFREF dfrMaps = returnMapsFolder()
@@ -44,7 +44,7 @@ End
 // Function returns DataFolder reference to current map's info folder where NVAR and SVAR are saved
 static Function/DF returnMapInfoFolder(strMap)
 	String strMap
-	if (strlen(strMap) == 0)
+	if(strlen(strMap) == 0)
 		abort
 	endif
 	DFREF dfrMap = returnMapFolder(strMap)
@@ -73,7 +73,7 @@ static Function/S getGstring(name, dataFolder)
 	String name
 	DFREF dataFolder
 	SVAR/Z/SDFR=dataFolder myVar = $name
-	if (!SVAR_EXISTS(myVar))
+	if(!SVAR_EXISTS(myVar))
 		String/G dataFolder:$name = ""
 		return ""
 	else
@@ -86,7 +86,7 @@ static Function getGvar(name, dataFolder)
 	String name
 	DFREF dataFolder
 	NVAR/Z/SDFR=dataFolder myVar = $name
-	if (!NVAR_EXISTS(myVar))
+	if(!NVAR_EXISTS(myVar))
 		Variable/G dataFolder:$name = NaN
 		return NaN
 	else
@@ -98,10 +98,10 @@ static Function/WAVE getWAVE(strWave, dfrMap)
 	String strWave
 	DFREF dfrMap
 	WAVE/Z/SDFR=dfrMap myWave = $strWave
-	If (!WaveExists(myWave))
+	if(!WaveExists(myWave))
 		Make/N=0 dfrMap:$strWave
 		WAVE/Z/SDFR=dfrMap myWave = $strWave
-		If (!WaveExists(myWave))
+		if(!WaveExists(myWave))
 			Abort "could not create wave"
 		EndIf
 	endif
@@ -112,10 +112,10 @@ static Function/WAVE getDoubleWAVE(strWave, dfrMap)
 	String strWave
 	DFREF dfrMap
 	WAVE/D/Z/SDFR=dfrMap myWave = $strWave
-	If (!WaveExists(myWave))
+	if(!WaveExists(myWave))
 		Make/D/N=0 dfrMap:$strWave
 		WAVE/D/Z/SDFR=dfrMap myWave = $strWave
-		If (!WaveExists(myWave))
+		if(!WaveExists(myWave))
 			Abort "could not create wave"
 		EndIf
 	endif
@@ -126,10 +126,10 @@ static Function/WAVE getTextWAVE(strWave, dfrMap)
 	String strWave
 	DFREF dfrMap
 	WAVE/T/Z/SDFR=dfrMap myWave = $strWave
-	If (!WaveExists(myWave))
+	if(!WaveExists(myWave))
 		Make/T/N=0 dfrMap:$strWave
 		WAVE/T/Z/SDFR=dfrMap myWave = $strWave
-		If (!WaveExists(myWave))
+		if(!WaveExists(myWave))
 			Abort "could not create wave"
 		EndIf
 	endif
@@ -140,16 +140,16 @@ End
 static Function setGstring(name, value, dataFolder)
 	String name, value
 	DFREF dataFolder
-	
+
 	SVAR/Z/SDFR=dataFolder myVar = $name
-	if (!SVAR_EXISTS(myVar))
+	if(!SVAR_EXISTS(myVar))
 		String/G dataFolder:$name
 		SVAR/Z/SDFR=dataFolder myVar = $name
-		if (!SVAR_EXISTS(myVar))
+		if(!SVAR_EXISTS(myVar))
 			Abort "Could not create global String"
 		endif
 	endif
-	
+
 	myVar = value
 End
 
@@ -158,16 +158,16 @@ static Function setGvar(name, value, dataFolder)
 	String name
 	Variable value
 	DFREF dataFolder
-	
+
 	NVAR/Z/SDFR=dataFolder myVar = $name
-	if (!NVAR_EXISTS(myVar))
+	if(!NVAR_EXISTS(myVar))
 		Variable/G dataFolder:$name
 		NVAR/Z/SDFR=dataFolder myVar = $name
-		if (!NVAR_EXISTS(myVar))
+		if(!NVAR_EXISTS(myVar))
 			Abort "Could not create global Variable"
 		endif
 	endif
-	
+
 	myVar = value
 End
 
@@ -212,7 +212,7 @@ End
 
 Function/WAVE getMapWave(strMap, strWave)
 	String strMap, strWave
-	DFREF dfrMap = returnMapFolder(strMap)	
+	DFREF dfrMap = returnMapFolder(strMap)
 	WAVE myWave = getWAVE(strWave, dfrMap)
 	return getWAVE(strWave, dfrMap)
 End
@@ -245,14 +245,14 @@ End
 
 Function/WAVE getAtlasWave(strMap, strWave)
 	String strMap, strWave
-	DFREF dfrAtlas = returnMapChiralityFolder(strMap)	
+	DFREF dfrAtlas = returnMapChiralityFolder(strMap)
 	WAVE/D myWave = getDoubleWAVE(strWave, dfrAtlas)
 	return myWave
 End
 
 Function/WAVE getAtlasTextWave(strMap, strWave)
 	String strMap, strWave
-	DFREF dfrAtlas = returnMapChiralityFolder(strMap)	
+	DFREF dfrAtlas = returnMapChiralityFolder(strMap)
 	WAVE/T myWave = getTextWAVE(strWave, dfrAtlas)
 	return myWave
 End
@@ -271,7 +271,6 @@ Function setAtlasVariable(strMap, var, value)
 End
 
 // Abbreviated Functions for Debugging
-
 Function MapWaveSize(strMap, strWave, dimension)
 	String strMap, strWave
 	Variable dimension
