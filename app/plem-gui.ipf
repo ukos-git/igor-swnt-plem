@@ -427,7 +427,7 @@ Function ButtonProcProcessIBW(ba) : ButtonControl
 		case 2: // mouse up
 			String strPLEM
 			strPLEM = PLEMd2window2strPLEM(ba.win)
-			PLEMd2ProcessIBW(strPLEM)
+			PLEMd2BuildMaps(strPLEM)
 			break
 		case -1: // control being killed
 			break

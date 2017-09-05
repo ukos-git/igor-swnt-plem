@@ -60,14 +60,6 @@ Function/DF returnMapChiralityFolder(strMap)
 	return dfrChirality
 End
 
-// Function returns DataFolder reference where original data is stored
-Function/DF returnMapOriginalFolder(strMap)
-	String strMap
-	DFREF dfrMap = returnMapFolder(strMap)
-	DFREF dfrOriginal = returnDataFolderReference(cstrPLEMd2root + cstrPLEMd2maps + ":" + strMap + cstrPLEMd2originals)
-	return dfrOriginal
-End
-
 // Function returns value of Global String "name" in "dataFolder"
 static Function/S getGstring(name, dataFolder)
 	String name
