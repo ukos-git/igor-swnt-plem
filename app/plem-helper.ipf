@@ -94,46 +94,62 @@ static Function getGvar(name, dataFolder)
 	endif
 End
 
-static Function/WAVE getWAVE(strWave, dfrMap)
+// Wrapper Functions for creating Waves
+Constant PLEMd2WaveTypeDouble   = 0
+Constant PLEMd2WaveTypeUnsigned = 1
+Constant PLEMd2WaveTypeText     = 2
+
+Function/WAVE createWave(dfr, strWave, [setWaveType])
+	DFREF dfr
 	String strWave
-	DFREF dfrMap
-	WAVE/Z/SDFR=dfrMap myWave = $strWave
-	if(!WaveExists(myWave))
-		Make/N=0 dfrMap:$strWave
-		WAVE/Z/SDFR=dfrMap myWave = $strWave
-		if(!WaveExists(myWave))
-			Abort "could not create wave"
-		EndIf
+	Variable setWaveType
+
+	setWaveType = ParamIsDefault(setWaveType) ? PLEMd2WaveTypeDouble : setWaveType
+
+	WAVE/Z/SDFR=dfr wv = $strWave
+	if(WaveExists(wv))
+		return wv
 	endif
-	return myWave
+
+	switch(setWaveType)
+		case PLEMd2WaveTypeDouble:
+			WAVE wv = createDoubleWave(dfr, strWave)
+			break
+		case PLEMd2WaveTypeUnsigned:
+			WAVE wv = createUnsignedWave(dfr, strWave)
+			break
+		case PLEMd2WaveTypeText:
+			WAVE wv = createTextWave(dfr, strWave)
+			break
+		default:
+			WAVE wv = createDoubleWave(dfr, strWave)
+	endswitch
+
+	return wv
 End
 
-static Function/WAVE getDoubleWAVE(strWave, dfrMap)
+static Function/WAVE createDoubleWave(dfr, strWave)
+	DFREF dfr
 	String strWave
-	DFREF dfrMap
-	WAVE/D/Z/SDFR=dfrMap myWave = $strWave
-	if(!WaveExists(myWave))
-		Make/D/N=0 dfrMap:$strWave
-		WAVE/D/Z/SDFR=dfrMap myWave = $strWave
-		if(!WaveExists(myWave))
-			Abort "could not create wave"
-		EndIf
-	endif
-	return myWave
+
+	Make/D/N=0 dfr:$strWave/WAVE=wv
+	return wv
 End
 
-static Function/WAVE getTextWAVE(strWave, dfrMap)
+static Function/WAVE createUnsignedWave(dfr, strWave)
+	DFREF dfr
 	String strWave
-	DFREF dfrMap
-	WAVE/T/Z/SDFR=dfrMap myWave = $strWave
-	if(!WaveExists(myWave))
-		Make/T/N=0 dfrMap:$strWave
-		WAVE/T/Z/SDFR=dfrMap myWave = $strWave
-		if(!WaveExists(myWave))
-			Abort "could not create wave"
-		EndIf
-	endif
-	return myWave
+
+	Make/I/U/N=0 dfr:$strWave/WAVE=wv
+	return wv
+End
+
+static Function/WAVE createTextWave(dfr, strWave)
+	DFREF dfr
+	String strWave
+
+	Make/T/N=0 dfr:$strWave/WAVE=wv
+	return wv
 End
 
 // Function sets Global String "name" in "dataFolder" to "value"
@@ -210,14 +226,6 @@ Function getMapVariable(strMap, var)
 	return getGvar(var, dfrInfo)
 End
 
-Function/WAVE getMapWave(strMap, strWave)
-	String strMap, strWave
-
-	DFREF dfrMap = returnMapFolder(strMap)
-
-	return getWAVE(strWave, dfrMap)
-End
-
 Function setMapString(strMap, var, value)
 	String strMap, var, value
 	DFREF dfrInfo = returnMapInfoFolder(strMap)
@@ -242,20 +250,6 @@ Function getAtlasVariable(strMap, var)
 	String strMap, var
 	DFREF dfrAtlas = returnMapChiralityFolder(strMap)
 	return getGvar(var, dfrAtlas)
-End
-
-Function/WAVE getAtlasWave(strMap, strWave)
-	String strMap, strWave
-	DFREF dfrAtlas = returnMapChiralityFolder(strMap)
-	WAVE/D myWave = getDoubleWAVE(strWave, dfrAtlas)
-	return myWave
-End
-
-Function/WAVE getAtlasTextWave(strMap, strWave)
-	String strMap, strWave
-	DFREF dfrAtlas = returnMapChiralityFolder(strMap)
-	WAVE/T myWave = getTextWAVE(strWave, dfrAtlas)
-	return myWave
 End
 
 Function setAtlasString(strMap, var, value)
