@@ -14,10 +14,10 @@ Structure PLEMd2stats
 	String strPLEM, strPLEMfull, strDataFolder, strDataFolderOriginal
 	Variable numPLEM
 	//2D-Waves
-	Wave wavPLEM, wavMeasure, wavIBW, wavBackground, wavGrating
+	Wave wavPLEM, wavMeasure, wavIBW, wavBackground
 	//1D-Waves
 	Wave wavExcitation, wavWavelength
-	Wave wavYpower, wavYphoton, wavXgrating, wavYgrating
+	Wave wavYpower, wavYphoton, wavGrating
 	// Normalization Value
 	Variable numNormalization
 	// Switches for calculation
@@ -53,13 +53,12 @@ Function PLEMd2statsLoad(stats, strMap)
 	Wave stats.wavMeasure 		= getMapWave(strMap, "MEASURE")
 	Wave stats.wavIBW 			= getMapWave(strMap, "IBW")
 	Wave stats.wavBackground 	= getMapWave(strMap, "BACKGROUND")
-	Wave stats.wavGrating 		= getMapWave(strMap, "GRATING")
 	Wave stats.wavExcitation 	= getMapWave(strMap, "yExcitation")
 	Wave stats.wavWavelength 	= getMapWave(strMap, "xWavelength")
 	Wave stats.wavYpower 		= getMapWave(strMap, "yPower")
 	Wave stats.wavYphoton 		= getMapWave(strMap, "yPhoton")
 	Wave stats.wavXgrating 		= getMapWave(strMap, "xGrating")
-	Wave stats.wavYgrating 		= getMapWave(strMap, "yGrating")
+	Wave stats.wavGrating 		= createWave(dfrMap, "xGrating")
 
 	Wave/D stats.wavEnergyS1 		= getAtlasWave(strMap, "PLEMs1nm")
 	Wave/D stats.wavEnergyS2 		= getAtlasWave(strMap, "PLEMs2nm")

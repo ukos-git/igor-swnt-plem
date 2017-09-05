@@ -305,7 +305,6 @@ Function PLEMd2MapsAppendNotes(strPLEM)
 	Note/K/NOCR stats.wavPLEM 			strHeader
 	Note/K/NOCR stats.wavMeasure		strHeader
 	Note/K/NOCR stats.wavBackground 	strHeader
-	Note/K/NOCR stats.wavGrating 		strHeader
 End
 
 Function PLEMd2BuildMaps(strPLEM)
@@ -396,13 +395,11 @@ Function PLEMd2BuildMaps(strPLEM)
 		SetDataFolder $(stats.strDataFolder)
 		if(stats.numPLEMTotalY == 1)
 			Make/D/O/N=(stats.numPLEMTotalX) PLEM, MEASURE, BACKGROUND
-			Make/D/O/N=(stats.numPLEMTotalX) GRATING
 		else
 			Make/D/O/N=((stats.numPLEMTotalX),(stats.numPLEMTotalY)) PLEM, MEASURE, BACKGROUND
-			Make/D/O/N=((stats.numPLEMTotalX),(stats.numPLEMTotalY)) GRATING
 		endif
 		PLEMd2MapsAppendNotes(stats.strPLEM)
-		Make/D/O/N=(stats.numPLEMTotalX) xWavelength, xGrating, yGrating
+		Make/D/O/N=(stats.numPLEMTotalX) xWavelength, xGrating
 		Make/D/O/N=(stats.numPLEMTotalY) yExcitation, yPower, yPhoton
 		// save stats and reload wave references
 		PLEMd2statsSave(stats)
@@ -413,20 +410,17 @@ Function PLEMd2BuildMaps(strPLEM)
 		stats.numPLEMLeftX = stats.wavWavelength[0]
 		stats.numPLEMDeltaX = PLEMd2Delta(stats.wavWavelength, normal = 1)
 		stats.numPLEMRightX = stats.numPLEMLeftX + stats.numWLdelta * (stats.numPLEMTotalX - 1)
-		SetScale/I x stats.numPLEMLeftX, stats.numPLEMRightX, "", stats.wavPLEM, stats.wavMeasure, stats.wavBackground, stats.wavGrating
+		SetScale/I x stats.numPLEMLeftX, stats.numPLEMRightX, "", stats.wavPLEM, stats.wavMeasure, stats.wavBackground
 
 		// Grating Waves (requires wavWavelength)
 		String strGratingWave = PLEMd2d1CorrectionConstructor(stats.numGrating,stats.numDetector,stats.numCooling)
-		if(StringMatch(strGratingWave,""))
-			stats.wavYgrating = 1
-			stats.wavXgrating = stats.wavWavelength
+		if(!cmpstr(strGratingWave, ""))
+			stats.wavGrating = 1
 			print "PLEMd2BuildMaps: Grating Wave was set to 1"
 		else
-			Duplicate/O $(ReplaceString("DUMMY", strGratingWave, "E_",1,1)) yGrating
-			Duplicate/O $(ReplaceString("DUMMY", strGratingWave, "WL_",1,1)) xGrating
-			//reload wave references.
-			PLEMd2statsSave(stats)
-			PLEMd2statsLoad(stats, strPLEM)
+			Duplicate/FREE $(ReplaceString("DUMMY", strGratingWave, "E_",1,1)) wavYgrating
+			Duplicate/FREE $(ReplaceString("DUMMY", strGratingWave, "WL_",1,1)) wavXgrating
+			interpolate2/T=1/I=3/Y=stats.wavGrating/X=stats.wavWavelength wavXgrating, wavYgrating
 		endif
 
 		// different handling for spectra in calibration mode (1) and for maps (0)
@@ -458,8 +452,6 @@ Function PLEMd2BuildMaps(strPLEM)
 			WaveClear wavBackground
 			WaveClear wavMeasure
 
-			// get grating correction
-			interpolate2 /T=1 /I=3 /Y=stats.wavGrating/X=stats.wavWavelength stats.wavXgrating, stats.wavYgrating
 			// Excitation wave
 			stats.wavExcitation 	= (stats.numEmissionStart + stats.numEmissionEnd) / 2
 		else
@@ -502,13 +494,6 @@ Function PLEMd2BuildMaps(strPLEM)
 					stats.wavExcitation[i] /= 10
 				endif
 			endfor
-
-			// Interpolate Correction Waves (will be the same all over the for loop …)
-			Duplicate/O/FREE/R=[0,inf][0] stats.wavGrating wavTempGrating
-			Redimension/N=(-1,0) wavTempGrating
-			interpolate2 /T=1 /I=3 /Y=wavTempGrating /X=stats.wavWavelength stats.wavXgrating, stats.wavYgrating
-			stats.wavGrating		= wavTempGrating[p]
-			WaveClear wavTempGrating
 		endif
 
 		numPixelPitch = 0
@@ -584,8 +569,8 @@ Function PLEMd2BuildMaps(strPLEM)
 		stats.wavYphoton = (stats.wavYpower * 1e-6) / (6.62606957e-34 * 2.99792458e+8 / (stats.wavExcitation * 1e-9)) 		// power is in uW and Excitation is in nm
 
 		// set distinct Wave Scaling for Maps
-		SetScale/P x stats.numPLEMLeftX, stats.numPLEMDeltaX, "", stats.wavPLEM, stats.wavMeasure, stats.wavBackground, stats.wavGrating
-		SetScale/P y stats.numPLEMBottomY, stats.numPLEMDeltaY, "", stats.wavPLEM, stats.wavMeasure, stats.wavBackground, stats.wavGrating
+		SetScale/P x stats.numPLEMLeftX, stats.numPLEMDeltaX, "", stats.wavPLEM, stats.wavMeasure, stats.wavBackground
+		SetScale/P y stats.numPLEMBottomY, stats.numPLEMDeltaY, "", stats.wavPLEM, stats.wavMeasure, stats.wavBackground
 		SetScale/I x stats.numPLEMBottomY, stats.numPLEMTopY, "", stats.wavExcitation
 
 		// calculate new map
@@ -604,7 +589,7 @@ Function PLEMd2BuildMaps(strPLEM)
 			stats.wavPLEM /= stats.numNormalization
 		endif
 		if(stats.booGrating)
-			stats.wavPLEM /= stats.wavGrating
+			stats.wavPLEM /= stats.wavGrating[p]
 		endif
 		if(stats.booQuantumEfficiency)
 			stats.wavPLEM *= 1 // QE not handled
