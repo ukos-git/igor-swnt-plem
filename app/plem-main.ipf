@@ -77,12 +77,12 @@ Function PLEMd2isInit()
 
 	SetDataFolder root:
 
-	if(FindListItem("gnumPLEMd2IsInit", VariableList("gnum*",";",4)) != -1)
+	if(FindListItem("gnumPLEMd2IsInit", VariableList("gnum*", ";",4)) != -1)
 		NVAR gnumPLEMd2IsInit
 			if(DataFolderExists(cstrPLEMd2root))
 				SetDataFolder $cstrPLEMd2root
 				//Check if Version of Procedure matches Project.
-				if(FindListItem("gnumPLEMd2Version",VariableList("gnum*",";",4)) != -1)
+				if(FindListItem("gnumPLEMd2Version",VariableList("gnum*", ";",4)) != -1)
 					NVAR gnumPLEMd2Version
 					if(!(gnumPLEMd2Version<cPLEMd2Version))
 						//only at this point we can be sure, that the project is initialized.
@@ -148,9 +148,9 @@ Function PLEMd2Clean()
 
 	SetDataFolder root:
 
-	strVariables	= VariableList("V_*",";",4)	//Scalar Variables
-	strVariables	+= VariableList("*",";",2)	//System Variables
-	strStrings	= StringList("S_*",";")
+	strVariables	= VariableList("V_*", ";",4)	//Scalar Variables
+	strVariables	+= VariableList("*", ";",2)	//System Variables
+	strStrings	= StringList("S_*", ";")
 
 	numAvailable = ItemsInList(strVariables)
 	for(i = 0; i < numAvailable; i += 1)
@@ -320,7 +320,7 @@ Function PLEMd2ExtractIBW(strPLEM, wavIBW)
 		case 0:
 		case 1:
 			//single background
-			strWavePL = WaveList("PL*",";","")
+			strWavePL = WaveList("PL*", ";", "")
 			// fill strWaveBG with dummy "BG"
 			numItems = ItemsInList(strWavePL, ";")
 			strWaveBG = ""
@@ -337,8 +337,8 @@ Function PLEMd2ExtractIBW(strPLEM, wavIBW)
 			break
 		case 2:
 			//multiple background
-			strWavePL = WaveList("PL_*",";","")
-			strWaveBG = WaveList("BG_*",";","")
+			strWavePL = WaveList("PL_*", ";", "")
+			strWaveBG = WaveList("BG_*", ";", "")
 			break
 		default:
 			print "PLEMd2BuildMaps: Background Case not handled"
@@ -434,8 +434,8 @@ Function PLEMd2ExtractIBW(strPLEM, wavIBW)
 			WaveClear wavMeasure
 
 			// Excitation wave
-			numExcitationFrom 	= str2num(StringFromList(1,StringFromList(i,strWavePL),"_"))
-			numExcitationTo 		= str2num(StringFromList(2,StringFromList(i,strWavePL),"_"))
+			numExcitationFrom 	= str2num(StringFromList(1,StringFromList(i,strWavePL), "_"))
+			numExcitationTo 		= str2num(StringFromList(2,StringFromList(i,strWavePL), "_"))
 			stats.wavExcitation[i] 	= (numExcitationFrom + numExcitationTo) / 2
 
 			// since PLEMv3.0 excitation is saved multiplied by 10.
@@ -502,8 +502,8 @@ Function PLEMd2ExtractIBW(strPLEM, wavIBW)
 		stats.numPLEMDeltaX = PLEMd2Delta(stats.wavWavelength, normal = 1)
 		stats.numPLEMRightX = stats.numPLEMLeftX + stats.numWLdelta * (stats.numPLEMTotalX - 1)
 
-		stats.numPLEMBottomY	= (str2num(StringFromList(1,StringFromList(0,strWavePL),"_")) + str2num(StringFromList(2,StringFromList(0,strWavePL),"_"))) / 2
-		stats.numPLEMTopY		= (str2num(StringFromList(1,StringFromList((stats.numPLEMTotalY-1),strWavePL),"_")) + str2num(StringFromList(2,StringFromList((stats.numPLEMTotalY-1),strWavePL),"_"))) / 2		
+		stats.numPLEMBottomY	= (str2num(StringFromList(1,StringFromList(0,strWavePL), "_")) + str2num(StringFromList(2,StringFromList(0,strWavePL), "_"))) / 2
+		stats.numPLEMTopY		= (str2num(StringFromList(1,StringFromList((stats.numPLEMTotalY-1),strWavePL), "_")) + str2num(StringFromList(2,StringFromList((stats.numPLEMTotalY-1),strWavePL), "_"))) / 2
 		stats.numPLEMDeltaY	= PLEMd2Delta(stats.wavExcitation)
 
 		// since PLEMv3.0 excitation is saved multiplied by 10.
@@ -641,40 +641,40 @@ Function PLEMd2ExtractInfo(strPLEM, wavIBW)
 
 	stats.strDate 		= PLEMd2ExtractSearch(wavIBW, "Date")
 	stats.strUser 		= PLEMd2ExtractSearch(wavIBW, "User")
-	stats.strFileName = PLEMd2ExtractSearch(wavIBW, "File")
+	stats.strFileName 	= PLEMd2ExtractSearch(wavIBW, "File")
 
-	stats.numCalibrationMode = PLEMd2ExtractVariables(wavIBW,"numCalibrationMode")
-	stats.numSlit = PLEMd2ExtractVariables(wavIBW,"numSlit")
-	stats.numGrating = PLEMd2ExtractVariables(wavIBW,"numGrating")
-	stats.numFilter = PLEMd2ExtractVariables(wavIBW,"numFilter")
-	stats.numShutter = PLEMd2ExtractVariables(wavIBW,"numShutter")
-	stats.numWLcenter = PLEMd2ExtractVariables(wavIBW,"numWLcenter")
-	stats.numDetector = PLEMd2ExtractVariables(wavIBW,"numDetector")
-	stats.numCooling = PLEMd2ExtractVariables(wavIBW,"numCooling")
-	stats.numExposure = PLEMd2ExtractVariables(wavIBW,"numExposure")
-	stats.numBinning = PLEMd2ExtractVariables(wavIBW,"numBinning")
-	stats.numScans = PLEMd2ExtractVariables(wavIBW,"numScans")
-	stats.numBackground = PLEMd2ExtractVariables(wavIBW,"numBackground")
-	stats.numWLfirst = 0 // deprecated
-	stats.numWLlast = 0 // deprecated
-	stats.numWLdelta = PLEMd2ExtractVariables(wavIBW,"numWLdelta")
-	stats.numEmissionMode = PLEMd2ExtractVariables(wavIBW,"numEmissionMode")
-	stats.numEmissionPower = PLEMd2ExtractVariables(wavIBW,"numEmissionPower")
-	stats.numEmissionStart = PLEMd2ExtractVariables(wavIBW,"numEmissionStart")
-	stats.numEmissionEnd = PLEMd2ExtractVariables(wavIBW,"numEmissionEnd")
-	stats.numEmissionDelta = PLEMd2ExtractVariables(wavIBW,"numEmissionDelta")
-	stats.numEmissionStep = PLEMd2ExtractVariables(wavIBW,"numEmissionStep")
+	stats.numCalibrationMode = PLEMd2ExtractVariables(wavIBW, "numCalibrationMode")
+	stats.numSlit 		= PLEMd2ExtractVariables(wavIBW, "numSlit")
+	stats.numGrating 	= PLEMd2ExtractVariables(wavIBW, "numGrating")
+	stats.numFilter 	= PLEMd2ExtractVariables(wavIBW, "numFilter")
+	stats.numShutter 	= PLEMd2ExtractVariables(wavIBW, "numShutter")
+	stats.numWLcenter 	= PLEMd2ExtractVariables(wavIBW, "numWLcenter")
+	stats.numDetector 	= PLEMd2ExtractVariables(wavIBW, "numDetector")
+	stats.numCooling 	= PLEMd2ExtractVariables(wavIBW, "numCooling")
+	stats.numExposure 	= PLEMd2ExtractVariables(wavIBW, "numExposure")
+	stats.numBinning 	= PLEMd2ExtractVariables(wavIBW, "numBinning")
+	stats.numScans 		= PLEMd2ExtractVariables(wavIBW, "numScans")
+	stats.numBackground = PLEMd2ExtractVariables(wavIBW, "numBackground")
+	stats.numWLfirst 	= 0 // deprecated
+	stats.numWLlast 	= 0 // deprecated
+	stats.numWLdelta 	= PLEMd2ExtractVariables(wavIBW, "numWLdelta")
+	stats.numEmissionMode 	= PLEMd2ExtractVariables(wavIBW, "numEmissionMode")
+	stats.numEmissionPower 	= PLEMd2ExtractVariables(wavIBW, "numEmissionPower")
+	stats.numEmissionStart 	= PLEMd2ExtractVariables(wavIBW, "numEmissionStart")
+	stats.numEmissionEnd 	= PLEMd2ExtractVariables(wavIBW, "numEmissionEnd")
+	stats.numEmissionDelta 	= PLEMd2ExtractVariables(wavIBW, "numEmissionDelta")
+	stats.numEmissionStep 	= PLEMd2ExtractVariables(wavIBW, "numEmissionStep")
 
-	stats.numPositionX = PLEMd2ExtractVariables(wavIBW,"numPositionX")
-	stats.numPositionY = PLEMd2ExtractVariables(wavIBW,"numPositionY")
-	stats.numPositionZ = PLEMd2ExtractVariables(wavIBW,"numPositionZ")
+	stats.numPositionX = PLEMd2ExtractVariables(wavIBW, "numPositionX")
+	stats.numPositionY = PLEMd2ExtractVariables(wavIBW, "numPositionY")
+	stats.numPositionZ = PLEMd2ExtractVariables(wavIBW, "numPositionZ")
 	stats.booSwitchX = PLEMd2ExtractVariables(wavIBW, "numSwitchX")
 	stats.booSwitchY = PLEMd2ExtractVariables(wavIBW, "numSwitchY")
 
-	stats.numReadOutMode = PLEMd2ExtractVariables(wavIBW, "numReadoutMode")
+	stats.numReadOutMode 	= PLEMd2ExtractVariables(wavIBW, "numReadoutMode")
 	stats.numLaserPositionX = PLEMd2ExtractVariables(wavIBW, "numLaserX")
 	stats.numLaserPositionY = PLEMd2ExtractVariables(wavIBW, "numLaserY")
-	stats.numMagnification = PLEMd2ExtractVariables(wavIBW, "numMagnification")
+	stats.numMagnification 	= PLEMd2ExtractVariables(wavIBW, "numMagnification")
 
 	PLEMd2statsSave(stats)
 End
@@ -807,7 +807,7 @@ Function/S PLEMd2ExtractPower(wavIBW)
 	//assure to return numbers (not strings) in liststring
 	for(i = 0; i < numCount; i += 1)
 		numItem = str2num(StringFromList(i, strListParse))
-		strListPower = AddListItem(num2str(numItem), strListPower,";",Inf)
+		strListPower = AddListItem(num2str(numItem), strListPower, ";",Inf)
 	endfor
 	//print "for " + strVariableName + " at item number: " + num2str(WhichListItem(strVariableName, strListVariableNames)) + " found item: " + strItem
 
@@ -864,8 +864,8 @@ Function PLEMd2FixWavenotes(wavIBW)
 		//IGOR2 not found so the error is probably related to that. (caused by early version of LabView program)
 		print "PLEMd2FixWavenotes: Error: Did not find IGOR2 in WaveNote. Fixing...."
 		//rename IGOR4 to IGOR3 and IGOR3 to IGOR2.
-		strHeader = ReplaceString("IGOR3:",strHeader,"IGOR2:")
-		strHeader = ReplaceString("IGOR4:",strHeader,"IGOR3:")
+		strHeader = ReplaceString("IGOR3:",strHeader, "IGOR2:")
+		strHeader = ReplaceString("IGOR4:",strHeader, "IGOR3:")
 		Note/K/NOCR wavIBW strHeader
 	Endif
 End
@@ -914,7 +914,7 @@ Function PLEMd2AtlasCreateNM(strPLEM)
 	WaveStats/Q/M=1 stats.wavChiralityn
 	Redimension/N=(V_npnts) stats.wavChiralitynm
 	for(i = 0; i < V_npnts; i += 1)
-		stats.wavChiralitynm[i]="("+num2str(stats.wavChiralityN[i])+","+num2str(stats.wavChiralityM[i])+")"
+		stats.wavChiralitynm[i]="("+num2str(stats.wavChiralityN[i])+", "+num2str(stats.wavChiralityM[i])+")"
 	endfor
 
 End
@@ -1211,8 +1211,8 @@ Function PLEMd2AtlasFit3D(strPLEM)
 
 	stats.wavPLEMfit = NaN
 	stats.wavPLEMfitSingle = 0
-	SetScale y,stats.numPLEMbottomY,stats.numPLEMtopY,"",stats.wavPLEMfit
-	SetScale x,stats.numPLEMleftX,stats.numPLEMrightX,"",stats.wavPLEMfit
+	SetScale y,stats.numPLEMbottomY,stats.numPLEMtopY, "",stats.wavPLEMfit
+	SetScale x,stats.numPLEMleftX,stats.numPLEMrightX, "",stats.wavPLEMfit
 	//Display
 	//AppendImage stats.wavPLEM
 
@@ -1375,7 +1375,7 @@ Function PLEMd2AtlasShow(strPLEM)
 
 	ModifyGraph mode(plem03)=3 //dots
 	ModifyGraph useMrkStrokeRGB(plem03)=1
-	ModifyGraph textMarker(plem03)={stats.wavChiralitynm,"default",0,0,5,0.00,10.00} //labels top
+	ModifyGraph textMarker(plem03)={stats.wavChiralitynm, "default",0,0,5,0.00,10.00} //labels top
 	ModifyGraph rgb(plem03)=(65535,65535,65535)
 	ModifyGraph mrkStrokeRGB(plem03)=(65535,65535,65535)
 
@@ -1763,9 +1763,9 @@ Function PLEMd2d1Kill(strWhichOne)
 	endswitch
 
 	SetDataFolder root:
-	strWavesAvailable = WaveList("*",";","")
-	strVariablesAvailable = VariableList("!gnum*",";",4)
-	strStringsAvailable = StringList("!gstr*",";")
+	strWavesAvailable = WaveList("*", ";", "")
+	strVariablesAvailable = VariableList("!gnum*", ";",4)
+	strStringsAvailable = StringList("!gstr*", ";")
 	switch(numWhichOne)
 		case 3:
 			strListKillMe = gstrPLEMd1waves
@@ -1830,7 +1830,7 @@ Function/S PLEMd2d1Find()
 	Variable numStrLen
 
 	SetDataFolder root:
-	strWaves 	= WaveList("PLE_map_*",";","")
+	strWaves 	= WaveList("PLE_map_*", ";", "")
 	strPLEMd1 	= ""
 	//loop adopted from igor manual. though <<for>> loops are normally prefered.
 	do
@@ -1915,7 +1915,7 @@ Function PLEMd2d1Init()
 		endif
 
 		NewPath/O/Q path, gstrPLEMd1PathBase
-		strFiles = IndexedFile(path,-1,".txt")
+		strFiles = IndexedFile(path,-1, ".txt")
 		numFiles = ItemsInList(strFiles)
 		//print "PLEMd2d1Init: found " + num2str(numFiles) + " files"
 		numPLEMd1CorrectionWaves = ItemsInList(gstrPLEMd1CorrectionToLoad)
