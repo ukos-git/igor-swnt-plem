@@ -203,7 +203,7 @@ Function PLEMd2Open([strFile, display])
 
 			// move loaded wave to IBW
 			strWave	= StringFromList(0, S_waveNames)
-			Duplicate/O $strwave dfrPLEM:IBW/WAVE=wavIBW
+			Duplicate/FREE $strwave wavIBW
 			KillWaves/Z $strWave
 			SetDataFolder dfrSave
 			break
@@ -217,13 +217,11 @@ Function PLEMd2Open([strFile, display])
 	PLEMd2init()
 
 	// init stats
-	Struct PLEMd2Stats stats
 	PLEMd2statsInitialize(strPLEM)
-	PLEMd2statsLoad(stats, strPLEM)
-	WAVE stats.wavIBW = wavIBW
 
 	// create and display waves
-	PLEMd2ExtractInfo(stats)
+	PLEMd2ExtractInfo(strPLEM, wavIBW)
+	PLEMd2ExtractIBW(strPLEM, wavIBW)
 	PLEMd2BuildMaps(strPLEM)
 	if(display)
 		PLEMd2Display(strPLEM)
@@ -235,7 +233,7 @@ Function PLEMd2Open([strFile, display])
 	SetDataFolder dfrSave
 End
 
-Function/DF PLEMd2ProcessIBW(wavIBW)
+Function/DF PLEMd2ExtractWaves(wavIBW)
 	WAVE wavIBW
 
 	String strWaveNames, strWaveExtract
@@ -250,16 +248,16 @@ Function/DF PLEMd2ProcessIBW(wavIBW)
 	numTotalY	= DimSize(wavIBW, 1)
 	if(numTotalY == 0 || numTotalX == 0)
 		PLEMd2exit()
-		Abort "PLEMd2ProcessIBW: Binary File has no waves"
+		Abort "PLEMd2ExtractWaves: Binary File has no waves"
 	endif
 	if(numTotalY != ItemsInList(strWaveNames))
-		print "PLEMd2FixWavenotes: Error WaveNames not correct in WaveNotes. Trying to correct WaveNotes"
+		print "PLEMd2ExtractWaves: Error WaveNames not correct in WaveNotes. Trying to correct WaveNotes"
 		PLEMd2FixWavenotes(wavIBW)
 		strWaveNames = PLEMd2ExtractWaveList(wavIBW)
 	endif
 	if(numTotalY != ItemsInList(strWaveNames))
 		PLEMd2exit()
-		Abort "PLEMd2ProcessIBW: Error WaveNames not found in WaveNotes. Check and correct manually Igor0,Igor1,Igor2,Igor3"
+		Abort "PLEMd2ExtractWaves: Error WaveNames not found in WaveNotes. Check and correct manually Igor0,Igor1,Igor2,Igor3"
 	endif
 
 	//Extract Columns from Binary Wave and give them proper names
@@ -275,22 +273,19 @@ Function/DF PLEMd2ProcessIBW(wavIBW)
 	return dfr
 End
 
-Function PLEMd2MapsAppendNotes(strPLEM)
-	String strPLEM
-	Struct PLEMd2stats stats
-	PLEMd2statsLoad(stats, strPLEM)
+Function PLEMd2CopyWaveNote(wavIBW, wv)
+	WAVE wavIBW, wv
+
 	String strHeader
 
-	strHeader = Note(stats.wavIBW)
+	strHeader = Note(wavIBW)
 	strHeader = strHeader[0,(strsearch(strHeader, "IGOR0",0)-1)] // clean WaveNotes
-	// copy header to 2d-waves
-	Note/K/NOCR stats.wavPLEM 			strHeader
-	Note/K/NOCR stats.wavMeasure		strHeader
-	Note/K/NOCR stats.wavBackground 	strHeader
+	Note/K/NOCR wv strHeader
 End
 
-Function PLEMd2BuildMaps(strPLEM)
+Function PLEMd2ExtractIBW(strPLEM, wavIBW)
 	String strPLEM
+	WAVE wavIBW
 
 	Struct PLEMd2stats stats
 	String strWaveBG, strWavePL
@@ -319,7 +314,7 @@ Function PLEMd2BuildMaps(strPLEM)
 	// collect strWavePL und strWaveBG. WaveList is not DFR aware
 	DFREF saveDFR = GetDataFolderDFR()
 	PLEMd2statsLoad(stats, strPLEM)
-	DFREF dfr = PLEMd2ProcessIBW(stats.wavIBW)
+	DFREF dfr = PLEMd2ExtractWaves(wavIBW)
 	SetDataFolder dfr
 	switch(stats.numbackground)
 		case 0:
@@ -378,7 +373,7 @@ Function PLEMd2BuildMaps(strPLEM)
 	dim0 = stats.numPLEMTotalX
 	dim1 = stats.numPLEMTotalY
 	Redimension/N=(dim0, dim1) stats.wavPLEM, stats.wavMeasure, stats.wavBackground
-	PLEMd2MapsAppendNotes(stats.strPLEM)
+	PLEMd2CopyWaveNote(wavIBW, stats.wavPLEM)
 	if(stats.numReadOutMode == 1)
 		dim0 = 0 // no wavelength
 		dim1 = 1 // save power and excitation wl
@@ -518,12 +513,9 @@ Function PLEMd2BuildMaps(strPLEM)
 		endif
 	endif
 
-	// Stats: update
-	PLEMd2statsSave(stats)
-
 	// Power correction
 	// requires Excitation wave for Photon Energy
-	stats.wavYpower	 = str2num(StringFromList(p, PLEMd2ExtractPower(stats.wavIBW), ";"))
+	stats.wavYpower	 = str2num(StringFromList(p, PLEMd2ExtractPower(wavIBW), ";"))
 	stats.wavYphoton = (stats.wavYpower * 1e-6) / (6.62606957e-34 * 2.99792458e+8 / (stats.wavExcitation * 1e-9)) 		// power is in uW and Excitation is in nm
 
 	// set distinct Wave Scaling for Maps
@@ -531,12 +523,26 @@ Function PLEMd2BuildMaps(strPLEM)
 	SetScale/P y stats.numPLEMBottomY, stats.numPLEMDeltaY, "", stats.wavPLEM, stats.wavMeasure, stats.wavBackground
 	SetScale/I x stats.numPLEMBottomY, stats.numPLEMTopY, "", stats.wavExcitation
 
-	// calculate new map
+	// Stats: update
+	PLEMd2statsSave(stats)
+
+	print GetWavesDataFolder(stats.wavPLEM, 2)
+End
+
+Function PLEMd2BuildMaps(strPLEM)
+	String strPLEM
+
+	variable i, numExcitation
+
+	Struct PLEMd2stats stats
+	PLEMd2statsLoad(stats, strPLEM)
+
 	if(stats.booInterpolate == 1)
-		for(i = 0; i < dim1; i += 1)
-			Duplicate/FREE/R=[][i] stats.wavMeasure wavTempMeasure
+		numExcitation = DimSize(stats.wavExcitation, 0)
+		for(i = 0; i < numExcitation; i += 1)
+			Duplicate/FREE/R=[][i] stats.wavMeasure wavMeasure, wavTempMeasure
 			Redimension/N=(-1, 0) wavTempMeasure
-			Duplicate/FREE/R=[][i] stats.wavBackground wavTempBackground
+			Duplicate/FREE/R=[][i] stats.wavBackground wavBackground, wavTempBackground
 			Redimension/N=(-1, 0) wavTempBackground
 
 			Interpolate2 /T=1 /I=3 /Y=wavTempMeasure stats.wavWavelength, wavMeasure
@@ -546,6 +552,7 @@ Function PLEMd2BuildMaps(strPLEM)
 			stats.wavBackground[][i] 	= wavTempBackground[p]
 
 			WaveClear wavTempBackground, wavTempMeasure
+			WaveClear wavBackground, wavMeasure
 		endfor
 	endif
 	if(stats.booBackground)
@@ -568,8 +575,6 @@ Function PLEMd2BuildMaps(strPLEM)
 	if(stats.booQuantumEfficiency)
 		stats.wavPLEM *= 1 // QE not handled
 	endif
-
-	print GetWavesDataFolder(stats.wavPLEM, 2)
 End
 
 // function modified from absorption-load-v6
@@ -623,46 +628,53 @@ Function PLEMd2Delta(wavInput, [normal])
 	return numDelta
 End
 
-Function PLEMd2ExtractInfo(stats)
-	Struct PLEMd2Stats &stats
+Function PLEMd2ExtractInfo(strPLEM, wavIBW)
+	String strPLEM
+	WAVE wavIBW
+
 	String strFound
+	Struct PLEMd2Stats stats
 
-	stats.strDate 		= PLEMd2ExtractSearch(stats.wavIBW, "Date")
-	stats.strUser 		= PLEMd2ExtractSearch(stats.wavIBW, "User")
-	stats.strFileName = PLEMd2ExtractSearch(stats.wavIBW, "File")
+	PLEMd2statsLoad(stats, strPLEM)
 
-	stats.numCalibrationMode = PLEMd2ExtractVariables(stats.wavIBW,"numCalibrationMode")
-	stats.numSlit = PLEMd2ExtractVariables(stats.wavIBW,"numSlit")
-	stats.numGrating = PLEMd2ExtractVariables(stats.wavIBW,"numGrating")
-	stats.numFilter = PLEMd2ExtractVariables(stats.wavIBW,"numFilter")
-	stats.numShutter = PLEMd2ExtractVariables(stats.wavIBW,"numShutter")
-	stats.numWLcenter = PLEMd2ExtractVariables(stats.wavIBW,"numWLcenter")
-	stats.numDetector = PLEMd2ExtractVariables(stats.wavIBW,"numDetector")
-	stats.numCooling = PLEMd2ExtractVariables(stats.wavIBW,"numCooling")
-	stats.numExposure = PLEMd2ExtractVariables(stats.wavIBW,"numExposure")
-	stats.numBinning = PLEMd2ExtractVariables(stats.wavIBW,"numBinning")
-	stats.numScans = PLEMd2ExtractVariables(stats.wavIBW,"numScans")
-	stats.numBackground = PLEMd2ExtractVariables(stats.wavIBW,"numBackground")
+	stats.strPLEM = strPLEM
+
+	stats.strDate 		= PLEMd2ExtractSearch(wavIBW, "Date")
+	stats.strUser 		= PLEMd2ExtractSearch(wavIBW, "User")
+	stats.strFileName = PLEMd2ExtractSearch(wavIBW, "File")
+
+	stats.numCalibrationMode = PLEMd2ExtractVariables(wavIBW,"numCalibrationMode")
+	stats.numSlit = PLEMd2ExtractVariables(wavIBW,"numSlit")
+	stats.numGrating = PLEMd2ExtractVariables(wavIBW,"numGrating")
+	stats.numFilter = PLEMd2ExtractVariables(wavIBW,"numFilter")
+	stats.numShutter = PLEMd2ExtractVariables(wavIBW,"numShutter")
+	stats.numWLcenter = PLEMd2ExtractVariables(wavIBW,"numWLcenter")
+	stats.numDetector = PLEMd2ExtractVariables(wavIBW,"numDetector")
+	stats.numCooling = PLEMd2ExtractVariables(wavIBW,"numCooling")
+	stats.numExposure = PLEMd2ExtractVariables(wavIBW,"numExposure")
+	stats.numBinning = PLEMd2ExtractVariables(wavIBW,"numBinning")
+	stats.numScans = PLEMd2ExtractVariables(wavIBW,"numScans")
+	stats.numBackground = PLEMd2ExtractVariables(wavIBW,"numBackground")
 	stats.numWLfirst = 0 // deprecated
 	stats.numWLlast = 0 // deprecated
-	stats.numWLdelta = PLEMd2ExtractVariables(stats.wavIBW,"numWLdelta")
-	stats.numEmissionMode = PLEMd2ExtractVariables(stats.wavIBW,"numEmissionMode")
-	stats.numEmissionPower = PLEMd2ExtractVariables(stats.wavIBW,"numEmissionPower")
-	stats.numEmissionStart = PLEMd2ExtractVariables(stats.wavIBW,"numEmissionStart")
-	stats.numEmissionEnd = PLEMd2ExtractVariables(stats.wavIBW,"numEmissionEnd")
-	stats.numEmissionDelta = PLEMd2ExtractVariables(stats.wavIBW,"numEmissionDelta")
-	stats.numEmissionStep = PLEMd2ExtractVariables(stats.wavIBW,"numEmissionStep")
+	stats.numWLdelta = PLEMd2ExtractVariables(wavIBW,"numWLdelta")
+	stats.numEmissionMode = PLEMd2ExtractVariables(wavIBW,"numEmissionMode")
+	stats.numEmissionPower = PLEMd2ExtractVariables(wavIBW,"numEmissionPower")
+	stats.numEmissionStart = PLEMd2ExtractVariables(wavIBW,"numEmissionStart")
+	stats.numEmissionEnd = PLEMd2ExtractVariables(wavIBW,"numEmissionEnd")
+	stats.numEmissionDelta = PLEMd2ExtractVariables(wavIBW,"numEmissionDelta")
+	stats.numEmissionStep = PLEMd2ExtractVariables(wavIBW,"numEmissionStep")
 
-	stats.numPositionX = PLEMd2ExtractVariables(stats.wavIBW,"numPositionX")
-	stats.numPositionY = PLEMd2ExtractVariables(stats.wavIBW,"numPositionY")
-	stats.numPositionZ = PLEMd2ExtractVariables(stats.wavIBW,"numPositionZ")
-	stats.booSwitchX = PLEMd2ExtractVariables(stats.wavIBW, "numSwitchX")
-	stats.booSwitchY = PLEMd2ExtractVariables(stats.wavIBW, "numSwitchY")
+	stats.numPositionX = PLEMd2ExtractVariables(wavIBW,"numPositionX")
+	stats.numPositionY = PLEMd2ExtractVariables(wavIBW,"numPositionY")
+	stats.numPositionZ = PLEMd2ExtractVariables(wavIBW,"numPositionZ")
+	stats.booSwitchX = PLEMd2ExtractVariables(wavIBW, "numSwitchX")
+	stats.booSwitchY = PLEMd2ExtractVariables(wavIBW, "numSwitchY")
 
-	stats.numReadOutMode = PLEMd2ExtractVariables(stats.wavIBW, "numReadoutMode")
-	stats.numLaserPositionX = PLEMd2ExtractVariables(stats.wavIBW, "numLaserX")
-	stats.numLaserPositionY = PLEMd2ExtractVariables(stats.wavIBW, "numLaserY")
-	stats.numMagnification = PLEMd2ExtractVariables(stats.wavIBW, "numMagnification")
+	stats.numReadOutMode = PLEMd2ExtractVariables(wavIBW, "numReadoutMode")
+	stats.numLaserPositionX = PLEMd2ExtractVariables(wavIBW, "numLaserX")
+	stats.numLaserPositionY = PLEMd2ExtractVariables(wavIBW, "numLaserY")
+	stats.numMagnification = PLEMd2ExtractVariables(wavIBW, "numMagnification")
 
 	PLEMd2statsSave(stats)
 End

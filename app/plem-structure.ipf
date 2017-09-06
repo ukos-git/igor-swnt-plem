@@ -13,7 +13,7 @@ Structure PLEMd2stats
 	String strPLEM, strDataFolder, strDataFolderOriginal
 	Variable numPLEM
 	//2D-Waves
-	Wave wavPLEM, wavMeasure, wavIBW, wavBackground
+	Wave wavPLEM, wavMeasure, wavBackground
 	//1D-Waves
 	Wave wavExcitation, wavWavelength
 	Wave wavYpower, wavYphoton, wavGrating
@@ -51,7 +51,6 @@ Function PLEMd2statsLoad(stats, strMap)
 	Wave stats.wavPLEM 			= createWave(dfrMap, "PLEM")
 	Wave stats.wavPLEMfitSingle	= createWave(dfrMap, "PLEMfit")
 	Wave stats.wavMeasure 		= createWave(dfrMap, "MEASURE", setWaveType = PLEMd2WaveTypeUnsigned16)
-	Wave stats.wavIBW 			= createWave(dfrMap, "IBW")
 	Wave stats.wavBackground 	= createWave(dfrMap, "BACKGROUND", setWaveType = PLEMd2WaveTypeUnsigned16)
 	Wave stats.wavExcitation 	= createWave(dfrMap, "yExcitation")
 	Wave stats.wavWavelength 	= createWave(dfrMap, "xWavelength")
