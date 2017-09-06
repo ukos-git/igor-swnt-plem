@@ -9,7 +9,7 @@
 //
 
 // Variables for current Project only. See also the LoadPreferences towards the end of the procedure for additional settings that are saved system-wide.
-Constant 	cPLEMd2Version = 2900
+Constant 	cPLEMd2Version = 3000
 StrConstant cstrPLEMd2root = "root:PLEMd2"
 
 Function PLEMd2initVar()
@@ -73,7 +73,7 @@ Function PLEMd2isInit()
 	//numInit only chages if all the tests are ok.
 	Variable numInit = 0
 	String strGlobalVariables = ""
-	String strSaveDataFolder = GetDataFolder(1)
+	DFREF saveDFR = GetDataFolderDFR()
 
 	SetDataFolder root:
 
@@ -92,7 +92,7 @@ Function PLEMd2isInit()
 			endif
 	endif
 
-	SetDataFolder $strSaveDataFolder
+	SetDataFolder saveDFR
 	return numInit
 End
 
@@ -106,12 +106,10 @@ Function PLEMd2init()
 		PLEMd2initVar()
 	endif
 
-	//Change DataFolder to Project Root
-	SetDataFolder $cstrPLEMd2root
-
 	//Save Original Path in Project Root
-	SVAR gstrSaveDataFolder
-	gstrSaveDataFolder = strSaveDataFolder
+	DFREF packageRoot = $cstrPLEMd2root
+	SVAR savedfr = packageRoot:gstrSaveDataFolder
+	savedfr = strSaveDataFolder
 End
 
 Function PLEMd2reset()
@@ -123,14 +121,11 @@ Function PLEMd2reset()
 End
 
 Function PLEMd2exit()
-	//Change DataFolder to Project Root
-	SetDataFolder $cstrPLEMd2root
+	DFREF packageRoot = $cstrPLEMd2root
+	SVAR savedfr = packageRoot:gstrSaveDataFolder
+	DFREF dfr = $savedfr
 
-	//Get Original Folder from VAR
-	SVAR gstrSaveDataFolder
-
-	// Move Back to original Folder
-	SetDataFolder $gstrSaveDataFolder
+	SetDataFolder dfr
 End
 
 Function PLEMd2()
@@ -158,13 +153,13 @@ Function PLEMd2Clean()
 	strStrings	= StringList("S_*",";")
 
 	numAvailable = ItemsInList(strVariables)
-	for (i=0;i<numAvailable;i+=1)
+	for(i = 0; i < numAvailable; i += 1)
 		strAvailable = StringFromList(i, strVariables)
 		Killvariables/Z $("root:" + strAvailable)
 	endfor
 
 	numAvailable = ItemsInList(strStrings)
-	for (i=0;i<numAvailable;i+=1)
+	for(i = 0; i < numAvailable; i += 1)
 		strAvailable = StringFromList(i, strStrings)
 		Killstrings/Z $("root:" + strAvailable)
 	endfor
@@ -176,23 +171,11 @@ Function PLEMd2Open([strFile, display])
 	String strFile
 	Variable display
 
-	//INIT
-	Struct PLEMd2Prefs prefs
-	PLEMd2LoadPackagePrefs(prefs)
-	PLEMd2init()
-
-	SVAR gstrMapsFolder, gstrMapsAvailable
-	DFREF dfrPLEM
-
-	String strFileName, strFileType
-	String strWave, strWaveExtract, strDataFolder, strWaveNames
-	String strPLEM
-	Variable numCurrentMap = -1
-	Variable numTotalX, numTotalY
-	Variable i,j
+	String strFileName, strFileType, strSaveDataFolder
+	String strWave, strPLEM
 
 	if(ParamIsDefault(strFile))
-		strFile=PLEMd2PopUpChooseFile(prefs)
+		strFile = PLEMd2PopUpChooseFile()
 	endif
 	if(ParamIsDefault(display))
 		display = 1
@@ -205,430 +188,393 @@ Function PLEMd2Open([strFile, display])
 	strFileType  	= ParseFilePath(4, strFile, ":", 0, 0)
 	strPLEM = CleanupName(ReplaceString(" ", strFileName, ""), 0)
 
-	dfrPLEM = returnMapFolder(strPLEM)
+	// Loading Procedure (LoadWave is not dfr aware)
+	DFREF dfrSave = GetDataFolderDFR()
+	DFREF dfrPLEM = returnMapFolder(strPLEM)
 	SetDataFolder dfrPLEM
-	strDataFolder = GetDataFolder(1, dfrPLEM)
-
 	strswitch(strFileType)
-		case "ibw":	// literal string or string constant
+		case "ibw":
+			// load wave
 			LoadWave/Q/A/N=temp strFile
-			if(ItemsInList(S_waveNames) == 1)
-				// move loaded wave to IBW
-				strWave	= StringFromList(0, S_waveNames)
-				Duplicate/O  $strwave IBW
-				KillWaves/Z $strWave
-
-			else
-				print "PLEMd2Open: Error Loaded more than one or no Wave from Igor Binary File"
+			if(ItemsInList(S_waveNames) != 1)
+				SetDataFolder dfrSave
+				Abort "PLEMd2Open: Error Loaded more than one or no Wave from Igor Binary File"
 			endif
 
+			// move loaded wave to IBW
+			strWave	= StringFromList(0, S_waveNames)
+			Duplicate/FREE $strwave wavIBW
+			KillWaves/Z $strWave
+			SetDataFolder dfrSave
 			break
 		default:
-			print "PLEMd2Open: Could not open file"
+			SetDataFolder dfrSave
+			Abort "PLEMd2Open: Could not open file"
 		break
 	endswitch
 
-	PLEMd2ProcessIBW(strPLEM)
+	// init PLEMd2
+	PLEMd2init()
+
+	// init stats
+	PLEMd2statsInitialize(strPLEM)
+
+	// create and display waves
+	PLEMd2ExtractInfo(strPLEM, wavIBW)
+	PLEMd2ExtractIBW(strPLEM, wavIBW)
 	PLEMd2BuildMaps(strPLEM)
 	if(display)
 		PLEMd2Display(strPLEM)
 	endif
 
+	// clean exit
 	PLEMd2exit()
-	PLEMd2SavePackagePrefs(prefs)
+
+	SetDataFolder dfrSave
 End
 
-Function PLEMd2ProcessIBW(strPLEM)
-	String strPLEM
-	//INIT prefs
-	Struct PLEMd2Prefs prefs
-	PLEMd2LoadPackagePrefs(prefs)
-	//init stats
-	Struct PLEMd2Stats stats
-	PLEMd2statsInitialize(strPLEM) //reinit stats
-	PLEMd2statsLoad(stats, strPLEM)
+Function/DF PLEMd2ExtractWaves(wavIBW)
+	WAVE wavIBW
+
 	String strWaveNames, strWaveExtract
 	Variable numTotalX, numTotalY, i, j
 
-	// check if IBW file was loaded prior to function call.
-	if(WaveExists(stats.wavIBW) == 0)
-		print "PLEMd2ProcessIBW: IBW Wave does not exist. Check Code."
-		Abort
-	endif
+	// load waves from IBW file to dfr
+	DFREF dfr = NewFreeDataFolder()
 
-	DFREF dfrOriginal = returnMapOriginalFolder(strPLEM)
-	stats.strDataFolderOriginal = GetDataFolder(1, dfrOriginal)
-	setDataFolder dfrOriginal
-
-	// load waves from IBW file
-	strWaveNames = PLEMd2ExtractWaveList(stats.wavIBW)
-	numTotalX	= DimSize(stats.wavIBW,0)
-	numTotalY	= DimSize(stats.wavIBW,1)
+	// check consistency
+	strWaveNames = PLEMd2ExtractWaveList(wavIBW)
+	numTotalX	= DimSize(wavIBW, 0)
+	numTotalY	= DimSize(wavIBW, 1)
 	if(numTotalY == 0 || numTotalX == 0)
-		print "PLEMd2ProcessIBW: Binary File has no waves"
+		PLEMd2exit()
+		Abort "PLEMd2ExtractWaves: Binary File has no waves"
 	endif
 	if(numTotalY != ItemsInList(strWaveNames))
-		print "PLEMd2ProcessIBW: Error WaveNames not correct in WaveNotes. Trying to correct WaveNotes"
-		print strWaveNames
-		print num2str(numTotalY)
-		PLEMd2FixWavenotes(strPLEM)
-		strWaveNames = PLEMd2ExtractWaveList(stats.wavIBW)
+		print "PLEMd2ExtractWaves: Error WaveNames not correct in WaveNotes. Trying to correct WaveNotes"
+		PLEMd2FixWavenotes(wavIBW)
+		strWaveNames = PLEMd2ExtractWaveList(wavIBW)
 	endif
-	if(numTotalY == ItemsInList(strWaveNames))
-		//Extract Columns from Binary Wave and give them proper names
-		for (i=0; i<numTotalY; i+=1)
-			strWaveExtract = StringFromList(i, strWaveNames)
-			Make/D/O/N=(numTotalX) $strWaveExtract
-			Wave wavExtract = $strWaveExtract
-			for (j=0; j<numTotalX; j+=1)
-				wavExtract[j] = stats.wavIBW[j][i]
-			endfor
-			WaveClear wavExtract
-		endfor
-	else
-		print "PLEMd2ProcessIBW: Error WaveNames not found in WaveNotes. Check and correct manually Igor0,Igor1,Igor2,Igor3"
+	if(numTotalY != ItemsInList(strWaveNames))
+		PLEMd2exit()
+		Abort "PLEMd2ExtractWaves: Error WaveNames not found in WaveNotes. Check and correct manually Igor0,Igor1,Igor2,Igor3"
 	endif
 
-	PLEMd2ExtractInfo(stats)
-	PLEMd2statsSave(stats)
+	//Extract Columns from Binary Wave and give them proper names
+	for(i = 0; i < numTotalY; i += 1)
+		strWaveExtract = StringFromList(i, strWaveNames)
+		Make/D/O/N=(numTotalX) dfr:$strWaveExtract/WAVE=wv
+		for(j = 0; j < numTotalX; j += 1)
+			wv[j] = wavIBW[j][i]
+		endfor
+		WaveClear wv
+	endfor
+
+	return dfr
 End
 
-Function PLEMd2MapsAppendNotes(strPLEM)
-	String strPLEM
-	Struct PLEMd2stats stats
-	PLEMd2statsLoad(stats, strPLEM)
+Function PLEMd2CopyWaveNote(wavIBW, wv)
+	WAVE wavIBW, wv
+
 	String strHeader
 
-	strHeader = Note(stats.wavIBW)
+	strHeader = Note(wavIBW)
 	strHeader = strHeader[0,(strsearch(strHeader, "IGOR0",0)-1)] // clean WaveNotes
-	// copy header to 2d-waves
-	Note/K/NOCR stats.wavPLEM 			strHeader
-	Note/K/NOCR stats.wavMeasure		strHeader
-	Note/K/NOCR stats.wavBackground 	strHeader
-	Note/K/NOCR stats.wavGrating 		strHeader
-	Note/K/NOCR stats.wavPower 			strHeader
-	Note/K/NOCR stats.wavPhoton 		strHeader
-	Note/K/NOCR stats.wavFilter 			strHeader
-	Note/K/NOCR stats.wavQE		strHeader
+	Note/K/NOCR wv strHeader
 End
 
-Function PLEMd2BuildMaps(strPLEM)
+Function PLEMd2ExtractIBW(strPLEM, wavIBW)
 	String strPLEM
-
-	String strSaveDataFolder = GetDataFolder(1)
-	SetDataFolder $cstrPLEMd2root
-	SVAR gstrMapsFolder
+	WAVE wavIBW
 
 	Struct PLEMd2stats stats
 	String strWaveBG, strWavePL
 	Variable numExcitationFrom, numExcitationTo, numPixelPitch, numRotation
 	Variable numLaserPositionX, numLaserPositionY
+	Variable dim0, dim1
 	Variable i,j, numItems
 
-	if(PLEMd2MapExists(strPLEM))
-		//There are 3 different structures for DATA
-		//1) WAVES: WL, BG, PL ...
-		//2) WAVES: WL, BG_498_502, PL_498_502,BG_502_506,PL_502_506 ...
-		//3) WAVES: WL, BG, PL_498_502,PL_502_506,PL_506_510,PL_510_514 ...
-		//Possibilities handled:
-		//1)+3) stats.strbackground = single --> wavexists(background)
-		//2) stats. strBackground = multiple --> count(BG_*) = count (PL_*)
-		//4) image mode:
-		//   special case of 1) size of WL wave is no equal to BG or PL.
+	DFREF packageRoot = $cstrPLEMd2root
+	SVAR gstrMapsFolder = packageRoot:gstrMapsFolder
 
-		PLEMd2statsLoad(stats, strPLEM)
-		SetDataFolder returnMapOriginalFolder(strPLEM)
+	if(!PLEMd2MapExists(strPLEM))
+		Abort "PLEMd2BuildMaps: Map does not exist"
+	endif
 
-		// collect strWavePL und strWaveBG
-		switch(stats.numbackground)
-			case 0:
-			case 1:
-				//single background
-				strWavePL = WaveList("PL*",";","")
-				// fill strWaveBG with dummy "BG"
-				numItems = ItemsInList(strWavePL, ";")
-				strWaveBG = ""
-				for (i=0; i<numItems; i+=1)
-					strWaveBG += "BG;"
-				endfor
+	//There are 3 different structures for DATA
+	//1) WAVES: WL, BG, PL ...
+	//2) WAVES: WL, BG_498_502, PL_498_502,BG_502_506,PL_502_506 ...
+	//3) WAVES: WL, BG, PL_498_502,PL_502_506,PL_506_510,PL_510_514 ...
+	//Possibilities handled:
+	//1)+3) stats.strbackground = single --> wavexists(background)
+	//2) stats. strBackground = multiple --> count(BG_*) = count (PL_*)
+	//4) image mode:
+	//   special case of 1) size of WL wave is no equal to BG or PL.
 
-				wave wavBackground = BG
-				if(!WaveExists(wavBackground))
-					print "PLEMd2BuildMaps: Error, wave BG does not exist in folder :ORIGINAL"
-				endif
-				WaveClear wavBackground
+	// collect strWavePL und strWaveBG. WaveList is not DFR aware
+	DFREF saveDFR = GetDataFolderDFR()
+	PLEMd2statsLoad(stats, strPLEM)
+	DFREF dfr = PLEMd2ExtractWaves(wavIBW)
+	SetDataFolder dfr
+	switch(stats.numbackground)
+		case 0:
+		case 1:
+			//single background
+			strWavePL = WaveList("PL*",";","")
+			// fill strWaveBG with dummy "BG"
+			numItems = ItemsInList(strWavePL, ";")
+			strWaveBG = ""
+			for(i = 0; i < numItems; i += 1)
+				strWaveBG += "BG;"
+			endfor
 
+			wave wavBackground = BG
+			if(!WaveExists(wavBackground))
+				print "PLEMd2BuildMaps: Error, wave BG does not exist in folder :ORIGINAL"
+			endif
+			WaveClear wavBackground
 
-				break
-			case 2:
-				//multiple background
-				strWavePL = WaveList("PL_*",";","")
-				strWaveBG = WaveList("BG_*",";","")
-				break
-			default:
-				print "PLEMd2BuildMaps: Background Case not handled"
-				return 0
-				break
-		endswitch
-
-		// updating stats (TotalX and TotalY)
-		if(ItemsInList(strWaveBG, ";") != ItemsInList(strWavePL, ";"))
-			print "PELMd2BuildMaps: Error Size Missmatch between Background Maps and PL Maps"
+			break
+		case 2:
+			//multiple background
+			strWavePL = WaveList("PL_*",";","")
+			strWaveBG = WaveList("BG_*",";","")
+			break
+		default:
+			print "PLEMd2BuildMaps: Background Case not handled"
 			return 0
-		endif
-		stats.numPLEMTotalY = ItemsInList(strWavePL, ";")
+			break
+	endswitch
+	SetDataFolder saveDFR
 
-		stats.numCalibrationMode = 0
-		if(stats.numPLEMTotalY == 1)
-			stats.numCalibrationMode = 1
-		endif
+	// updating stats (TotalX and TotalY)
+	if(ItemsInList(strWaveBG, ";") != ItemsInList(strWavePL, ";"))
+		Abort "PELMd2BuildMaps: Error Size Missmatch between Background Maps and PL Maps"
+	endif
+	stats.numPLEMTotalY = ItemsInList(strWavePL, ";")
 
-		wave wavWavelength = WL
-		if(!WaveExists(wavWavelength))
-			print "PLEMd2BuildMaps: Wavelength Wave not found within ORIGINAL Folder"
-			return 0
-		endif
-		stats.numPLEMTotalX = NumPnts(wavWavelength)
+	stats.numCalibrationMode = 0
+	if(stats.numPLEMTotalY == 1)
+		stats.numCalibrationMode = 1
+	endif
+
+	wave wavWavelength = dfr:WL
+	if(!WaveExists(wavWavelength))
+		Abort "PLEMd2BuildMaps: Wavelength Wave not found within ORIGINAL Folder"
+	endif
+	stats.numPLEMTotalX = NumPnts(wavWavelength)
+	if(stats.numReadOutMode == 1)
+		// image mode. currently no information for images is saved
+		stats.numPLEMTotalY = 1040
+		stats.numPLEMTotalX = 1392
+	endif
+
+	// Redimension the Waves to proper size
+	dim0 = stats.numPLEMTotalX
+	dim1 = stats.numPLEMTotalY
+	Redimension/N=(dim0, dim1) stats.wavPLEM, stats.wavMeasure, stats.wavBackground
+	PLEMd2CopyWaveNote(wavIBW, stats.wavPLEM)
+	if(stats.numReadOutMode == 1)
+		dim0 = 0 // no wavelength
+		dim1 = 1 // save power and excitation wl
+	endif
+	Redimension/N=(dim0) stats.wavWavelength, stats.wavGrating
+	Redimension/N=(dim1) stats.wavExcitation, stats.wavYpower, stats.wavYphoton
+
+	// set x-Scaling
+	stats.wavWavelength = wavWavelength
+
+	// Grating Waves (requires wavWavelength)
+	String strGratingWave = PLEMd2d1CorrectionConstructor(stats.numGrating,stats.numDetector,stats.numCooling)
+	if(!cmpstr(strGratingWave, ""))
+		stats.wavGrating = 1
+		print "PLEMd2BuildMaps: Grating Wave was set to 1"
+	else
+		Duplicate/FREE $(ReplaceString("DUMMY", strGratingWave, "E_",1,1)) wavYgrating
+		Duplicate/FREE $(ReplaceString("DUMMY", strGratingWave, "WL_",1,1)) wavXgrating
+		interpolate2/T=1/I=3/Y=stats.wavGrating/X=stats.wavWavelength wavXgrating, wavYgrating
+	endif
+
+	// different handling for spectra in calibration mode (1) and for maps (0)
+	if(stats.numCalibrationMode == 1)
+		wave wavMeasure 	= dfr:$(StringFromList(0, strWavePL))
+		wave wavBackground 	= dfr:$(StringFromList(0, strWaveBG))
+
 		if(stats.numReadOutMode == 1)
 			// image mode. currently no information for images is saved
-			stats.numPLEMTotalY = 1040
-			stats.numPLEMTotalX = 1392
-			Redimension/N=(stats.numPLEMTotalX) wavWavelength
-		endif
-
-		// create new Waves, overwrite existing
-		SetDataFolder $(stats.strDataFolder)
-		if(stats.numPLEMTotalY == 1)
-			Make/D/O/N=(stats.numPLEMTotalX) PLEM, MEASURE, BACKGROUND
-			Make/D/O/N=(stats.numPLEMTotalX) GRATING, POWER, PHOTON, FILTER, QUANTUM
+			stats.wavMeasure = wavMeasure[p + stats.numPLEMTotalX * q]
+			stats.wavBackground = wavBackground[p + stats.numPLEMTotalX * q]
 		else
-			Make/D/O/N=((stats.numPLEMTotalX),(stats.numPLEMTotalY)) PLEM, MEASURE, BACKGROUND
-			Make/D/O/N=((stats.numPLEMTotalX),(stats.numPLEMTotalY)) GRATING, POWER, PHOTON, FILTER, QUANTUM
-		endif
-		PLEMd2MapsAppendNotes(stats.strPLEM)
-		Make/D/O/N=(stats.numPLEMTotalX) xWavelength, xGrating, yGrating
-		Make/D/O/N=(stats.numPLEMTotalY) yExcitation, yPower, yPhoton
-		// save stats and reload wave references
-		PLEMd2statsSave(stats)
-		PLEMd2statsLoad(stats, strPLEM)
-
-		// set x-Scaling
-		stats.wavWavelength = wavWavelength
-		stats.numPLEMLeftX = stats.wavWavelength[0]
-		stats.numPLEMDeltaX = PLEMd2Delta(stats.wavWavelength, normal = 1)
-		stats.numPLEMRightX = stats.numPLEMLeftX + stats.numWLdelta * (stats.numPLEMTotalX - 1)
-		SetScale/I x stats.numPLEMLeftX, stats.numPLEMRightX, "", stats.wavPLEM, stats.wavMeasure, stats.wavBackground, stats.wavGrating, stats.wavPower, stats.wavPhoton
-
-		// Grating Waves (requires wavWavelength)
-		String strGratingWave = PLEMd2d1CorrectionConstructor(stats.numGrating,stats.numDetector,stats.numCooling)
-		if(StringMatch(strGratingWave,""))
-			stats.wavYgrating = 1
-			stats.wavXgrating = stats.wavWavelength
-			print "PLEMd2BuildMaps: Grating Wave was set to 1"
-		else
-			Duplicate/O $(ReplaceString("DUMMY", strGratingWave, "E_",1,1)) yGrating
-			Duplicate/O $(ReplaceString("DUMMY", strGratingWave, "WL_",1,1)) xGrating
-			//reload wave references.
-			PLEMd2statsSave(stats)
-			PLEMd2statsLoad(stats, strPLEM)
+			stats.wavMeasure 	= wavMeasure
+			stats.wavBackground = wavBackground
 		endif
 
-		//wavQuantumEfficiency, wavFilter not handled yet
-		stats.wavQE = 1
-		stats.wavFilter = 1
+		if(stats.numReadOutMode == 1)
+			// image mode. currently no information for images is saved
+			stats.wavMeasure = wavMeasure[p + stats.numPLEMTotalX * q]
+			stats.wavBackground = wavBackground[p+stats.numPLEMTotalX*q]
+		endif
 
-		// different handling for spectra in calibration mode (1) and for maps (0)
-		if(stats.numCalibrationMode == 1)
-			wave wavMeasure 	= $(stats.strDataFolderOriginal + StringFromList(0,strWavePL))
-			wave wavBackground 	= $(stats.strDataFolderOriginal + StringFromList(0,strWaveBG))
+		WaveClear wavBackground
+		WaveClear wavMeasure
 
-			// linearly Interpolate measurement waves  to equal distances (igor wave form)
-			if(stats.booInterpolate == 1)
-				interpolate2 /T=1 /I=3 /Y=stats.wavMeasure stats.wavWavelength, wavMeasure
-				interpolate2 /T=1 /I=3 /Y=stats.wavBackground stats.wavWavelength, wavBackground
-			else
-				if(stats.numReadOutMode == 1)
-					// image mode. currently no information for images is saved
-					stats.wavMeasure = wavMeasure[p+stats.numPLEMTotalX*q]
-					stats.wavBackground = wavBackground[p+stats.numPLEMTotalX*q]
-				else
-					stats.wavMeasure 	= wavMeasure
-					stats.wavBackground = wavBackground
-				endif
-			endif
+		// Excitation wave
+		stats.wavExcitation 	= (stats.numEmissionStart + stats.numEmissionEnd) / 2
+	else
+		for(i = 0; i < stats.numPLEMTotalY; i += 1)
+			// Original Waves: load
+			wave wavMeasure 	= dfr:$(StringFromList(i, strWavePL))
+			wave wavBackground 	= dfr:$(StringFromList(i, strWaveBG))
 
-			if(stats.numReadOutMode == 1)
-				// image mode. currently no information for images is saved
-				stats.wavMeasure = wavMeasure[p+stats.numPLEMTotalX*q]
-				stats.wavBackground = wavBackground[p+stats.numPLEMTotalX*q]
-			endif
+			stats.wavMeasure[][i] 		= wavMeasure[p]
+			stats.wavBackground[][i] 	= wavBackground[p]
 
+			// Original Waves: unload
 			WaveClear wavBackground
 			WaveClear wavMeasure
 
-			// get grating correction
-			interpolate2 /T=1 /I=3 /Y=stats.wavGrating/X=stats.wavWavelength stats.wavXgrating, stats.wavYgrating
 			// Excitation wave
-			stats.wavExcitation 	= (stats.numEmissionStart + stats.numEmissionEnd) / 2
-		else
-			for (i=0; i<stats.numPLEMTotalY; i+=1)
-				// Original Waves: load
-				wave wavMeasure 	= $(stats.strDataFolderOriginal + StringFromList(i,strWavePL))
-				wave wavBackground 	= $(stats.strDataFolderOriginal + StringFromList(i,strWaveBG))
-
-				// Interpolate to scaled wave to be more accurate when not plotting against Wavelength
-				if(stats.booInterpolate == 1)
-					Duplicate/O/FREE/R=[][i] stats.wavMeasure wavTempMeasure
-					Redimension/N=(-1,0) wavTempMeasure
-					Duplicate/O/FREE/R=[][i] stats.wavBackground wavTempBackground
-					Redimension/N=(-1,0) wavTempBackground
-
-					Interpolate2 /T=1 /I=3 /Y=wavTempMeasure stats.wavWavelength, wavMeasure
-					interpolate2 /T=1 /I=3 /Y=wavTempBackground stats.wavWavelength, wavBackground
-
-					stats.wavMeasure[][i] 		= wavTempMeasure[p]
-					stats.wavBackground[][i] 	= wavTempBackground[p]
-
-					WaveClear wavTempMeasure
-					WaveClear wavTempBackground
-				else
-					stats.wavMeasure[][i] 		= wavMeasure[p]
-					stats.wavBackground[][i] 	= wavBackground[p]
-				endif
-
-				// Original Waves: unload
-				WaveClear wavBackground
-				WaveClear wavMeasure
-
-				// Excitation wave
-				numExcitationFrom 	= str2num(StringFromList(1,StringFromList(i,strWavePL),"_"))
-				numExcitationTo 		= str2num(StringFromList(2,StringFromList(i,strWavePL),"_"))
-				stats.wavExcitation[i] 	= (numExcitationFrom + numExcitationTo) / 2
-
-				// since PLEMv3.0 excitation is saved multiplied by 10.
-				if(stats.wavExcitation[i] > 1e3)
-					stats.wavExcitation[i] /= 10
-				endif
-			endfor
-
-			// Interpolate Correction Waves (will be the same all over the for loop …)
-			Duplicate/O/FREE/R=[0,inf][0] stats.wavGrating wavTempGrating
-			Redimension/N=(-1,0) wavTempGrating
-			interpolate2 /T=1 /I=3 /Y=wavTempGrating /X=stats.wavWavelength stats.wavXgrating, stats.wavYgrating
-			stats.wavGrating		= wavTempGrating[p]
-			WaveClear wavTempGrating
-		endif
-
-		numPixelPitch = 0
-		numRotation = 0
-		if(stats.numDetector == 0)
-			// Andor Newton
-		elseif(stats.numDetector == 1)
-			// Andor iDus
-		elseif(stats.numDetector == 2)
-			// Andor Clara
-			numPixelPitch = 6.45 //6.45um from manual trial and error
-			NVAR/Z numSizeAdjustment = root:numSizeAdjustment
-			if(!NVAR_EXISTS(numSizeAdjustment))
-				Variable/G root:numSizeAdjustment = 0.960
-			endif
-			numRotation = -0.8
-		endif
-
-		if(numRotation != 0)
-			// correct LaserPosition (x,y) for new image
-			SetScale/P x, 0, 1, stats.wavPLEM
-			SetScale/P y, 0, 1, stats.wavPLEM
-			stats.wavPLEM = stats.wavMEASURE
-			stats.wavPLEM = 0
-			stats.wavPLEM[stats.numLaserPositionX][stats.numLaserPositionY] = 1000
-			ImageRotate/E=(NaN)/O/A=(numRotation) stats.wavPLEM
-			WaveStats/Q stats.wavPLEM
-			numLaserPositionX = V_maxRowLoc
-			numLaserPositionY = V_maxColLoc
-			print numLaserPositionX, numLaserPositionY
-			stats.numPLEMTotalX = DimSize(stats.wavPLEM, 0)
-			stats.numPLEMTotalY = DimSize(stats.wavPLEM, 1)
-
-			ImageRotate/E=(NaN)/O/A=(numRotation) stats.wavMeasure
-			ImageRotate/E=(NaN)/O/A=(numRotation) stats.wavBackground
-			// for images only need to really redimension PLEM (if not rotated before...)
-			Redimension/N=((stats.numPLEMTotalX),(stats.numPLEMTotalY)) stats.wavPLEM
-			stats.wavPLEM = stats.wavMeasure
-		endif
-
-		if(stats.numCalibrationMode == 1)
-			if(stats.numReadOutMode == 1)
-				stats.numPLEMDeltaX =  (stats.booSwitchY == 1 ? +1 : -1) * numSizeAdjustment * numPixelPitch / stats.numMagnification
-				stats.numPLEMLeftX 	=  stats.numPositionY - stats.numPLEMDeltaX * (numLaserPositionX)
-				stats.numPLEMRightX = stats.numPLEMLeftX + stats.numPLEMTotalX * stats.numPLEMDeltaX
-
-				stats.numPLEMDeltaY 	= (stats.booSwitchX == 1 ? -1 : +1) * numSizeAdjustment * numPixelPitch / stats.numMagnification
-				stats.numPLEMBottomY 	= stats.numPositionX - stats.numPLEMDeltaY * numLaserPositionY
-				stats.numPLEMTopY 		= stats.numPLEMBottomY  - stats.numPLEMTotalY * stats.numPLEMDeltaY
-			else
-				stats.numPLEMDeltaY 		= stats.numEmissionDelta
-				stats.numPLEMBottomY 	= stats.numEmissionStart
-				stats.numPLEMTopY 		= stats.numEmissionEnd
-			endif
-		else
-			stats.numPLEMBottomY	= (str2num(StringFromList(1,StringFromList(0,strWavePL),"_")) + str2num(StringFromList(2,StringFromList(0,strWavePL),"_"))) / 2
-			stats.numPLEMTopY		= (str2num(StringFromList(1,StringFromList((stats.numPLEMTotalY-1),strWavePL),"_")) + str2num(StringFromList(2,StringFromList((stats.numPLEMTotalY-1),strWavePL),"_"))) / 2		
-			stats.numPLEMDeltaY	= PLEMd2Delta(stats.wavExcitation)
+			numExcitationFrom 	= str2num(StringFromList(1,StringFromList(i,strWavePL),"_"))
+			numExcitationTo 		= str2num(StringFromList(2,StringFromList(i,strWavePL),"_"))
+			stats.wavExcitation[i] 	= (numExcitationFrom + numExcitationTo) / 2
 
 			// since PLEMv3.0 excitation is saved multiplied by 10.
-			if(stats.numPLEMBottomY > 1e3)
-				stats.numPLEMBottomY /= 10
-				stats.numPLEMTopY /= 10
+			if(stats.wavExcitation[i] > 1e3)
+				stats.wavExcitation[i] /= 10
 			endif
-		endif
+		endfor
+	endif
 
-		// Stats: update
-		stats.strPLEMfull = GetWavesDataFolder(stats.wavPLEM,2)
-		PLEMd2statsSave(stats)
-		// Power correction
-		// requires Excitation wave for Photon Energy
-		stats.wavYpower 		= str2num(StringFromList(p, PLEMd2ExtractPower(stats.wavIBW), ";"))
+	numPixelPitch = 0
+	numRotation = 0
+	if(stats.numDetector == 0)
+		// Andor Newton
+	elseif(stats.numDetector == 1)
+		// Andor iDus
+	elseif(stats.numDetector == 2)
+		// Andor Clara
+		numPixelPitch = 6.45 //6.45um from manual trial and error
+		NVAR/Z numSizeAdjustment = root:numSizeAdjustment
+		if(!NVAR_EXISTS(numSizeAdjustment))
+			Variable/G root:numSizeAdjustment = 0.960
+		endif
+		numRotation = -0.8
+	endif
+
+	if(numRotation != 0)
+		// correct LaserPosition (x,y) for new image
+		SetScale/P x, 0, 1, stats.wavPLEM
+		SetScale/P y, 0, 1, stats.wavPLEM
+		stats.wavPLEM = stats.wavMEASURE
+		stats.wavPLEM = 0
+		stats.wavPLEM[stats.numLaserPositionX][stats.numLaserPositionY] = 1000
+		ImageRotate/E=(NaN)/O/A=(numRotation) stats.wavPLEM
+		WaveStats/Q stats.wavPLEM
+		numLaserPositionX = V_maxRowLoc
+		numLaserPositionY = V_maxColLoc
+		print numLaserPositionX, numLaserPositionY
+		stats.numPLEMTotalX = DimSize(stats.wavPLEM, 0)
+		stats.numPLEMTotalY = DimSize(stats.wavPLEM, 1)
+
+		ImageRotate/E=(NaN)/O/A=(numRotation) stats.wavMeasure
+		ImageRotate/E=(NaN)/O/A=(numRotation) stats.wavBackground
+		// for images only need to really redimension PLEM (if not rotated before...)
+		Redimension/N=((stats.numPLEMTotalX),(stats.numPLEMTotalY)) stats.wavPLEM
+		stats.wavPLEM = stats.wavMeasure
+	endif
+
+	if(stats.numCalibrationMode == 1)
 		if(stats.numReadOutMode == 1)
-			stats.wavYpower = stats.wavYpower[r]
-		else
-			stats.wavYpower = stats.wavYpower[p]
-		endif
-		stats.wavYphoton = (stats.wavYpower * 1e-6) / (6.62606957e-34 * 2.99792458e+8 / (stats.wavExcitation * 1e-9)) 		// power is in uW and Excitation is in nm
-		stats.wavPower = stats.wavYpower[q]
-		stats.wavPhoton = stats.wavYphoton[q]
+			stats.numPLEMDeltaX =  (stats.booSwitchY == 1 ? +1 : -1) * numSizeAdjustment * numPixelPitch / stats.numMagnification
+			stats.numPLEMLeftX 	=  stats.numPositionY - stats.numPLEMDeltaX * (numLaserPositionX)
+			stats.numPLEMRightX = stats.numPLEMLeftX + stats.numPLEMTotalX * stats.numPLEMDeltaX
 
-		// set distinct Wave Scaling for Maps
-		SetScale/P x stats.numPLEMLeftX, stats.numPLEMDeltaX, "", stats.wavPLEM, stats.wavMeasure, stats.wavBackground, stats.wavGrating, stats.wavPower, stats.wavPhoton
-		SetScale/P y stats.numPLEMBottomY, stats.numPLEMDeltaY, "", stats.wavPLEM, stats.wavMeasure, stats.wavBackground, stats.wavGrating, stats.wavPower, stats.wavPhoton
-		SetScale/I x stats.numPLEMBottomY, stats.numPLEMTopY, "", stats.wavExcitation
-
-		// calculate new map
-		if(stats.booBackground)
-			stats.wavPLEM = (stats.wavMeasure - stats.wavBackground)
+			stats.numPLEMDeltaY 	= (stats.booSwitchX == 1 ? -1 : +1) * numSizeAdjustment * numPixelPitch / stats.numMagnification
+			stats.numPLEMBottomY 	= stats.numPositionX - stats.numPLEMDeltaY * numLaserPositionY
+			stats.numPLEMTopY 		= stats.numPLEMBottomY  - stats.numPLEMTotalY * stats.numPLEMDeltaY
 		else
-			stats.wavPLEM = stats.wavMeasure
-		endif
-		if(stats.booPower)
-			stats.wavPLEM /= stats.wavPower
-		endif
-		if(stats.booPhoton)
-			stats.wavPLEM /= stats.wavPhoton
-		endif
-		if(stats.booNormalization)
-			stats.wavPLEM /= stats.numNormalization
-		endif
-		if(stats.booGrating)
-			stats.wavPLEM /= stats.wavGrating
-		endif
-		if(stats.booQuantumEfficiency)
-			stats.wavPLEM *= stats.wavQE
+			stats.numPLEMDeltaY 		= stats.numEmissionDelta
+			stats.numPLEMBottomY 	= stats.numEmissionStart
+			stats.numPLEMTopY 		= stats.numEmissionEnd
 		endif
 	else
-		print "PLEMd2BuildMaps: Map does not exist"
+		stats.numPLEMLeftX = stats.wavWavelength[0]
+		stats.numPLEMDeltaX = PLEMd2Delta(stats.wavWavelength, normal = 1)
+		stats.numPLEMRightX = stats.numPLEMLeftX + stats.numWLdelta * (stats.numPLEMTotalX - 1)
+
+		stats.numPLEMBottomY	= (str2num(StringFromList(1,StringFromList(0,strWavePL),"_")) + str2num(StringFromList(2,StringFromList(0,strWavePL),"_"))) / 2
+		stats.numPLEMTopY		= (str2num(StringFromList(1,StringFromList((stats.numPLEMTotalY-1),strWavePL),"_")) + str2num(StringFromList(2,StringFromList((stats.numPLEMTotalY-1),strWavePL),"_"))) / 2		
+		stats.numPLEMDeltaY	= PLEMd2Delta(stats.wavExcitation)
+
+		// since PLEMv3.0 excitation is saved multiplied by 10.
+		if(stats.numPLEMBottomY > 1e3)
+			stats.numPLEMBottomY /= 10
+			stats.numPLEMTopY /= 10
+		endif
 	endif
-	print stats.strPLEMfull
-	SetDataFolder $strSaveDataFolder
+
+	// Power correction
+	// requires Excitation wave for Photon Energy
+	stats.wavYpower	 = str2num(StringFromList(p, PLEMd2ExtractPower(wavIBW), ";"))
+	stats.wavYphoton = (stats.wavYpower * 1e-6) / (6.62606957e-34 * 2.99792458e+8 / (stats.wavExcitation * 1e-9)) 		// power is in uW and Excitation is in nm
+
+	// set distinct Wave Scaling for Maps
+	SetScale/P x stats.numPLEMLeftX, stats.numPLEMDeltaX, "", stats.wavPLEM, stats.wavMeasure, stats.wavBackground
+	SetScale/P y stats.numPLEMBottomY, stats.numPLEMDeltaY, "", stats.wavPLEM, stats.wavMeasure, stats.wavBackground
+	SetScale/I x stats.numPLEMBottomY, stats.numPLEMTopY, "", stats.wavExcitation
+
+	// Stats: update
+	PLEMd2statsSave(stats)
+
+	print GetWavesDataFolder(stats.wavPLEM, 2)
+End
+
+Function PLEMd2BuildMaps(strPLEM)
+	String strPLEM
+
+	variable i, numExcitation
+
+	Struct PLEMd2stats stats
+	PLEMd2statsLoad(stats, strPLEM)
+
+	if(stats.booInterpolate == 1)
+		numExcitation = DimSize(stats.wavExcitation, 0)
+		for(i = 0; i < numExcitation; i += 1)
+			Duplicate/FREE/R=[][i] stats.wavMeasure wavMeasure, wavTempMeasure
+			Redimension/N=(-1, 0) wavTempMeasure
+			Duplicate/FREE/R=[][i] stats.wavBackground wavBackground, wavTempBackground
+			Redimension/N=(-1, 0) wavTempBackground
+
+			Interpolate2 /T=1 /I=3 /Y=wavTempMeasure stats.wavWavelength, wavMeasure
+			interpolate2 /T=1 /I=3 /Y=wavTempBackground stats.wavWavelength, wavBackground
+
+			stats.wavMeasure[][i] 		= wavTempMeasure[p]
+			stats.wavBackground[][i] 	= wavTempBackground[p]
+
+			WaveClear wavTempBackground, wavTempMeasure
+			WaveClear wavBackground, wavMeasure
+		endfor
+	endif
+	if(stats.booBackground)
+		stats.wavPLEM = (stats.wavMeasure - stats.wavBackground)
+	else
+		stats.wavPLEM = stats.wavMeasure
+	endif
+	if(stats.booPower)
+		stats.wavPLEM /= stats.wavYpower[q]
+	endif
+	if(stats.booPhoton)
+		stats.wavPLEM /= stats.wavYphoton[q]
+	endif
+	if(stats.booNormalization)
+		stats.wavPLEM /= stats.numNormalization
+	endif
+	if(stats.booGrating)
+		stats.wavPLEM /= stats.wavGrating[p]
+	endif
+	if(stats.booQuantumEfficiency)
+		stats.wavPLEM *= 1 // QE not handled
+	endif
 End
 
 // function modified from absorption-load-v6
@@ -651,7 +597,7 @@ Function PLEMd2Delta(wavInput, [normal])
 		else
 			// calculate numDelta
 			Make/FREE/O/N=(numSize-1) wavDeltaWave
-			for (i=0; i<(numSize-1); i+=1)
+			for(i = 0; i < (numSize - 1); i += 1)
 				wavDeltaWave[i] = (wavInput[(i+1)] - wavInput[i])
 			endfor
 			WaveStats/Q/W wavDeltaWave
@@ -682,46 +628,55 @@ Function PLEMd2Delta(wavInput, [normal])
 	return numDelta
 End
 
-Function PLEMd2ExtractInfo(stats)
-	Struct PLEMd2Stats &stats
+Function PLEMd2ExtractInfo(strPLEM, wavIBW)
+	String strPLEM
+	WAVE wavIBW
+
 	String strFound
+	Struct PLEMd2Stats stats
 
-	stats.strDate 		= PLEMd2ExtractSearch(stats.wavIBW, "Date")
-	stats.strUser 		= PLEMd2ExtractSearch(stats.wavIBW, "User")
-	stats.strFileName = PLEMd2ExtractSearch(stats.wavIBW, "File")
+	PLEMd2statsLoad(stats, strPLEM)
 
-	stats.numCalibrationMode = PLEMd2ExtractVariables(stats.wavIBW,"numCalibrationMode")
-	stats.numSlit = PLEMd2ExtractVariables(stats.wavIBW,"numSlit")
-	stats.numGrating = PLEMd2ExtractVariables(stats.wavIBW,"numGrating")
-	stats.numFilter = PLEMd2ExtractVariables(stats.wavIBW,"numFilter")
-	stats.numShutter = PLEMd2ExtractVariables(stats.wavIBW,"numShutter")
-	stats.numWLcenter = PLEMd2ExtractVariables(stats.wavIBW,"numWLcenter")
-	stats.numDetector = PLEMd2ExtractVariables(stats.wavIBW,"numDetector")
-	stats.numCooling = PLEMd2ExtractVariables(stats.wavIBW,"numCooling")
-	stats.numExposure = PLEMd2ExtractVariables(stats.wavIBW,"numExposure")
-	stats.numBinning = PLEMd2ExtractVariables(stats.wavIBW,"numBinning")
-	stats.numScans = PLEMd2ExtractVariables(stats.wavIBW,"numScans")
-	stats.numBackground = PLEMd2ExtractVariables(stats.wavIBW,"numBackground")
+	stats.strPLEM = strPLEM
+
+	stats.strDate 		= PLEMd2ExtractSearch(wavIBW, "Date")
+	stats.strUser 		= PLEMd2ExtractSearch(wavIBW, "User")
+	stats.strFileName = PLEMd2ExtractSearch(wavIBW, "File")
+
+	stats.numCalibrationMode = PLEMd2ExtractVariables(wavIBW,"numCalibrationMode")
+	stats.numSlit = PLEMd2ExtractVariables(wavIBW,"numSlit")
+	stats.numGrating = PLEMd2ExtractVariables(wavIBW,"numGrating")
+	stats.numFilter = PLEMd2ExtractVariables(wavIBW,"numFilter")
+	stats.numShutter = PLEMd2ExtractVariables(wavIBW,"numShutter")
+	stats.numWLcenter = PLEMd2ExtractVariables(wavIBW,"numWLcenter")
+	stats.numDetector = PLEMd2ExtractVariables(wavIBW,"numDetector")
+	stats.numCooling = PLEMd2ExtractVariables(wavIBW,"numCooling")
+	stats.numExposure = PLEMd2ExtractVariables(wavIBW,"numExposure")
+	stats.numBinning = PLEMd2ExtractVariables(wavIBW,"numBinning")
+	stats.numScans = PLEMd2ExtractVariables(wavIBW,"numScans")
+	stats.numBackground = PLEMd2ExtractVariables(wavIBW,"numBackground")
 	stats.numWLfirst = 0 // deprecated
 	stats.numWLlast = 0 // deprecated
-	stats.numWLdelta = PLEMd2ExtractVariables(stats.wavIBW,"numWLdelta")
-	stats.numEmissionMode = PLEMd2ExtractVariables(stats.wavIBW,"numEmissionMode")
-	stats.numEmissionPower = PLEMd2ExtractVariables(stats.wavIBW,"numEmissionPower")
-	stats.numEmissionStart = PLEMd2ExtractVariables(stats.wavIBW,"numEmissionStart")
-	stats.numEmissionEnd = PLEMd2ExtractVariables(stats.wavIBW,"numEmissionEnd")
-	stats.numEmissionDelta = PLEMd2ExtractVariables(stats.wavIBW,"numEmissionDelta")
-	stats.numEmissionStep = PLEMd2ExtractVariables(stats.wavIBW,"numEmissionStep")
+	stats.numWLdelta = PLEMd2ExtractVariables(wavIBW,"numWLdelta")
+	stats.numEmissionMode = PLEMd2ExtractVariables(wavIBW,"numEmissionMode")
+	stats.numEmissionPower = PLEMd2ExtractVariables(wavIBW,"numEmissionPower")
+	stats.numEmissionStart = PLEMd2ExtractVariables(wavIBW,"numEmissionStart")
+	stats.numEmissionEnd = PLEMd2ExtractVariables(wavIBW,"numEmissionEnd")
+	stats.numEmissionDelta = PLEMd2ExtractVariables(wavIBW,"numEmissionDelta")
+	stats.numEmissionStep = PLEMd2ExtractVariables(wavIBW,"numEmissionStep")
 
-	stats.numPositionX = PLEMd2ExtractVariables(stats.wavIBW,"numPositionX")
-	stats.numPositionY = PLEMd2ExtractVariables(stats.wavIBW,"numPositionY")
-	stats.numPositionZ = PLEMd2ExtractVariables(stats.wavIBW,"numPositionZ")
-	stats.booSwitchX = PLEMd2ExtractVariables(stats.wavIBW, "numSwitchX")
-	stats.booSwitchY = PLEMd2ExtractVariables(stats.wavIBW, "numSwitchY")
+	stats.numPositionX = PLEMd2ExtractVariables(wavIBW,"numPositionX")
+	stats.numPositionY = PLEMd2ExtractVariables(wavIBW,"numPositionY")
+	stats.numPositionZ = PLEMd2ExtractVariables(wavIBW,"numPositionZ")
+	stats.booSwitchX = PLEMd2ExtractVariables(wavIBW, "numSwitchX")
+	stats.booSwitchY = PLEMd2ExtractVariables(wavIBW, "numSwitchY")
 
-	stats.numReadOutMode = PLEMd2ExtractVariables(stats.wavIBW, "numReadoutMode")
-	stats.numLaserPositionX = PLEMd2ExtractVariables(stats.wavIBW, "numLaserX")
-	stats.numLaserPositionY = PLEMd2ExtractVariables(stats.wavIBW, "numLaserY")
-	stats.numMagnification = PLEMd2ExtractVariables(stats.wavIBW, "numMagnification")
+	stats.numReadOutMode = PLEMd2ExtractVariables(wavIBW, "numReadoutMode")
+	stats.numLaserPositionX = PLEMd2ExtractVariables(wavIBW, "numLaserX")
+	stats.numLaserPositionY = PLEMd2ExtractVariables(wavIBW, "numLaserY")
+	stats.numMagnification = PLEMd2ExtractVariables(wavIBW, "numMagnification")
+
+	PLEMd2statsSave(stats)
 End
 
 //This Function is called every time. we probably could make it more efficient. ;_(
@@ -817,7 +772,7 @@ Function/S PLEMd2ExtractWaveList(wavIBW)
 	endif
 
 	strList = ""
-	for (i=0; i<numListWaveNames; i+=1)
+	for(i = 0; i < numListWaveNames; i += 1)
 		strItem = StringFromList(i, strListWaveNames, ";")
 		numItem = str2num(StringFromList(i, strListWaveNumbers, ";"))
 		if(strlen(strItem) > 0)
@@ -850,7 +805,7 @@ Function/S PLEMd2ExtractPower(wavIBW)
 	numCount = ItemsInList(strListParse)
 	strListPower = ""
 	//assure to return numbers (not strings) in liststring
-	for (i=0;i<numCount; i=i+1)
+	for(i = 0; i < numCount; i += 1)
 		numItem = str2num(StringFromList(i, strListParse))
 		strListPower = AddListItem(num2str(numItem), strListPower,";",Inf)
 	endfor
@@ -899,34 +854,19 @@ Function/S	PLEMd2Duplicate(strPLEM)
 	return GetwavesDataFolder(wavDuplicated,2)
 End
 
-//PLEMd2FixWavenotes
-//Daniel Zuleeg programmed Igor3: and Igor4 where there should be Igor2 and Igor3.
-Function PLEMd2FixWavenotesByNum(numPLEM)
-	Variable numPLEM
-	if(numPLEM < 0)
-		print "PLEMd2FixWavenotesByNum: Wrong Function Call numPLEM out of range"
-		return 0
-	endif
-	String strPLEM
-	strPLEM = PLEMd2strPLEM(numPLEM)
-	PLEMd2FixWavenotes(strPLEM)
-End
+Function PLEMd2FixWavenotes(wavIBW)
+	WAVE wavIBW
 
-Function PLEMd2FixWavenotes(strPLEM)
-	String strPLEM
-	Struct PLEMd2Stats stats
 	String strHeader
-	PLEMd2statsLoad(stats, strPLEM)
 
-	strHeader = Note(stats.wavIBW)
-
+	strHeader = Note(wavIBW)
 	if((StringMatch(strHeader, "*IGOR2:*")) == 0)
 		//IGOR2 not found so the error is probably related to that. (caused by early version of LabView program)
-		//I rename IGOR4 to IGOR3 and IGOR3 to IGOR2.
 		print "PLEMd2FixWavenotes: Error: Did not find IGOR2 in WaveNote. Fixing...."
+		//rename IGOR4 to IGOR3 and IGOR3 to IGOR2.
 		strHeader = ReplaceString("IGOR3:",strHeader,"IGOR2:")
 		strHeader = ReplaceString("IGOR4:",strHeader,"IGOR3:")
-		Note/K/NOCR stats.wavIBW strHeader
+		Note/K/NOCR wavIBW strHeader
 	Endif
 End
 
@@ -973,7 +913,7 @@ Function PLEMd2AtlasCreateNM(strPLEM)
 
 	WaveStats/Q/M=1 stats.wavChiralityn
 	Redimension/N=(V_npnts) stats.wavChiralitynm
-	for(i=0;i<V_npnts;i+=1)
+	for(i = 0; i < V_npnts; i += 1)
 		stats.wavChiralitynm[i]="("+num2str(stats.wavChiralityN[i])+","+num2str(stats.wavChiralityM[i])+")"
 	endfor
 
@@ -1093,8 +1033,8 @@ Function PLEMd2AtlasClean(strPLEM)
 	xmin = V_min
 	xmax = V_max
 
-	numPoints = DimSize(stats.wavchiralitynm,0)
-	for (i=0; i<DimSize(stats.wavchiralitynm,0); i+=1)
+	numPoints = DimSize(stats.wavchiralitynm, 0)
+	for(i = 0; i < DimSize(stats.wavchiralitynm, 0); i += 1)
 		if((stats.wav1Dfit[i] == 0) || (stats.wavEnergyS2[i] < ymin) || (stats.wavEnergyS2[i] > ymax) || (stats.wavEnergyS1[i] < xmin) || (stats.wavEnergyS1[i] > xmax))
 			print "deleting " + stats.wavchiralitynm[i]
 			print (stats.wavEnergyS2[i]), (stats.wavEnergyS1[i])
@@ -1280,7 +1220,7 @@ Function PLEMd2AtlasFit3D(strPLEM)
 	numDeltaS2 = 50
 	// input
 	i=0
-	for (i=0;i<numpnts(stats.wavEnergyS1);i+=1)
+	for(i = 0; i < numpnts(stats.wavEnergyS1); i += 1)
 		stats.wavPLEMfit[][][i]=0
 		stats.wav2Dfit[i] = 0
 		numS1 = stats.wavEnergyS1[i] //x
@@ -1370,7 +1310,7 @@ Function PLEMd2AtlasFit3D(strPLEM)
 	// 	2 window is hidden.
 	if(V_flag == 1)
 		String listContour = ContourNameList("", ";")
-		for (i=0;i<ItemsInList(listContour);i+=1)
+		for(i = 0; i < ItemsInList(listContour); i += 1)
 			RemoveContour $(StringFromList(i, listContour))
 		endfor
 		AppendMatrixContour stats.wavPLEMfitSingle
@@ -1408,8 +1348,8 @@ Function PLEMd2AtlasMerge3d(wave3d,wave2d)
 	Wave wave3d,wave2d
 	Variable i
 	Duplicate/O/R=[][][0] wave3d wave2d
-	Redimension/N=(Dimsize(wave3d,0),Dimsize(wave3d,1)) wave2d
-	for(i=1;i<Dimsize(wave3d,2);i+=1)
+	Redimension/N=(Dimsize(wave3d, 0),Dimsize(wave3d, 1)) wave2d
+	for(i = 1; i < Dimsize(wave3d, 2); i += 1)
 		wave2d += wave3d[p][q][i]
 	endfor
 End
@@ -1460,7 +1400,7 @@ Function PLEMd2AtlasHide(strPLEM)
 
 	Variable i
 	String listContour = ContourNameList("", ";")
-	for (i=0;i<ItemsInList(listContour);i+=1)
+	for(i = 0; i < ItemsInList(listContour); i += 1)
 		RemoveContour $(StringFromList(i, listContour))
 	endfor
 End
@@ -1470,10 +1410,8 @@ Function PLEMd2d1Open()
 End
 
 //adapted from function OpenFileDialog on http://www.entorb.net/wickie/IGOR_Pro
-Function/S PLEMd2PopUpChooseFile(prefs,[strPrompt])
-	STRUCT PLEMd2Prefs &prefs
+Function/S PLEMd2PopUpChooseFile([strPrompt])
 	String strPrompt
-	strPrompt = selectstring(paramIsDefault(strPrompt), strPrompt, "choose file")
 
 	Variable refNum
 	String strOutputPath = ""
@@ -1481,9 +1419,11 @@ Function/S PLEMd2PopUpChooseFile(prefs,[strPrompt])
 	String fileFilters = "Igor Binary File (*.ibw):.ibw;General Text Files (*.txt, *.csv):.txt,.csv;All Files:.*;"
 	String strPath = ""
 
-	//load Path from Preferences.
+	Struct PLEMd2Prefs prefs
+	PLEMd2LoadPackagePrefs(prefs)
 	strPath = prefs.strMapsPath
 
+	strPrompt = selectstring(paramIsDefault(strPrompt), strPrompt, "choose file")
 	GetFileFolderInfo/Q/Z=1 strPath
 
 	if(V_Flag != 0)
@@ -1505,10 +1445,11 @@ Function/S PLEMd2PopUpChooseFile(prefs,[strPrompt])
 	if(V_flag == 0)
 		GetFileFolderInfo/Q/Z=1 ParseFilePath(1, strOutputFile, ":", 1, 0)
 		if(V_isFolder == 1)
-			//print "PLEMd2PopUpChooseFile: Remembering Current Path"
 			prefs.strMapsPath = S_Path
+			PLEMd2SavePackagePrefs(prefs)
 		endif
 	endif
+
 
 	return strOutputFile
 
@@ -1543,7 +1484,7 @@ Function PLEMd2d1Import(numKillWavesAfterwards)
 	print "PLEMd2d1Import: found " + num2str(numMaps) + " old map(s)"
 
 	// copy all the map data to the new project structure
-	for (i=0;i<numMaps;i+=1)
+	for(i = 0; i < numMaps; i += 1)
 		SetDataFolder $gstrMapsFolder
 		strMap 		= StringFromList(i, strMaps)
 		numFiles	= PLEMd2d1CountFiles("root:" + strMap)
@@ -1568,9 +1509,9 @@ Function PLEMd2d1Import(numKillWavesAfterwards)
 		else
 			NewDataFolder/O/S ORIGINAL
 		endif
-		for (j=0;j<numSearchstrings;j+=1)
+		for(j = 0; j < numSearchstrings; j += 1)
 			strSearchString = StringFromList(j, strSearchStrings)
-			for (k=0;k<numFiles;k+=1)
+			for(k = 0; k < numFiles; k += 1)
 				strWave = strMap + strSearchString + num2str(k)
 				wave wavDummy = $("root:" + strWave)
 				if(WaveExists(wavDummy))
@@ -1602,11 +1543,11 @@ Function PLEMd2d1Import(numKillWavesAfterwards)
 			Duplicate/O wavPLEM MEASURE
 			wave wavMeasure	= MEASURE
 
-			for (j=0;j<numTotalY;j+=1)
+			for(j = 0; j < numTotalY; j += 1)
 				strWave = gstrMapsFolder + ":" + strMap + ":ORIGINAL:" + strMap + "_" + num2str(j)
 				wave wavCurrent = $strWave
 				if(WaveExists(wavCurrent))
-					for (k=0;k<numTotalX;k+=1)
+					for(k = 0; k < numTotalX; k += 1)
 						wavMeasure[k][j] = wavCurrent[k]
 					endfor
 				endif
@@ -1617,7 +1558,7 @@ Function PLEMd2d1Import(numKillWavesAfterwards)
 			wave wavBackground	= BACKGROUND
 			//count background files
 			numFiles	= PLEMd2d1CountFiles(gstrMapsFolder + ":" + strMap + ":ORIGINAL:" + strMap + "_bg")
-			for (j=0;j<numTotalY;j+=1)
+			for(j = 0; j < numTotalY; j += 1)
 				if(numFiles > 1)
 					strWave = gstrMapsFolder + ":" + strMap + ":ORIGINAL:" + strMap + "_bg_" + num2str(j)
 				else
@@ -1626,12 +1567,12 @@ Function PLEMd2d1Import(numKillWavesAfterwards)
 				endif
 				wave wavCurrent = $strWave
 				if(WaveExists(wavCurrent))
-					for (k=0;k<numTotalX;k+=1)
+					for(k = 0; k < numTotalX; k += 1)
 						wavBackground[k][j] = wavCurrent[k]
 					endfor
 				else
 					//background file not found. Zero it out.
-					for (k=0;k<numTotalX;k+=1)
+					for(k = 0; k < numTotalX; k += 1)
 						wavBackground[k][j] = 0
 					endfor
 				endif
@@ -1641,11 +1582,11 @@ Function PLEMd2d1Import(numKillWavesAfterwards)
 			Duplicate/O wavPLEM CORRECTED
 			wave wavBackground	= CORRECTED
 
-			for (j=0;j<numTotalY;j+=1)
+			for(j = 0; j < numTotalY; j += 1)
 				strWave = gstrMapsFolder + ":" + strMap + ":ORIGINAL:" + strMap + "_corr_m_" + num2str(j)
 				wave wavCurrent = $strWave
 				if(WaveExists(wavCurrent))
-					for (k=0;k<numTotalX;k+=1)
+					for(k = 0; k < numTotalX; k += 1)
 						wavBackground[k][j] = wavCurrent[k]
 					endfor
 				endif
@@ -1781,7 +1722,7 @@ Function PLEMd2MapStringReInit()
 	gnumMapsAvailable 	= 0
 	numMapsAvailable = CountObjects(gstrMapsFolder, 4) // number of data folders
 
-	for (i=0;i<numMapsAvailable;i+=1)
+	for(i = 0; i < numMapsAvailable; i += 1)
 		strMap = GetIndexedObjName(gstrMapsFolder,4,i)
 		gstrMapsAvailable += strMap + ";"
 	endfor
@@ -1847,7 +1788,7 @@ Function PLEMd2d1Kill(strWhichOne)
 	numAvailable = ItemsInList(strListAvailable)
 	numKillme = ItemsInList(strListKillMe)
 	numCount = 0
-	for (i=0;i<numAvailable;i+=1)
+	for(i = 0; i < numAvailable; i += 1)
 		strAvailable = StringFromList(i, strListAvailable)
 		if(FindListItem(strAvailable, strListKillMe) != -1)
 			switch(numWhichOne)
@@ -1989,7 +1930,7 @@ Function PLEMd2d1Init()
 
 		gstrPLEMd1CorrectionAvailable = ""
 		strFilesLoaded = ""
-		for (i=0;i<numFiles;i+=1)
+		for(i = 0; i < numFiles; i += 1)
 			strFile = StringFromList(i, strFiles)
 			if(FindListItem(strFile, strPLEMd1CorrectionWaves) != -1)
 				LoadWave/P=path/O/J/D/W/A/K=0/Q (strFile)

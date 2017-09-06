@@ -6,18 +6,17 @@ Structure PLEMd2stats
 	//Versioning System to update/create new Global vars.
 	Variable numVersion
 	//strPLEM is Name of Map
-	//strPLEMfull is path containing wave name
 	//strDataFolder is Folder to Main directory
 	//strDataFolderOriginal is Folder to Processed IBW data Main:ORIGINAL
 	//numPLEM is number of Map in Menu Entry-List
 	//wavPLEM is the wave reference to :PLEM
-	String strPLEM, strPLEMfull, strDataFolder, strDataFolderOriginal
+	String strPLEM, strDataFolder, strDataFolderOriginal
 	Variable numPLEM
 	//2D-Waves
-	Wave wavPLEM, wavMeasure, wavIBW, wavBackground, wavGrating, wavPower, wavPhoton, wavQE, wavFilter
+	Wave wavPLEM, wavMeasure, wavBackground
 	//1D-Waves
 	Wave wavExcitation, wavWavelength
-	Wave wavYpower, wavYphoton, wavXgrating, wavYgrating
+	Wave wavYpower, wavYphoton, wavGrating
 	// Normalization Value
 	Variable numNormalization
 	// Switches for calculation
@@ -48,42 +47,36 @@ Function PLEMd2statsLoad(stats, strMap)
 	Struct PLEMd2stats &stats
 	String strMap
 
-	Wave stats.wavPLEM 			= getMapWave(strMap, "PLEM")
-	Wave stats.wavPLEMfitSingle= getMapWave(strMap, "PLEMfit")
-	Wave stats.wavMeasure 		= getMapWave(strMap, "MEASURE")
-	Wave stats.wavIBW 			= getMapWave(strMap, "IBW")
-	Wave stats.wavBackground 	= getMapWave(strMap, "BACKGROUND")
-	Wave stats.wavGrating 		= getMapWave(strMap, "GRATING")
-	Wave stats.wavPower 			= getMapWave(strMap, "POWER")
-	Wave stats.wavPhoton 		= getMapWave(strMap, "PHOTON")
-	Wave stats.wavFilter 		= getMapWave(strMap, "FILTER")
-	Wave stats.wavQE 				= getMapWave(strMap, "QUANTUM")
-	Wave stats.wavExcitation 	= getMapWave(strMap, "yExcitation")
-	Wave stats.wavWavelength 	= getMapWave(strMap, "xWavelength")
-	Wave stats.wavYpower 		= getMapWave(strMap, "yPower")
-	Wave stats.wavYphoton 		= getMapWave(strMap, "yPhoton")
-	Wave stats.wavXgrating 		= getMapWave(strMap, "xGrating")
-	Wave stats.wavYgrating 		= getMapWave(strMap, "yGrating")
+	DFREF dfrMap = returnMapFolder(strMap)
+	Wave stats.wavPLEM 			= createWave(dfrMap, "PLEM")
+	Wave stats.wavPLEMfitSingle	= createWave(dfrMap, "PLEMfit")
+	Wave stats.wavMeasure 		= createWave(dfrMap, "MEASURE", setWaveType = PLEMd2WaveTypeUnsigned16)
+	Wave stats.wavBackground 	= createWave(dfrMap, "BACKGROUND", setWaveType = PLEMd2WaveTypeUnsigned16)
+	Wave stats.wavExcitation 	= createWave(dfrMap, "yExcitation")
+	Wave stats.wavWavelength 	= createWave(dfrMap, "xWavelength")
+	Wave stats.wavYpower 		= createWave(dfrMap, "yPower")
+	Wave stats.wavYphoton 		= createWave(dfrMap, "yPhoton")
+	Wave stats.wavGrating 		= createWave(dfrMap, "xGrating")
 
-	Wave/D stats.wavEnergyS1 		= getAtlasWave(strMap, "PLEMs1nm")
-	Wave/D stats.wavEnergyS2 		= getAtlasWave(strMap, "PLEMs2nm")
-	Wave/D stats.wavChiralityn 	= getAtlasWave(strMap, "PLEMchiralityn")
-	Wave/D stats.wavChiralitym 	= getAtlasWave(strMap, "PLEMchiralitym")
-	Wave/T stats.wavChiralitynm 	= getAtlasTextWave(strMap, "PLEMchirality")
-	Wave/D stats.wavAtlasS1nm 		= getAtlasWave(strMap, "atlasS1nm")
-	Wave/D stats.wavAtlasS2nm 		= getAtlasWave(strMap, "atlasS2nm")
-	Wave/D stats.wavAtlasN 			= getAtlasWave(strMap, "atlasN")
-	Wave/D stats.wavAtlasM 			= getAtlasWave(strMap, "atlasM")
-	Wave/D stats.wav1Dfit 			= getAtlasWave(strMap, "fit1D")
-	Wave/D stats.wav2Dfit 			= getAtlasWave(strMap, "fit2D")
-	Wave/D stats.wavPLEMfit 		= getAtlasWave(strMap, "fitPLEM")
+	DFREF dfrAtlas = returnMapChiralityFolder(strMap)
+	Wave/D stats.wavEnergyS1 		= createWave(dfrAtlas, "PLEMs1nm")
+	Wave/D stats.wavEnergyS2 		= createWave(dfrAtlas, "PLEMs2nm")
+	Wave/D stats.wavChiralityn 		= createWave(dfrAtlas, "PLEMchiralityn")
+	Wave/D stats.wavChiralitym 		= createWave(dfrAtlas, "PLEMchiralitym")
+	Wave/T stats.wavChiralitynm 	= createWave(dfrAtlas, "PLEMchirality", setWaveType = PLEMd2WaveTypeText)
+	Wave/D stats.wavAtlasS1nm 		= createWave(dfrAtlas, "atlasS1nm")
+	Wave/D stats.wavAtlasS2nm 		= createWave(dfrAtlas, "atlasS2nm")
+	Wave/D stats.wavAtlasN 			= createWave(dfrAtlas, "atlasN")
+	Wave/D stats.wavAtlasM 			= createWave(dfrAtlas, "atlasM")
+	Wave/D stats.wav1Dfit 			= createWave(dfrAtlas, "fit1D")
+	Wave/D stats.wav2Dfit 			= createWave(dfrAtlas, "fit2D")
+	Wave/D stats.wavPLEMfit 		= createWave(dfrAtlas, "fitPLEM")
 
 	// PLEMd2statsInitialize(strMap)
 	stats.numVersion = getMapVariable(strMap, "gnumVersion")
 
 	stats.numPLEM 						= getMapVariable(strMap, "gnumPLEM")
 	stats.strPLEM						= getMapString(strMap, "gstrPLEM") // no magic here
-	stats.strPLEMfull 				= getMapString(strMap, "gstrPLEMfull")
 	stats.strDataFolder				= getMapString(strMap, "gstrDataFolder")
 	stats.strDataFolderOriginal	= getMapString(strMap, "gstrDataFolderOriginal")
 
@@ -158,7 +151,6 @@ Function PLEMd2statsSave(stats)
 
 	setMapVariable(strMap,"gnumPLEM", stats.numPLEM)
 	setMapString(strMap,"gstrPLEM", stats.strPLEM)
-	setMapString(strMap,"gstrPLEMfull", stats.strPLEMfull)
 	setMapString(strMap,"gstrDataFolder", stats.strDataFolder)
 	setMapString(strMap,"gstrDataFolderOriginal", stats.strDataFolderOriginal)
 
@@ -240,7 +232,6 @@ Function PLEMd2statsInitialize(strMap)
 	stats.numPLEM = PLEMd2AddMap(strMap)
 	stats.strPLEM = strMap
 	stats.strDataFolder =  GetDataFolder(1, returnMapFolder(strMap))
-	stats.strPLEMfull = getWavesDataFolder(getMapWave(strMap, "PLEM"),2)
 	stats.numVersion = cPLEMd2Version
 
 	stats.numNormalization = 1
