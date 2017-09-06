@@ -9,7 +9,7 @@
 //
 
 // Variables for current Project only. See also the LoadPreferences towards the end of the procedure for additional settings that are saved system-wide.
-Constant 	cPLEMd2Version = 3000
+Constant 	cPLEMd2Version = 3001
 StrConstant cstrPLEMd2root = "root:PLEMd2"
 
 Function PLEMd2initVar()
@@ -58,7 +58,7 @@ Function PLEMd2initVar()
 
 	NewDataFolder/O	 $gstrMapsFolder
 	String/G gstrMapsAvailable = ""
-	Variable/G gnumMapsAvailable	= 0
+	Variable/G gnumMapsAvailable = 0
 	PLEMd2MapStringReInit()
 
 	//save current init-version in project folder.
@@ -1464,9 +1464,10 @@ Function PLEMd2d1Import(numKillWavesAfterwards)
 	//	numKillWavesAfterwards = 0
 	//endif
 	PLEMd2init()
-	SVAR gstrMapsFolder
-	SVAR gstrMapsAvailable
-	NVAR gnumMapsAvailable
+	DFREF dfr = $cstrPLEMd2root
+	SVAR gstrMapsFolder = dfr:gstrMapsFolder
+	SVAR gstrMapsAvailable = dfr:gstrMapsAvailable
+	NVAR gnumMapsAvailable = dfr:gnumMapsAvailable
 
 	Struct PLEMd2Stats stats
 
@@ -1629,17 +1630,26 @@ Function PLEMd2d1Import(numKillWavesAfterwards)
 	PLEMd2exit()
 End
 
+Function PLEMd2getMapsAvailable()
+	DFREF dfr = $cstrPLEMd2root
+	NVAR/Z numMaps = dfr:gnumMapsAvailable
+	if(!NVAR_EXISTS(numMaps))
+		return 0
+	endif
+
+	return numMaps
+End
+
 Function PLEMd2AddMap(strMap)
 	String strMap
 
-	String strSaveDataFolder = GetDataFolder(1)
-	SetDataFolder $cstrPLEMd2root
-	SVAR gstrMapsAvailable
-	NVAR gnumMapsAvailable
+	DFREF dfr = $cstrPLEMd2root
+	SVAR gstrMapsAvailable = dfr:gstrMapsAvailable
+	NVAR gnumMapsAvailable = dfr:gnumMapsAvailable
 
 	Variable numFind
 
-	numFind = FindListItem(strMap,gstrMapsAvailable)
+	numFind = FindListItem(strMap, gstrMapsAvailable)
 	if(numFind == -1)
 		gstrMapsAvailable += strMap + ";"
 		numFind = ItemsInList(gstrMapsAvailable)
@@ -1648,18 +1658,15 @@ Function PLEMd2AddMap(strMap)
 		gnumMapsAvailable = ItemsInList(gstrMapsAvailable)
 	endif
 
-	SetDataFolder $strSaveDataFolder
 	return numFind
 End
 
 Function PLEMd2KillMap(strMap)
 	String strMap
 
-	String strSaveDataFolder = GetDataFolder(1)
-	SetDataFolder root:
-	SetDataFolder $cstrPLEMd2root
-	SVAR gstrMapsAvailable
-	NVAR gnumMapsAvailable
+	DFREF dfr = $cstrPLEMd2root
+	SVAR gstrMapsAvailable = dfr:gstrMapsAvailable
+	NVAR gnumMapsAvailable = dfr:gnumMapsAvailable
 
 	String strKillDataFolder = cstrPLEMd2root + strMap
 
@@ -1675,8 +1682,6 @@ Function PLEMd2KillMap(strMap)
 		endif
 
 	endif
-
-	SetDataFolder $strSaveDataFolder
 End
 
 Function PLEMd2KillMapByNum(numPLEM)
@@ -1693,28 +1698,23 @@ End
 Function PLEMd2MapExists(strMap)
 	String strMap
 
-	String strSaveDataFolder = GetDataFolder(1)
-	SetDataFolder $cstrPLEMd2root
-	SVAR gstrMapsAvailable
-	NVAR gnumMapsAvailable
+	DFREF dfr = $cstrPLEMd2root
+	SVAR gstrMapsAvailable = dfr:gstrMapsAvailable
 
 	Variable numReturn = 0
 
-	if(FindListItem(strMap,gstrMapsAvailable) != -1)
+	if(FindListItem(strMap, gstrMapsAvailable) != -1)
 		numReturn = 1
 	endif
-
-	SetDataFolder $strSaveDataFolder
 
 	return numReturn
 End
 
 Function PLEMd2MapStringReInit()
-	String strSaveDataFolder = GetDataFolder(1)
-	SetDataFolder $cstrPLEMd2root
-	SVAR gstrMapsFolder
-	SVAR gstrMapsAvailable
-	NVAR gnumMapsAvailable
+	DFREF dfr = $cstrPLEMd2root
+	SVAR gstrMapsFolder = dfr:gstrMapsFolder
+	SVAR gstrMapsAvailable = dfr:gstrMapsAvailable
+	NVAR gnumMapsAvailable = dfr:gnumMapsAvailable
 
 	Variable i, numMapsAvailable
 	String strMap
@@ -1727,7 +1727,6 @@ Function PLEMd2MapStringReInit()
 		gstrMapsAvailable += strMap + ";"
 	endfor
 	gnumMapsAvailable = ItemsInList(gstrMapsAvailable)
-	SetDataFolder $strSaveDataFolder
 End
 
 Function PLEMd2d1Kill(strWhichOne)
