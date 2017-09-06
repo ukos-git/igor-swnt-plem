@@ -377,14 +377,11 @@ Function PLEMd2BuildMaps(strPLEM)
 	// Redimension the Waves to proper size
 	dim0 = stats.numPLEMTotalX
 	dim1 = stats.numPLEMTotalY
-	if(stats.numPLEMTotalY == 1)
-		dim1 = 0
-	endif
 	Redimension/N=(dim0, dim1) stats.wavPLEM, stats.wavMeasure, stats.wavBackground
 	PLEMd2MapsAppendNotes(stats.strPLEM)
 	if(stats.numReadOutMode == 1)
-		dim0 = 0
-		dim1 = 1
+		dim0 = 0 // no wavelength
+		dim1 = 1 // save power and excitation wl
 	endif
 	Redimension/N=(dim0) stats.wavWavelength, stats.wavGrating
 	Redimension/N=(dim1) stats.wavExcitation, stats.wavYpower, stats.wavYphoton
@@ -526,7 +523,7 @@ Function PLEMd2BuildMaps(strPLEM)
 
 	// Power correction
 	// requires Excitation wave for Photon Energy
-	stats.wavYpower 		= str2num(StringFromList(p, PLEMd2ExtractPower(stats.wavIBW), ";"))
+	stats.wavYpower	 = str2num(StringFromList(p, PLEMd2ExtractPower(stats.wavIBW), ";"))
 	stats.wavYphoton = (stats.wavYpower * 1e-6) / (6.62606957e-34 * 2.99792458e+8 / (stats.wavExcitation * 1e-9)) 		// power is in uW and Excitation is in nm
 
 	// set distinct Wave Scaling for Maps
