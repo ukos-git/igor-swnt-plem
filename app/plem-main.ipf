@@ -2142,26 +2142,78 @@ End
 Function PLEMd2numPLEM(strPLEM)
 	String strPLEM
 
-	String strSaveDataFolder = GetDataFolder(1)
-	SetDataFolder $cstrPLEMd2root
-	SVAR gstrMapsAvailable
+	DFREF dfr = $cstrPLEMd2root
+	SVAR gstrMapsAvailable = dfr:gstrMapsAvailable
 
-	Variable numFound
-	numFound = FindListItem(strPLEM, gstrMapsAvailable)
-
-	SetDataFolder $strSaveDataFolder
-	return numFound
+	return FindListItem(strPLEM, gstrMapsAvailable)
 End
 
 Function/S PLEMd2strPLEM(numPLEM)
 	Variable numPLEM
 
-	String strSaveDataFolder = GetDataFolder(1)
-	SetDataFolder $cstrPLEMd2root
-	SVAR gstrMapsAvailable, gstrMapsFolder
+	DFREF dfr = $cstrPLEMd2root
+	SVAR gstrMapsAvailable = dfr:gstrMapsAvailable
 
-	String strMap = StringFromList(numPLEM, gstrMapsAvailable)
+	return StringFromList(numPLEM, gstrMapsAvailable)
+End
 
-	SetDataFolder $strSaveDataFolder
-	return strMap
+Function/WAVE PLEMd2getAllstrPLEM([forceRenew])
+	Variable forceRenew
+
+	String strPLEM
+	Variable i
+	Variable numMaps = PLEMd2getMapsAvailable()
+
+	DFREF dfr = $cstrPLEMd2root
+	Struct PLEMd2stats stats
+
+	forceRenew = ParamIsDefault(forceRenew) ? 0 : !!forceRenew
+
+	WAVE/T/Z wv = dfr:mapsAvailable
+	if(WaveExists(wv) && !forceRenew)
+		if(DimSize(wv, 0) == numMaps)
+			return wv
+		else
+			Redimension/N=(numMaps) wv
+		endif
+	else
+		Make/O/T/N=(numMaps) dfr:mapsAvailable/WAVE=wv
+	endif
+
+	wv[] = PLEMd2strPLEM(p)
+
+	return wv
+End
+
+Function/WAVE PLEMd2getCoordinates([forceRenew])
+	Variable forceRenew
+
+	Variable i
+	Variable numMaps = PLEMd2getMapsAvailable()
+
+	DFREF dfr = $cstrPLEMd2root
+	Struct PLEMd2stats stats
+
+	forceRenew = ParamIsDefault(forceRenew) ? 0 : !!forceRenew
+
+	WAVE/Z wv = dfr:mapsAvailable
+	if(WaveExists(wv) && !forceRenew)
+		if(DimSize(wv, 0) == numMaps)
+			return wv
+		else
+			Redimension/N=(numMaps, -1) wv
+		endif
+	else
+		Make/O/N=(numMaps, 3) dfr:coordinates/WAVE=wv = NaN
+	endif
+
+	WAVE/T wavStrPLEM = PLEMd2getAllstrPLEM()
+	for(i = 0; i < numMaps; i += 1)
+		PLEMd2statsLoad(stats, wavStrPLEM[i])
+		wv[i][0] = stats.numPositionX
+		wv[i][1] = stats.numPositionY
+		wv[i][2] = stats.numPositionZ
+	endfor
+
+	return wv
 End
