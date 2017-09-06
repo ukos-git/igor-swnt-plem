@@ -2196,7 +2196,7 @@ Function/WAVE PLEMd2getCoordinates([forceRenew])
 
 	forceRenew = ParamIsDefault(forceRenew) ? 0 : !!forceRenew
 
-	WAVE/Z wv = dfr:mapsAvailable
+	WAVE/Z wv = dfr:coordinates
 	if(WaveExists(wv) && !forceRenew)
 		if(DimSize(wv, 0) == numMaps)
 			return wv
