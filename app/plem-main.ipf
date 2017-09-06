@@ -2211,8 +2211,8 @@ Function/WAVE PLEMd2getCoordinates([forceRenew])
 	for(i = 0; i < numMaps; i += 1)
 		PLEMd2statsLoad(stats, wavStrPLEM[i])
 		wv[i][0] = stats.numPositionX
-		wv[i][1] = stats.numPositionX
-		wv[i][2] = stats.numPositionX
+		wv[i][1] = stats.numPositionY
+		wv[i][2] = stats.numPositionZ
 	endfor
 
 	return wv
