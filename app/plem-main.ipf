@@ -9,7 +9,7 @@
 //
 
 // Variables for current Project only. See also the LoadPreferences towards the end of the procedure for additional settings that are saved system-wide.
-Constant 	cPLEMd2Version = 3000
+Constant 	cPLEMd2Version = 3001
 StrConstant cstrPLEMd2root = "root:PLEMd2"
 
 Function PLEMd2initVar()
