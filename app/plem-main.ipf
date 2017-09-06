@@ -1629,6 +1629,16 @@ Function PLEMd2d1Import(numKillWavesAfterwards)
 	PLEMd2exit()
 End
 
+Function PLEMd2getMapsAvailable()
+	DFREF dfr = $cstrPLEMd2root
+	NVAR/Z numMaps = dfr:gnumMapsAvailable
+	if(!NVAR_EXISTS(numMaps))
+		return 0
+	endif
+
+	return numMaps
+End
+
 Function PLEMd2AddMap(strMap)
 	String strMap
 
