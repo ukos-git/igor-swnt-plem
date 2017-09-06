@@ -87,9 +87,10 @@ static Function getGvar(name, dataFolder)
 End
 
 // Wrapper Functions for creating Waves
-Constant PLEMd2WaveTypeDouble   = 0
-Constant PLEMd2WaveTypeUnsigned = 1
-Constant PLEMd2WaveTypeText     = 2
+Constant PLEMd2WaveTypeDouble     = 0
+Constant PLEMd2WaveTypeUnsigned32 = 1
+Constant PLEMd2WaveTypeUnsigned16 = 2
+Constant PLEMd2WaveTypeText       = 3
 
 Function/WAVE createWave(dfr, strWave, [setWaveType])
 	DFREF dfr
@@ -107,8 +108,11 @@ Function/WAVE createWave(dfr, strWave, [setWaveType])
 		case PLEMd2WaveTypeDouble:
 			WAVE wv = createDoubleWave(dfr, strWave)
 			break
-		case PLEMd2WaveTypeUnsigned:
-			WAVE wv = createUnsignedWave(dfr, strWave)
+		case PLEMd2WaveTypeUnsigned32:
+			WAVE wv = createUnsigned32Wave(dfr, strWave)
+			break
+		case PLEMd2WaveTypeUnsigned16:
+			WAVE wv = createUnsigned16Wave(dfr, strWave)
 			break
 		case PLEMd2WaveTypeText:
 			WAVE wv = createTextWave(dfr, strWave)
@@ -128,11 +132,21 @@ static Function/WAVE createDoubleWave(dfr, strWave)
 	return wv
 End
 
-static Function/WAVE createUnsignedWave(dfr, strWave)
+// 32bit unsigned wave
+static Function/WAVE createUnsigned32Wave(dfr, strWave)
 	DFREF dfr
 	String strWave
 
 	Make/I/U/N=0 dfr:$strWave/WAVE=wv
+	return wv
+End
+
+// 16bit unsigned wave
+static Function/WAVE createUnsigned16Wave(dfr, strWave)
+	DFREF dfr
+	String strWave
+
+	Make/W/U/N=0 dfr:$strWave/WAVE=wv
 	return wv
 End
 
