@@ -58,7 +58,7 @@ Function PLEMd2initVar()
 
 	NewDataFolder/O	 $gstrMapsFolder
 	String/G gstrMapsAvailable = ""
-	Variable/G gnumMapsAvailable	= 0
+	Variable/G gnumMapsAvailable = 0
 	PLEMd2MapStringReInit()
 
 	//save current init-version in project folder.
