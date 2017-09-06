@@ -2142,15 +2142,10 @@ End
 Function PLEMd2numPLEM(strPLEM)
 	String strPLEM
 
-	String strSaveDataFolder = GetDataFolder(1)
-	SetDataFolder $cstrPLEMd2root
-	SVAR gstrMapsAvailable
+	DFREF dfr = $cstrPLEMd2root
+	SVAR gstrMapsAvailable = dfr:gstrMapsAvailable
 
-	Variable numFound
-	numFound = FindListItem(strPLEM, gstrMapsAvailable)
-
-	SetDataFolder $strSaveDataFolder
-	return numFound
+	return FindListItem(strPLEM, gstrMapsAvailable)
 End
 
 Function/S PLEMd2strPLEM(numPLEM)
