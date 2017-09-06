@@ -2157,4 +2157,63 @@ Function/S PLEMd2strPLEM(numPLEM)
 	return StringFromList(numPLEM, gstrMapsAvailable)
 End
 
+Function/WAVE PLEMd2getAllstrPLEM([forceRenew])
+	Variable forceRenew
 
+	String strPLEM
+	Variable i
+	Variable numMaps = PLEMd2getMapsAvailable()
+
+	DFREF dfr = $cstrPLEMd2root
+	Struct PLEMd2stats stats
+
+	forceRenew = ParamIsDefault(forceRenew) ? 0 : !!forceRenew
+
+	WAVE/T/Z wv = dfr:mapsAvailable
+	if(WaveExists(wv) && !forceRenew)
+		if(DimSize(wv, 0) == numMaps)
+			return wv
+		else
+			Redimension/N=(numMaps) wv
+		endif
+	else
+		Make/O/T/N=(numMaps) dfr:mapsAvailable/WAVE=wv
+	endif
+
+	wv[] = PLEMd2strPLEM(p)
+
+	return wv
+End
+
+Function/WAVE PLEMd2getCoordinates([forceRenew])
+	Variable forceRenew
+
+	Variable i
+	Variable numMaps = PLEMd2getMapsAvailable()
+
+	DFREF dfr = $cstrPLEMd2root
+	Struct PLEMd2stats stats
+
+	forceRenew = ParamIsDefault(forceRenew) ? 0 : !!forceRenew
+
+	WAVE/Z wv = dfr:mapsAvailable
+	if(WaveExists(wv) && !forceRenew)
+		if(DimSize(wv, 0) == numMaps)
+			return wv
+		else
+			Redimension/N=(numMaps, -1) wv
+		endif
+	else
+		Make/O/N=(numMaps, 3) dfr:coordinates/WAVE=wv = NaN
+	endif
+
+	WAVE/T wavStrPLEM = PLEMd2getAllstrPLEM()
+	for(i = 0; i < numMaps; i += 1)
+		PLEMd2statsLoad(stats, wavStrPLEM[i])
+		wv[i][0] = stats.numPositionX
+		wv[i][1] = stats.numPositionX
+		wv[i][2] = stats.numPositionX
+	endfor
+
+	return wv
+End
