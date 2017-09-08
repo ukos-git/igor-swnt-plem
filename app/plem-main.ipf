@@ -290,7 +290,6 @@ Function PLEMd2ExtractIBW(strPLEM, wavIBW)
 	Struct PLEMd2stats stats
 	String strWaveBG, strWavePL
 	Variable numExcitationFrom, numExcitationTo
-	Variable numLaserPositionX, numLaserPositionY
 	Variable dim0, dim1
 	Variable i,j, numItems
 
@@ -471,13 +470,8 @@ Function PLEMd2ExtractIBW(strPLEM, wavIBW)
 		laserposition[stats.numLaserPositionX][stats.numLaserPositionY] = 1000
 		ImageRotate/Q/E=(0)/O/A=(stats.numRotation) laserposition
 		WaveStats/M=1/Q laserposition
-		numLaserPositionX = V_maxRowLoc
-		numLaserPositionY = V_maxColLoc
-		print "rotation:", stats.numRotation
-		print "old pos:", stats.numLaserPositionX, stats.numLaserPositionY
-		print "new pos:", numLaserPositionX, numLaserPositionY
-		//stats.numLaserPositionX = numLaserPositionX
-		//stats.numLaserPositionY = numLaserPositionY
+		stats.numLaserPositionX = V_maxRowLoc
+		stats.numLaserPositionY = V_maxColLoc
 
 		// after rotation, number of points in wave changes
 		stats.numPLEMTotalX = DimSize(laserposition, 0)
@@ -488,11 +482,11 @@ Function PLEMd2ExtractIBW(strPLEM, wavIBW)
 	if(stats.numCalibrationMode == 1)
 		if(stats.numReadOutMode == 1)
 			stats.numPLEMDeltaX =  (stats.booSwitchY == 1 ? +1 : -1) * numSizeAdjustment * stats.numPixelPitch / stats.numMagnification
-			stats.numPLEMLeftX 	=  stats.numPositionY - stats.numPLEMDeltaX * (numLaserPositionX)
+			stats.numPLEMLeftX 	=  stats.numPositionY - stats.numPLEMDeltaX * (stats.numLaserPositionX)
 			stats.numPLEMRightX = stats.numPLEMLeftX + stats.numPLEMTotalX * stats.numPLEMDeltaX
 
 			stats.numPLEMDeltaY 	= (stats.booSwitchX == 1 ? -1 : +1) * numSizeAdjustment * stats.numPixelPitch / stats.numMagnification
-			stats.numPLEMBottomY 	= stats.numPositionX - stats.numPLEMDeltaY * numLaserPositionY
+			stats.numPLEMBottomY 	= stats.numPositionX - stats.numPLEMDeltaY * stats.numLaserPositionY
 			stats.numPLEMTopY 		= stats.numPLEMBottomY  - stats.numPLEMTotalY * stats.numPLEMDeltaY
 		else
 			stats.numPLEMDeltaY 	= stats.numEmissionDelta
