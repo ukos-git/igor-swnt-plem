@@ -9,7 +9,7 @@
 //
 
 // Variables for current Project only. See also the LoadPreferences towards the end of the procedure for additional settings that are saved system-wide.
-Constant 	cPLEMd2Version = 3001
+Constant 	cPLEMd2Version = 3002
 StrConstant cstrPLEMd2root = "root:PLEMd2"
 
 Function PLEMd2initVar()
@@ -289,7 +289,7 @@ Function PLEMd2ExtractIBW(strPLEM, wavIBW)
 
 	Struct PLEMd2stats stats
 	String strWaveBG, strWavePL
-	Variable numExcitationFrom, numExcitationTo, numPixelPitch, numRotation
+	Variable numExcitationFrom, numExcitationTo
 	Variable numLaserPositionX, numLaserPositionY
 	Variable dim0, dim1
 	Variable i,j, numItems
@@ -445,55 +445,57 @@ Function PLEMd2ExtractIBW(strPLEM, wavIBW)
 		endfor
 	endif
 
-	numPixelPitch = 0
-	numRotation = 0
+	// Power correction waves
+	// requires Excitation wave for Photon Energy
+	stats.wavYpower	 = str2num(StringFromList(p, PLEMd2ExtractPower(wavIBW), ";"))
+	stats.wavYphoton = (stats.wavYpower * 1e-6) / (6.62606957e-34 * 2.99792458e+8 / (stats.wavExcitation * 1e-9)) 		// power is in uW and Excitation is in nm
+
+	// Set Wave Scaling
+	stats.numPixelPitch = 0
+	stats.numRotation = 0
+	NVAR/Z numSizeAdjustment = root:numSizeAdjustment
 	if(stats.numDetector == 0)
 		// Andor Newton
 	elseif(stats.numDetector == 1)
 		// Andor iDus
 	elseif(stats.numDetector == 2)
 		// Andor Clara
-		numPixelPitch = 6.45 //6.45um from manual trial and error
-		NVAR/Z numSizeAdjustment = root:numSizeAdjustment
+		stats.numPixelPitch = 6.45 	//6.45um from manual trial and error
+		stats.numRotation = -0.8 	// fixed rotation angle
 		if(!NVAR_EXISTS(numSizeAdjustment))
-			Variable/G root:numSizeAdjustment = 0.960
+			Variable/G root:numSizeAdjustment = 0.960 // fixed value
 		endif
-		numRotation = -0.8
-	endif
 
-	if(numRotation != 0)
-		// correct LaserPosition (x,y) for new image
-		SetScale/P x, 0, 1, stats.wavPLEM
-		SetScale/P y, 0, 1, stats.wavPLEM
-		stats.wavPLEM = stats.wavMEASURE
-		stats.wavPLEM = 0
-		stats.wavPLEM[stats.numLaserPositionX][stats.numLaserPositionY] = 1000
-		ImageRotate/E=(NaN)/O/A=(numRotation) stats.wavPLEM
-		WaveStats/Q stats.wavPLEM
+		// calculate LaserPosition (x,y) for rotated image when numRotation != 0
+		Make/FREE/U/I/N=(stats.numPLEMTotalX, stats.numPLEMTotalY) laserposition = 0
+		laserposition[stats.numLaserPositionX][stats.numLaserPositionY] = 1000
+		ImageRotate/Q/E=(0)/O/A=(stats.numRotation) laserposition
+		WaveStats/M=1/Q laserposition
 		numLaserPositionX = V_maxRowLoc
 		numLaserPositionY = V_maxColLoc
-		print numLaserPositionX, numLaserPositionY
-		stats.numPLEMTotalX = DimSize(stats.wavPLEM, 0)
-		stats.numPLEMTotalY = DimSize(stats.wavPLEM, 1)
+		print "rotation:", stats.numRotation
+		print "old pos:", stats.numLaserPositionX, stats.numLaserPositionY
+		print "new pos:", numLaserPositionX, numLaserPositionY
+		//stats.numLaserPositionX = numLaserPositionX
+		//stats.numLaserPositionY = numLaserPositionY
 
-		ImageRotate/E=(NaN)/O/A=(numRotation) stats.wavMeasure
-		ImageRotate/E=(NaN)/O/A=(numRotation) stats.wavBackground
-		// for images only need to really redimension PLEM (if not rotated before...)
-		Redimension/N=((stats.numPLEMTotalX),(stats.numPLEMTotalY)) stats.wavPLEM
-		stats.wavPLEM = stats.wavMeasure
+		// after rotation, number of points in wave changes
+		stats.numPLEMTotalX = DimSize(laserposition, 0)
+		stats.numPLEMTotalY = DimSize(laserposition, 1)
+		WaveClear laserposition
 	endif
 
 	if(stats.numCalibrationMode == 1)
 		if(stats.numReadOutMode == 1)
-			stats.numPLEMDeltaX =  (stats.booSwitchY == 1 ? +1 : -1) * numSizeAdjustment * numPixelPitch / stats.numMagnification
+			stats.numPLEMDeltaX =  (stats.booSwitchY == 1 ? +1 : -1) * numSizeAdjustment * stats.numPixelPitch / stats.numMagnification
 			stats.numPLEMLeftX 	=  stats.numPositionY - stats.numPLEMDeltaX * (numLaserPositionX)
 			stats.numPLEMRightX = stats.numPLEMLeftX + stats.numPLEMTotalX * stats.numPLEMDeltaX
 
-			stats.numPLEMDeltaY 	= (stats.booSwitchX == 1 ? -1 : +1) * numSizeAdjustment * numPixelPitch / stats.numMagnification
+			stats.numPLEMDeltaY 	= (stats.booSwitchX == 1 ? -1 : +1) * numSizeAdjustment * stats.numPixelPitch / stats.numMagnification
 			stats.numPLEMBottomY 	= stats.numPositionX - stats.numPLEMDeltaY * numLaserPositionY
 			stats.numPLEMTopY 		= stats.numPLEMBottomY  - stats.numPLEMTotalY * stats.numPLEMDeltaY
 		else
-			stats.numPLEMDeltaY 		= stats.numEmissionDelta
+			stats.numPLEMDeltaY 	= stats.numEmissionDelta
 			stats.numPLEMBottomY 	= stats.numEmissionStart
 			stats.numPLEMTopY 		= stats.numEmissionEnd
 		endif
@@ -512,18 +514,10 @@ Function PLEMd2ExtractIBW(strPLEM, wavIBW)
 			stats.numPLEMTopY /= 10
 		endif
 	endif
-
-	// Power correction
-	// requires Excitation wave for Photon Energy
-	stats.wavYpower	 = str2num(StringFromList(p, PLEMd2ExtractPower(wavIBW), ";"))
-	stats.wavYphoton = (stats.wavYpower * 1e-6) / (6.62606957e-34 * 2.99792458e+8 / (stats.wavExcitation * 1e-9)) 		// power is in uW and Excitation is in nm
-
-	// set distinct Wave Scaling for Maps
 	SetScale/P x stats.numPLEMLeftX, stats.numPLEMDeltaX, "", stats.wavPLEM, stats.wavMeasure, stats.wavBackground
 	SetScale/P y stats.numPLEMBottomY, stats.numPLEMDeltaY, "", stats.wavPLEM, stats.wavMeasure, stats.wavBackground
 	SetScale/I x stats.numPLEMBottomY, stats.numPLEMTopY, "", stats.wavExcitation
 
-	// Stats: update
 	PLEMd2statsSave(stats)
 
 	print GetWavesDataFolder(stats.wavPLEM, 2)
@@ -574,6 +568,9 @@ Function PLEMd2BuildMaps(strPLEM)
 	endif
 	if(stats.booQuantumEfficiency)
 		stats.wavPLEM *= 1 // QE not handled
+	endif
+	if(stats.numRotation != 0)
+		ImageRotate/Q/E=(NaN)/O/A=(stats.numRotation) stats.wavPLEM
 	endif
 End
 
