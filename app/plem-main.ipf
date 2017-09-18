@@ -534,6 +534,11 @@ Function PLEMd2BuildMaps(strPLEM)
 	Struct PLEMd2stats stats
 	PLEMd2statsLoad(stats, strPLEM)
 
+	if(stats.numRotation != 0)
+		// reset PLEM for rotation
+		Redimension/N=(stats.numPLEMTotalX, stats.numPLEMTotalY) stats.wavPLEM
+	endif
+
 	if(stats.booInterpolate == 1)
 		numExcitation = DimSize(stats.wavExcitation, 0)
 		for(i = 0; i < numExcitation; i += 1)
