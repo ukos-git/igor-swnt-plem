@@ -464,19 +464,12 @@ Function PLEMd2ExtractIBW(strPLEM, wavIBW)
 		if(!NVAR_EXISTS(numSizeAdjustment))
 			Variable/G root:numSizeAdjustment = 0.960 // fixed value
 		endif
-
-		// calculate LaserPosition (x,y) for rotated image when numRotation != 0
-		Make/FREE/U/I/N=(stats.numPLEMTotalX, stats.numPLEMTotalY) laserposition = 0
-		laserposition[stats.numLaserPositionX][stats.numLaserPositionY] = 1000
-		ImageRotate/Q/E=(0)/O/A=(stats.numRotation) laserposition
-		WaveStats/M=1/Q laserposition
-		stats.numLaserPositionX = V_maxRowLoc
-		stats.numLaserPositionY = V_maxColLoc
-
-		// after rotation, number of points in wave changes
-		stats.numPLEMTotalX = DimSize(laserposition, 0)
-		stats.numPLEMTotalY = DimSize(laserposition, 1)
-		WaveClear laserposition
+		
+		dim0 = stats.numLaserPositionX
+		dim1 = stats.numLaserPositionY
+		PLEMd2rotatePoint(dim0, dim1, stats.numPLEMTotalX, stats.numPLEMTotalY, stats.numRotation)
+		stats.numLaserPositionX = dim0
+		stats.numLaserPositionY = dim1
 	endif
 
 	if(stats.numCalibrationMode == 1)
@@ -515,6 +508,22 @@ Function PLEMd2ExtractIBW(strPLEM, wavIBW)
 	PLEMd2statsSave(stats)
 
 	print GetWavesDataFolder(stats.wavPLEM, 2)
+End
+
+Function PLEMd2rotatePoint(pointX, pointY, totalX, totalY, rotation)
+	Variable &pointX, &pointY
+	Variable totalX, totalY, rotation
+
+	// calculate LaserPosition (x,y) for rotated image when numRotation != 0
+	Make/FREE/U/I/N=(totalX, totalY) wv = 0
+	wv[pointX][pointY] = 1000
+	ImageRotate/Q/E=(0)/O/A=(rotation) wv
+	WaveStats/M=1/Q wv
+
+	pointX = V_maxRowLoc
+	pointY = V_maxColLoc
+
+	return 0
 End
 
 Function PLEMd2BuildMaps(strPLEM)
