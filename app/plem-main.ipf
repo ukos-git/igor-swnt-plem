@@ -297,7 +297,7 @@ Function PLEMd2ExtractIBW(strPLEM, wavIBW)
 	SVAR gstrMapsFolder = packageRoot:gstrMapsFolder
 
 	if(!PLEMd2MapExists(strPLEM))
-		Abort "PLEMd2BuildMaps: Map does not exist"
+		Abort "PLEMd2ExtractIBW: Map does not exist"
 	endif
 
 	//There are 3 different structures for DATA
@@ -329,7 +329,7 @@ Function PLEMd2ExtractIBW(strPLEM, wavIBW)
 
 			wave wavBackground = BG
 			if(!WaveExists(wavBackground))
-				print "PLEMd2BuildMaps: Error, wave BG does not exist in folder :ORIGINAL"
+				print "PLEMd2ExtractIBW: Error, wave BG does not exist in folder :ORIGINAL"
 			endif
 			WaveClear wavBackground
 
@@ -340,7 +340,7 @@ Function PLEMd2ExtractIBW(strPLEM, wavIBW)
 			strWaveBG = WaveList("BG_*", ";", "")
 			break
 		default:
-			print "PLEMd2BuildMaps: Background Case not handled"
+			print "PLEMd2ExtractIBW: Background Case not handled"
 			return 0
 			break
 	endswitch
@@ -348,7 +348,7 @@ Function PLEMd2ExtractIBW(strPLEM, wavIBW)
 
 	// updating stats (TotalX and TotalY)
 	if(ItemsInList(strWaveBG, ";") != ItemsInList(strWavePL, ";"))
-		Abort "PELMd2BuildMaps: Error Size Missmatch between Background Maps and PL Maps"
+		Abort "PLEMd2ExtractIBW: Error Size Missmatch between Background Maps and PL Maps"
 	endif
 	stats.numPLEMTotalY = ItemsInList(strWavePL, ";")
 
@@ -359,7 +359,7 @@ Function PLEMd2ExtractIBW(strPLEM, wavIBW)
 
 	wave wavWavelength = dfr:WL
 	if(!WaveExists(wavWavelength))
-		Abort "PLEMd2BuildMaps: Wavelength Wave not found within ORIGINAL Folder"
+		Abort "PLEMd2ExtractIBW: Wavelength Wave not found within ORIGINAL Folder"
 	endif
 	stats.numPLEMTotalX = NumPnts(wavWavelength)
 	if(stats.numReadOutMode == 1)
@@ -387,7 +387,7 @@ Function PLEMd2ExtractIBW(strPLEM, wavIBW)
 	String strGratingWave = PLEMd2d1CorrectionConstructor(stats.numGrating,stats.numDetector,stats.numCooling)
 	if(!cmpstr(strGratingWave, ""))
 		stats.wavGrating = 1
-		print "PLEMd2BuildMaps: Grating Wave was set to 1"
+		print "PLEMd2ExtractIBW: Grating Wave was set to 1"
 	else
 		Duplicate/FREE $(ReplaceString("DUMMY", strGratingWave, "E_",1,1)) wavYgrating
 		Duplicate/FREE $(ReplaceString("DUMMY", strGratingWave, "WL_",1,1)) wavXgrating
