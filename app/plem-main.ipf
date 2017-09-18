@@ -476,34 +476,27 @@ Function PLEMd2ExtractIBW(strPLEM, wavIBW)
 		if(stats.numReadOutMode == 1)
 			stats.numPLEMDeltaX =  (stats.booSwitchY == 1 ? +1 : -1) * numSizeAdjustment * stats.numPixelPitch / stats.numMagnification
 			stats.numPLEMLeftX 	=  stats.numPositionY - stats.numPLEMDeltaX * (stats.numLaserPositionX)
-			stats.numPLEMRightX = stats.numPLEMLeftX + stats.numPLEMTotalX * stats.numPLEMDeltaX
 
 			stats.numPLEMDeltaY 	= (stats.booSwitchX == 1 ? -1 : +1) * numSizeAdjustment * stats.numPixelPitch / stats.numMagnification
 			stats.numPLEMBottomY 	= stats.numPositionX - stats.numPLEMDeltaY * stats.numLaserPositionY
-			stats.numPLEMTopY 		= stats.numPLEMBottomY  - stats.numPLEMTotalY * stats.numPLEMDeltaY
 		else
 			stats.numPLEMDeltaY 	= stats.numEmissionDelta
 			stats.numPLEMBottomY 	= stats.numEmissionStart
-			stats.numPLEMTopY 		= stats.numEmissionEnd
 		endif
 	else
 		stats.numPLEMLeftX = stats.wavWavelength[0]
 		stats.numPLEMDeltaX = PLEMd2Delta(stats.wavWavelength, normal = 1)
-		stats.numPLEMRightX = stats.numPLEMLeftX + stats.numWLdelta * (stats.numPLEMTotalX - 1)
 
-		stats.numPLEMBottomY	= (str2num(StringFromList(1,StringFromList(0,strWavePL), "_")) + str2num(StringFromList(2,StringFromList(0,strWavePL), "_"))) / 2
-		stats.numPLEMTopY		= (str2num(StringFromList(1,StringFromList((stats.numPLEMTotalY-1),strWavePL), "_")) + str2num(StringFromList(2,StringFromList((stats.numPLEMTotalY-1),strWavePL), "_"))) / 2
+		stats.numPLEMBottomY	= (str2num(StringFromList(1, StringFromList(0, strWavePL), "_")) + str2num(StringFromList(2, StringFromList(0, strWavePL), "_"))) / 2
 		stats.numPLEMDeltaY	= PLEMd2Delta(stats.wavExcitation)
 
 		// since PLEMv3.0 excitation is saved multiplied by 10.
 		if(stats.numPLEMBottomY > 1e3)
 			stats.numPLEMBottomY /= 10
-			stats.numPLEMTopY /= 10
 		endif
 	endif
 	SetScale/P x stats.numPLEMLeftX, stats.numPLEMDeltaX, "", stats.wavPLEM, stats.wavMeasure, stats.wavBackground
 	SetScale/P y stats.numPLEMBottomY, stats.numPLEMDeltaY, "", stats.wavPLEM, stats.wavMeasure, stats.wavBackground
-	SetScale/I x stats.numPLEMBottomY, stats.numPLEMTopY, "", stats.wavExcitation
 
 	PLEMd2statsSave(stats)
 
@@ -1192,6 +1185,7 @@ Function PLEMd2AtlasFit3D(strPLEM)
 	Variable numS1,numS2
 	Variable numDeltaS1, numDeltaS2
 	Variable numDeltaS1left, numDeltaS1right, numDeltaS2bottom, numDeltaS2top
+	Variable rightXvalue, topYvalue
 	Variable V_fitOptions=4 // used to suppress CurveFit dialog
 	Variable V_FitQuitReason // stores the CurveFit Quit Reason
 	Variable V_FitError // Curve Fit error
@@ -1216,13 +1210,17 @@ Function PLEMd2AtlasFit3D(strPLEM)
 
 	stats.wavPLEMfit = NaN
 	stats.wavPLEMfitSingle = 0
-	SetScale y,stats.numPLEMbottomY,stats.numPLEMtopY, "",stats.wavPLEMfit
-	SetScale x,stats.numPLEMleftX,stats.numPLEMrightX, "",stats.wavPLEMfit
+	SetScale/P y,stats.numPLEMbottomY,stats.numPLEMdeltaY, "",stats.wavPLEMfit
+	SetScale/P x,stats.numPLEMleftX,stats.numPLEMdeltaX, "",stats.wavPLEMfit
 	//Display
 	//AppendImage stats.wavPLEM
 
 	numDeltaS1 = 50
 	numDeltaS2 = 50
+	
+	rightXvalue = stats.numPLEMleftX + stats.numPLEMTotalX * stats.numPLEMdeltaX
+	topYvalue = stats.numPLEMbottomY + stats.numPLEMTotalY * stats.numPLEMdeltaY
+	
 	// input
 	i=0
 	for(i = 0; i < numpnts(stats.wavEnergyS1); i += 1)
@@ -1236,16 +1234,16 @@ Function PLEMd2AtlasFit3D(strPLEM)
 		numDeltaS2bottom = numDeltaS2/2
 		numDeltaS2top 	= numDeltaS2/2
 
-		if((numS1-numDeltaS1left) <stats.numPLEMleftX)
+		if((numS1-numDeltaS1left) < stats.numPLEMleftX)
 			//print "chirality not in Map S1 Data Range"
 			numDeltaS1left = numS1 - stats.numPLEMleftX
 			if(numDeltaS1left<0)
 				numDeltaS1left = 0
 			endif
 		endif
-		if((numS1+numDeltaS1right) > stats.numPLEMrightX)
+		if((numS1+numDeltaS1right) > rightXvalue)
 			//print "chirality not in Map S1Data Range"
-			numDeltaS1right = stats.numPLEMrightX - numS1
+			numDeltaS1right = rightXvalue - numS1
 			if(numDeltaS1right<0)
 				numDeltaS1right = 0
 			endif
@@ -1257,9 +1255,9 @@ Function PLEMd2AtlasFit3D(strPLEM)
 				numDeltaS2bottom = 0
 			endif
 		endif
-		if((numS2+numDeltaS2top) > stats.numPLEMtopY)
+		if((numS2+numDeltaS2top) > topYvalue)
 			//print "chirality not in Map S1Data Range"
-			numDeltaS2top = stats.numPLEMtopY - numS2
+			numDeltaS2top = topYvalue - numS2
 			if(numDeltaS2top<0)
 				numDeltaS2top = 0
 			endif
@@ -1629,7 +1627,6 @@ Function PLEMd2d1Import(numKillWavesAfterwards)
 		//Append Current Map to List of Maps
 		PLEMd2AddMap(strMap)
 		//Save stats.
-		PLEMd2statsCalculateDeprecated(stats)
 		PLEMd2statsSave(stats)
 	endfor
 	PLEMd2exit()

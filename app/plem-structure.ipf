@@ -29,8 +29,8 @@ Structure PLEMd2stats
 	// Variables for chirality offset
 	Variable 	numS1offset, numS2offset
 	// calculated variables
-	Variable numPLEMTotalX, numPLEMLeftX, numPLEMDeltaX, numPLEMRightX
-	Variable numPLEMTotalY, numPLEMBottomY, numPLEMDeltaY, numPLEMTopY 	//stats.numPLEMDeltaY
+	Variable numPLEMTotalX, numPLEMLeftX, numPLEMDeltaX
+	Variable numPLEMTotalY, numPLEMBottomY, numPLEMDeltaY
 
 	// nanostage position
 	variable numPositionX, numPositionY, numPositionZ, booSwitchX, booSwitchY
@@ -98,12 +98,10 @@ Function PLEMd2statsLoad(stats, strMap)
 	stats.numPLEMTotalX = getMapVariable(strMap, "gnumPLEMTotalX")
 	stats.numPLEMLeftX 	= getMapVariable(strMap, "gnumPLEMLeftX")
 	stats.numPLEMDeltaX = getMapVariable(strMap, "gnumPLEMDeltaX")
-	stats.numPLEMRightX = getMapVariable(strMap, "gnumPLEMRightX")
 
 	stats.numPLEMTotalY		= getMapVariable(strMap, "gnumPLEMTotalY")
 	stats.numPLEMBottomY 	= getMapVariable(strMap, "gnumPLEMBottomY")
 	stats.numPLEMDeltaY		= getMapVariable(strMap, "gnumPLEMDeltaY")
-	stats.numPLEMTopY		= getMapVariable(strMap, "gnumPLEMTopY")
 
 	stats.strDate 		= getMapString(strMap, "gstrDate")
 	stats.strUser		= getMapString(strMap, "gstrUser")
@@ -173,12 +171,10 @@ Function PLEMd2statsSave(stats)
 	setMapVariable(strMap, "gnumPLEMTotalX", stats.numPLEMTotalX)
 	setMapVariable(strMap, "gnumPLEMLeftX", stats.numPLEMLeftX)
 	setMapVariable(strMap, "gnumPLEMDeltaX", stats.numPLEMDeltaX)
-	setMapVariable(strMap, "gnumPLEMRightX", stats.numPLEMRightX)
 
 	setMapVariable(strMap, "gnumPLEMTotalY", stats.numPLEMTotalY)
 	setMapVariable(strMap, "gnumPLEMBottomY ", stats.numPLEMBottomY)
 	setMapVariable(strMap, "gnumPLEMDeltaY", stats.numPLEMDeltaY)
-	setMapVariable(strMap, "gnumPLEMTopY", stats.numPLEMTopY)
 
 	setMapString(strMap, "gstrDate", stats.strDate)
 	setMapString(strMap, "gstrUser", stats.strUser)
@@ -251,42 +247,6 @@ Function PLEMd2statsInitialize(strMap)
 	stats.numRotation = 0
 
 	PLEMd2statsSave(stats)
-End
-
-Function PLEMd2statsCalculateDeprecated(stats)
-	Struct PLEMd2stats &stats
-
-	//Help Variables for sorting
-	//Sorting of pointers. But pointers do not seem to work at runtime within a function: left = &test
-	Variable left, right
-
-	wave wavPLEM = stats.wavPLEM
-
-	//collect Information about the wave and sort it.
-	stats.numPLEMTotalX	= DimSize(wavPLEM,0)
-	stats.numPLEMLeftX	= DimOffset(wavPLEM,0)
-	stats.numPLEMDeltaX 	= DimDelta(wavPLEM,0)
-	stats.numPLEMRightX	= stats.numPLEMLeftX + stats.numPLEMTotalX * stats.numPLEMDeltaX
-	stats.numPLEMTotalY	= DimSize(wavPLEM,1)
-	stats.numPLEMBottomY=DimOffset(wavPLEM,1)
-	stats.numPLEMDeltaY	= DimDelta(wavPLEM,1)
-	stats.numPLEMTopY	= stats.numPLEMBottomY + stats.numPLEMTotalY * stats.numPLEMDeltaY
-
-	left = stats.numPLEMLeftX
-	right = stats.numPLEMRightX
-	PLEMd2sort(left,right)
-	stats.numPLEMLeftX = left
-	stats.numPLEMRightX=right
-
-	left = stats.numPLEMBottomY
-	right = stats.numPLEMTopY
-	PLEMd2sort(left,right)
-	stats.numPLEMBottomY = left
-	stats.numPLEMTopY=right
-
-	print "PLEMd2statsCalculate: Absorption: " + num2str(stats.numPLEMLeftX) + "nm - " + num2str(stats.numPLEMRightX) + "nm"
-	print "PLEMd2statsCalculate: Emission: "+ num2str(stats.numPLEMBottomY) + "nm - " + num2str(stats.numPLEMTopY) + "nm"
-	print "PLEMd2statsCalculate: Size: "+num2str(stats.numPLEMTotalX) + "x" + num2str(stats.numPLEMTotalY) + " Data Points."
 End
 
 Function/S PLEMd2FullPathByString(strPLEM)
