@@ -1,5 +1,6 @@
-# igor-swnt-plem
+# Description
 A loader/plotter for PLE Map files of carbon nanotubes. Examples for spectra and experiment files included.
+The files are recorded with a [labview program](https://github.com/ukos-git/labview-plem)
 
 # Basics of SWNT
 Exciting Single Walled Carbon nanotubes to theier second subband yields emission from the first subband. see elsewhere for details.
