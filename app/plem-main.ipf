@@ -297,7 +297,7 @@ Function PLEMd2ExtractIBW(strPLEM, wavIBW)
 	SVAR gstrMapsFolder = packageRoot:gstrMapsFolder
 
 	if(!PLEMd2MapExists(strPLEM))
-		Abort "PLEMd2BuildMaps: Map does not exist"
+		Abort "PLEMd2ExtractIBW: Map does not exist"
 	endif
 
 	//There are 3 different structures for DATA
@@ -329,7 +329,7 @@ Function PLEMd2ExtractIBW(strPLEM, wavIBW)
 
 			wave wavBackground = BG
 			if(!WaveExists(wavBackground))
-				print "PLEMd2BuildMaps: Error, wave BG does not exist in folder :ORIGINAL"
+				print "PLEMd2ExtractIBW: Error, wave BG does not exist in folder :ORIGINAL"
 			endif
 			WaveClear wavBackground
 
@@ -340,7 +340,7 @@ Function PLEMd2ExtractIBW(strPLEM, wavIBW)
 			strWaveBG = WaveList("BG_*", ";", "")
 			break
 		default:
-			print "PLEMd2BuildMaps: Background Case not handled"
+			print "PLEMd2ExtractIBW: Background Case not handled"
 			return 0
 			break
 	endswitch
@@ -348,7 +348,7 @@ Function PLEMd2ExtractIBW(strPLEM, wavIBW)
 
 	// updating stats (TotalX and TotalY)
 	if(ItemsInList(strWaveBG, ";") != ItemsInList(strWavePL, ";"))
-		Abort "PELMd2BuildMaps: Error Size Missmatch between Background Maps and PL Maps"
+		Abort "PLEMd2ExtractIBW: Error Size Missmatch between Background Maps and PL Maps"
 	endif
 	stats.numPLEMTotalY = ItemsInList(strWavePL, ";")
 
@@ -359,7 +359,7 @@ Function PLEMd2ExtractIBW(strPLEM, wavIBW)
 
 	wave wavWavelength = dfr:WL
 	if(!WaveExists(wavWavelength))
-		Abort "PLEMd2BuildMaps: Wavelength Wave not found within ORIGINAL Folder"
+		Abort "PLEMd2ExtractIBW: Wavelength Wave not found within ORIGINAL Folder"
 	endif
 	stats.numPLEMTotalX = NumPnts(wavWavelength)
 	if(stats.numReadOutMode == 1)
@@ -387,7 +387,7 @@ Function PLEMd2ExtractIBW(strPLEM, wavIBW)
 	String strGratingWave = PLEMd2d1CorrectionConstructor(stats.numGrating,stats.numDetector,stats.numCooling)
 	if(!cmpstr(strGratingWave, ""))
 		stats.wavGrating = 1
-		print "PLEMd2BuildMaps: Grating Wave was set to 1"
+		print "PLEMd2ExtractIBW: Grating Wave was set to 1"
 	else
 		Duplicate/FREE $(ReplaceString("DUMMY", strGratingWave, "E_",1,1)) wavYgrating
 		Duplicate/FREE $(ReplaceString("DUMMY", strGratingWave, "WL_",1,1)) wavXgrating
@@ -464,57 +464,59 @@ Function PLEMd2ExtractIBW(strPLEM, wavIBW)
 		if(!NVAR_EXISTS(numSizeAdjustment))
 			Variable/G root:numSizeAdjustment = 0.960 // fixed value
 		endif
-
-		// calculate LaserPosition (x,y) for rotated image when numRotation != 0
-		Make/FREE/U/I/N=(stats.numPLEMTotalX, stats.numPLEMTotalY) laserposition = 0
-		laserposition[stats.numLaserPositionX][stats.numLaserPositionY] = 1000
-		ImageRotate/Q/E=(0)/O/A=(stats.numRotation) laserposition
-		WaveStats/M=1/Q laserposition
-		stats.numLaserPositionX = V_maxRowLoc
-		stats.numLaserPositionY = V_maxColLoc
-
-		// after rotation, number of points in wave changes
-		stats.numPLEMTotalX = DimSize(laserposition, 0)
-		stats.numPLEMTotalY = DimSize(laserposition, 1)
-		WaveClear laserposition
+		
+		dim0 = stats.numLaserPositionX
+		dim1 = stats.numLaserPositionY
+		PLEMd2rotatePoint(dim0, dim1, stats.numPLEMTotalX, stats.numPLEMTotalY, stats.numRotation)
+		stats.numLaserPositionX = dim0
+		stats.numLaserPositionY = dim1
 	endif
 
 	if(stats.numCalibrationMode == 1)
 		if(stats.numReadOutMode == 1)
 			stats.numPLEMDeltaX =  (stats.booSwitchY == 1 ? +1 : -1) * numSizeAdjustment * stats.numPixelPitch / stats.numMagnification
 			stats.numPLEMLeftX 	=  stats.numPositionY - stats.numPLEMDeltaX * (stats.numLaserPositionX)
-			stats.numPLEMRightX = stats.numPLEMLeftX + stats.numPLEMTotalX * stats.numPLEMDeltaX
 
 			stats.numPLEMDeltaY 	= (stats.booSwitchX == 1 ? -1 : +1) * numSizeAdjustment * stats.numPixelPitch / stats.numMagnification
 			stats.numPLEMBottomY 	= stats.numPositionX - stats.numPLEMDeltaY * stats.numLaserPositionY
-			stats.numPLEMTopY 		= stats.numPLEMBottomY  - stats.numPLEMTotalY * stats.numPLEMDeltaY
 		else
 			stats.numPLEMDeltaY 	= stats.numEmissionDelta
 			stats.numPLEMBottomY 	= stats.numEmissionStart
-			stats.numPLEMTopY 		= stats.numEmissionEnd
 		endif
 	else
 		stats.numPLEMLeftX = stats.wavWavelength[0]
 		stats.numPLEMDeltaX = PLEMd2Delta(stats.wavWavelength, normal = 1)
-		stats.numPLEMRightX = stats.numPLEMLeftX + stats.numWLdelta * (stats.numPLEMTotalX - 1)
 
-		stats.numPLEMBottomY	= (str2num(StringFromList(1,StringFromList(0,strWavePL), "_")) + str2num(StringFromList(2,StringFromList(0,strWavePL), "_"))) / 2
-		stats.numPLEMTopY		= (str2num(StringFromList(1,StringFromList((stats.numPLEMTotalY-1),strWavePL), "_")) + str2num(StringFromList(2,StringFromList((stats.numPLEMTotalY-1),strWavePL), "_"))) / 2
+		stats.numPLEMBottomY	= (str2num(StringFromList(1, StringFromList(0, strWavePL), "_")) + str2num(StringFromList(2, StringFromList(0, strWavePL), "_"))) / 2
 		stats.numPLEMDeltaY	= PLEMd2Delta(stats.wavExcitation)
 
 		// since PLEMv3.0 excitation is saved multiplied by 10.
 		if(stats.numPLEMBottomY > 1e3)
 			stats.numPLEMBottomY /= 10
-			stats.numPLEMTopY /= 10
 		endif
 	endif
 	SetScale/P x stats.numPLEMLeftX, stats.numPLEMDeltaX, "", stats.wavPLEM, stats.wavMeasure, stats.wavBackground
 	SetScale/P y stats.numPLEMBottomY, stats.numPLEMDeltaY, "", stats.wavPLEM, stats.wavMeasure, stats.wavBackground
-	SetScale/I x stats.numPLEMBottomY, stats.numPLEMTopY, "", stats.wavExcitation
 
 	PLEMd2statsSave(stats)
 
 	print GetWavesDataFolder(stats.wavPLEM, 2)
+End
+
+Function PLEMd2rotatePoint(pointX, pointY, totalX, totalY, rotation)
+	Variable &pointX, &pointY
+	Variable totalX, totalY, rotation
+
+	// calculate LaserPosition (x,y) for rotated image when numRotation != 0
+	Make/FREE/U/I/N=(totalX, totalY) wv = 0
+	wv[pointX][pointY] = 1000
+	ImageRotate/Q/E=(0)/O/A=(rotation) wv
+	WaveStats/M=1/Q wv
+
+	pointX = V_maxRowLoc
+	pointY = V_maxColLoc
+
+	return 0
 End
 
 Function PLEMd2BuildMaps(strPLEM)
@@ -524,6 +526,11 @@ Function PLEMd2BuildMaps(strPLEM)
 
 	Struct PLEMd2stats stats
 	PLEMd2statsLoad(stats, strPLEM)
+
+	if(stats.numRotation != 0)
+		// reset PLEM for rotation
+		Redimension/N=(stats.numPLEMTotalX, stats.numPLEMTotalY) stats.wavPLEM
+	endif
 
 	if(stats.booInterpolate == 1)
 		numExcitation = DimSize(stats.wavExcitation, 0)
@@ -549,7 +556,11 @@ Function PLEMd2BuildMaps(strPLEM)
 		stats.wavPLEM = stats.wavMeasure
 	endif
 	if(stats.booPower)
-		stats.wavPLEM /= stats.wavYpower[q]
+		if(DimSize(stats.wavPLEM, 1) == DimSize(stats.wavYpower, 0))
+			stats.wavPLEM /= stats.wavYpower[q]
+		else
+			stats.wavPLEM /= stats.wavYpower[0]
+		endif
 	endif
 	if(stats.booPhoton)
 		stats.wavPLEM /= stats.wavYphoton[q]
@@ -1178,6 +1189,7 @@ Function PLEMd2AtlasFit3D(strPLEM)
 	Variable numS1,numS2
 	Variable numDeltaS1, numDeltaS2
 	Variable numDeltaS1left, numDeltaS1right, numDeltaS2bottom, numDeltaS2top
+	Variable rightXvalue, topYvalue
 	Variable V_fitOptions=4 // used to suppress CurveFit dialog
 	Variable V_FitQuitReason // stores the CurveFit Quit Reason
 	Variable V_FitError // Curve Fit error
@@ -1202,13 +1214,17 @@ Function PLEMd2AtlasFit3D(strPLEM)
 
 	stats.wavPLEMfit = NaN
 	stats.wavPLEMfitSingle = 0
-	SetScale y,stats.numPLEMbottomY,stats.numPLEMtopY, "",stats.wavPLEMfit
-	SetScale x,stats.numPLEMleftX,stats.numPLEMrightX, "",stats.wavPLEMfit
+	SetScale/P y,stats.numPLEMbottomY,stats.numPLEMdeltaY, "",stats.wavPLEMfit
+	SetScale/P x,stats.numPLEMleftX,stats.numPLEMdeltaX, "",stats.wavPLEMfit
 	//Display
 	//AppendImage stats.wavPLEM
 
 	numDeltaS1 = 50
 	numDeltaS2 = 50
+	
+	rightXvalue = stats.numPLEMleftX + stats.numPLEMTotalX * stats.numPLEMdeltaX
+	topYvalue = stats.numPLEMbottomY + stats.numPLEMTotalY * stats.numPLEMdeltaY
+	
 	// input
 	i=0
 	for(i = 0; i < numpnts(stats.wavEnergyS1); i += 1)
@@ -1222,16 +1238,16 @@ Function PLEMd2AtlasFit3D(strPLEM)
 		numDeltaS2bottom = numDeltaS2/2
 		numDeltaS2top 	= numDeltaS2/2
 
-		if((numS1-numDeltaS1left) <stats.numPLEMleftX)
+		if((numS1-numDeltaS1left) < stats.numPLEMleftX)
 			//print "chirality not in Map S1 Data Range"
 			numDeltaS1left = numS1 - stats.numPLEMleftX
 			if(numDeltaS1left<0)
 				numDeltaS1left = 0
 			endif
 		endif
-		if((numS1+numDeltaS1right) > stats.numPLEMrightX)
+		if((numS1+numDeltaS1right) > rightXvalue)
 			//print "chirality not in Map S1Data Range"
-			numDeltaS1right = stats.numPLEMrightX - numS1
+			numDeltaS1right = rightXvalue - numS1
 			if(numDeltaS1right<0)
 				numDeltaS1right = 0
 			endif
@@ -1243,9 +1259,9 @@ Function PLEMd2AtlasFit3D(strPLEM)
 				numDeltaS2bottom = 0
 			endif
 		endif
-		if((numS2+numDeltaS2top) > stats.numPLEMtopY)
+		if((numS2+numDeltaS2top) > topYvalue)
 			//print "chirality not in Map S1Data Range"
-			numDeltaS2top = stats.numPLEMtopY - numS2
+			numDeltaS2top = topYvalue - numS2
 			if(numDeltaS2top<0)
 				numDeltaS2top = 0
 			endif
@@ -1615,7 +1631,6 @@ Function PLEMd2d1Import(numKillWavesAfterwards)
 		//Append Current Map to List of Maps
 		PLEMd2AddMap(strMap)
 		//Save stats.
-		PLEMd2statsCalculateDeprecated(stats)
 		PLEMd2statsSave(stats)
 	endfor
 	PLEMd2exit()
