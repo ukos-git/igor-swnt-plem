@@ -556,7 +556,11 @@ Function PLEMd2BuildMaps(strPLEM)
 		stats.wavPLEM = stats.wavMeasure
 	endif
 	if(stats.booPower)
-		stats.wavPLEM /= stats.wavYpower[q]
+		if(DimSize(stats.wavPLEM, 1) == DimSize(stats.wavYpower, 0))
+			stats.wavPLEM /= stats.wavYpower[q]
+		else
+			stats.wavPLEM /= stats.wavYpower[0]
+		endif
 	endif
 	if(stats.booPhoton)
 		stats.wavPLEM /= stats.wavYphoton[q]
