@@ -9,7 +9,7 @@
 //
 
 // Variables for current Project only. See also the LoadPreferences towards the end of the procedure for additional settings that are saved system-wide.
-Constant 	cPLEMd2Version = 3002
+Constant 	cPLEMd2Version = 3003
 StrConstant cstrPLEMd2root = "root:PLEMd2"
 
 Function PLEMd2initVar()
@@ -362,10 +362,18 @@ Function PLEMd2ExtractIBW(strPLEM, wavIBW)
 		Abort "PLEMd2ExtractIBW: Wavelength Wave not found within ORIGINAL Folder"
 	endif
 	stats.numPLEMTotalX = NumPnts(wavWavelength)
+
 	if(stats.numReadOutMode == 1)
-		// image mode. currently no information for images is saved
-		stats.numPLEMTotalY = 1040
-		stats.numPLEMTotalX = 1392
+		// quick fix for image mode on cameras
+		if(stats.numPLEMTotalX == 81919) // xenics xeva
+			stats.numDetector = 3
+			stats.numPLEMTotalY = 256
+			stats.numPLEMTotalX = 320
+		else
+			stats.numDetector = 2 // andor clara
+			stats.numPLEMTotalY = 1040
+			stats.numPLEMTotalX = 1392
+		endif
 	endif
 
 	// Redimension the Waves to proper size
@@ -401,6 +409,7 @@ Function PLEMd2ExtractIBW(strPLEM, wavIBW)
 
 		if(stats.numReadOutMode == 1)
 			// image mode. currently no information for images is saved
+			Redimension/N=(stats.numPLEMTotalY * stats.numPLEMTotalX) wavMeasure, wavBackground // workaround for XEVA (2 pixel missing)
 			stats.wavMeasure = wavMeasure[p + stats.numPLEMTotalX * q]
 			stats.wavBackground = wavBackground[p + stats.numPLEMTotalX * q]
 		else
@@ -449,27 +458,33 @@ Function PLEMd2ExtractIBW(strPLEM, wavIBW)
 	stats.wavYpower	 = str2num(StringFromList(p, PLEMd2ExtractPower(wavIBW), ";"))
 	stats.wavYphoton = (stats.wavYpower * 1e-6) / (6.62606957e-34 * 2.99792458e+8 / (stats.wavExcitation * 1e-9)) 		// power is in uW and Excitation is in nm
 
-	// Set Wave Scaling
-	stats.numPixelPitch = 0
+	// init camera specific corrections
+	stats.numPixelPitch = 1
 	stats.numRotation = 0
 	NVAR/Z numSizeAdjustment = root:numSizeAdjustment
+	if(!NVAR_EXISTS(numSizeAdjustment))
+		Variable/G root:numSizeAdjustment = 1
+		NVAR numSizeAdjustment = root:numSizeAdjustment
+	endif
+
+	// set camera specific corrections
 	if(stats.numDetector == 0)
 		// Andor Newton
 	elseif(stats.numDetector == 1)
 		// Andor iDus
 	elseif(stats.numDetector == 2)
 		// Andor Clara
-		stats.numPixelPitch = 6.45 	//6.45um from manual trial and error
-		stats.numRotation = -0.8 	// fixed rotation angle
-		if(!NVAR_EXISTS(numSizeAdjustment))
-			Variable/G root:numSizeAdjustment = 0.960 // fixed value
-		endif
-		
-		dim0 = stats.numLaserPositionX
-		dim1 = stats.numLaserPositionY
-		PLEMd2rotatePoint(dim0, dim1, stats.numPLEMTotalX, stats.numPLEMTotalY, stats.numRotation)
-		stats.numLaserPositionX = dim0
-		stats.numLaserPositionY = dim1
+		stats.numPixelPitch = 6.45 	// 6.45um according to specification
+		numSizeAdjustment = 0.960 // real magnification from setup found by trial and error
+
+		// rotation adjustments
+		stats.numRotation = -0.8 // mounted camera is rotated depending on setup
+		PLEMd2rotateLaser(stats)
+	elseif(stats.numDetector == 3)
+		// Xencis XEVA
+		stats.numPixelPitch = 30 // 30um according to manual
+		numSizeAdjustment = 0.977 // real magnification from setup found by trial and error
+		stats.booSwitchX = !stats.booSwitchX // xeva has reverse readout
 	endif
 
 	if(stats.numCalibrationMode == 1)
@@ -503,7 +518,22 @@ Function PLEMd2ExtractIBW(strPLEM, wavIBW)
 	print GetWavesDataFolder(stats.wavPLEM, 2)
 End
 
-Function PLEMd2rotatePoint(pointX, pointY, totalX, totalY, rotation)
+// recalculate laserposition for rotated image
+static Function PLEMd2rotateLaser(stats)
+	Struct PLEMd2stats &stats
+
+	variable dim0, dim1
+
+	dim0 = stats.numLaserPositionX
+	dim1 = stats.numLaserPositionY
+
+	PLEMd2rotatePoint(dim0, dim1, stats.numPLEMTotalX, stats.numPLEMTotalY, stats.numRotation)
+
+	stats.numLaserPositionX = dim0
+	stats.numLaserPositionY = dim1
+End
+
+static Function PLEMd2rotatePoint(pointX, pointY, totalX, totalY, rotation)
 	Variable &pointX, &pointY
 	Variable totalX, totalY, rotation
 
