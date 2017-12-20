@@ -1676,6 +1676,16 @@ Function PLEMd2getMapsAvailable()
 	return numMaps
 End
 
+Function/S PLEMd2getStrMapsAvailable()
+	DFREF dfr = $cstrPLEMd2root
+	SVAR/Z strMaps = dfr:gstrMapsAvailable
+	if(!SVAR_EXISTS(strMaps))
+		return ""
+	endif
+
+	return strMaps
+End
+
 Function PLEMd2AddMap(strMap)
 	String strMap
 
@@ -1734,16 +1744,13 @@ End
 Function PLEMd2MapExists(strMap)
 	String strMap
 
-	DFREF dfr = $cstrPLEMd2root
-	SVAR gstrMapsAvailable = dfr:gstrMapsAvailable
+	String strMaps = PLEMd2getStrMapsAvailable()
 
-	Variable numReturn = 0
-
-	if(FindListItem(strMap, gstrMapsAvailable) != -1)
-		numReturn = 1
+	if(FindListItem(strMap, strMaps) != -1)
+		return 1
 	endif
 
-	return numReturn
+	return 0
 End
 
 Function PLEMd2MapStringReInit()
@@ -2179,18 +2186,18 @@ Function PLEMd2numPLEM(strPLEM)
 	String strPLEM
 
 	DFREF dfr = $cstrPLEMd2root
-	SVAR gstrMapsAvailable = dfr:gstrMapsAvailable
+	string strMaps = PLEMd2getStrMapsAvailable()
 
-	return FindListItem(strPLEM, gstrMapsAvailable)
+	return FindListItem(strPLEM, strMaps)
 End
 
 Function/S PLEMd2strPLEM(numPLEM)
 	Variable numPLEM
 
 	DFREF dfr = $cstrPLEMd2root
-	SVAR gstrMapsAvailable = dfr:gstrMapsAvailable
+	string strMaps = PLEMd2getStrMapsAvailable()
 
-	return StringFromList(numPLEM, gstrMapsAvailable)
+	return StringFromList(numPLEM, strMaps)
 End
 
 Function/WAVE PLEMd2getAllstrPLEM([forceRenew])
