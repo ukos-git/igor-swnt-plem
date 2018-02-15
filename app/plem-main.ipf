@@ -2260,3 +2260,69 @@ Function/WAVE PLEMd2getCoordinates([forceRenew])
 
 	return wv
 End
+
+Function/WAVE PLEMd2getPower([forceRenew])
+	Variable forceRenew
+
+	Variable i
+	Variable numMaps = PLEMd2getMapsAvailable()
+
+	DFREF dfr = $cstrPLEMd2root
+	Struct PLEMd2stats stats
+
+	forceRenew = ParamIsDefault(forceRenew) ? 0 : !!forceRenew
+
+	WAVE/Z wv = dfr:power
+	if(WaveExists(wv) && !forceRenew)
+		if(DimSize(wv, 0) == numMaps)
+			return wv
+		else
+			Redimension/N=(numMaps, -1) wv
+		endif
+	else
+		PLEMd2statsLoad(stats, PLEMd2strPLEM(0))
+		Make/O/N=(numMaps, DimSize(stats.wavPLEM, 1)) dfr:power/WAVE=wv = NaN
+	endif
+
+	WAVE/T wavStrPLEM = PLEMd2getAllstrPLEM()
+	for(i = 0; i < numMaps; i += 1)
+		PLEMd2statsLoad(stats, wavStrPLEM[i])
+		wv[i][] = stats.wavYpower[q]
+	endfor
+
+	print GetDataFolder(0, wv)
+	return wv
+End
+
+Function/WAVE PLEMd2getPhoton([forceRenew])
+	Variable forceRenew
+
+	Variable i
+	Variable numMaps = PLEMd2getMapsAvailable()
+
+	DFREF dfr = $cstrPLEMd2root
+	Struct PLEMd2stats stats
+
+	forceRenew = ParamIsDefault(forceRenew) ? 0 : !!forceRenew
+
+	WAVE/Z wv = dfr:photon
+	if(WaveExists(wv) && !forceRenew)
+		if(DimSize(wv, 0) == numMaps)
+			return wv
+		else
+			Redimension/N=(numMaps, -1) wv
+		endif
+	else
+		PLEMd2statsLoad(stats, PLEMd2strPLEM(0))
+		Make/O/N=(numMaps, DimSize(stats.wavPLEM, 1)) dfr:photon/WAVE=wv = NaN
+	endif
+
+	WAVE/T wavStrPLEM = PLEMd2getAllstrPLEM()
+	for(i = 0; i < numMaps; i += 1)
+		PLEMd2statsLoad(stats, wavStrPLEM[i])
+		wv[i][] = stats.wavYphoton[q]
+	endfor
+
+	print GetWavesDataFolder(wv, 0)
+	return wv
+End
