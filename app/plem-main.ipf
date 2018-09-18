@@ -251,22 +251,19 @@ Function/DF PLEMd2ExtractWaves(wavIBW)
 		Abort "PLEMd2ExtractWaves: Binary File has no waves"
 	endif
 	if(numTotalY != ItemsInList(strWaveNames))
-		print "PLEMd2ExtractWaves: Error WaveNames not correct in WaveNotes. Trying to correct WaveNotes"
+		print "PLEMd2ExtractWaves: Error WaveNames not correct in WaveNotes."
 		PLEMd2FixWavenotes(wavIBW)
 		strWaveNames = PLEMd2ExtractWaveList(wavIBW)
 	endif
 	if(numTotalY != ItemsInList(strWaveNames))
-		PLEMd2exit()
-		Abort "PLEMd2ExtractWaves: Error WaveNames not found in WaveNotes. Check and correct manually Igor0,Igor1,Igor2,Igor3"
+		printf "PLEMd2ExtractWaves: Missmatch in wavenames:\r%s\rWaveNames not correct in WaveNote. Counting %d data columns and %d labels.\rManual interaction needed.", strWaveNames, numTotalY, ItemsInList(strWaveNames)
 	endif
 
 	//Extract Columns from Binary Wave and give them proper names
 	for(i = 0; i < numTotalY; i += 1)
 		strWaveExtract = StringFromList(i, strWaveNames)
 		Make/D/O/N=(numTotalX) dfr:$strWaveExtract/WAVE=wv
-		for(j = 0; j < numTotalX; j += 1)
-			wv[j] = wavIBW[j][i]
-		endfor
+		wv[] = wavIBW[p][i]
 		WaveClear wv
 	endfor
 
