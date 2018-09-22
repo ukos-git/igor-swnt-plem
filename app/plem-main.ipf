@@ -324,7 +324,7 @@ Function PLEMd2ExtractIBW(strPLEM, wavIBW)
 				strWaveBG += "BG;"
 			endfor
 
-			wave wavBackground = BG
+			wave/Z wavBackground = BG
 			if(!WaveExists(wavBackground))
 				print "PLEMd2ExtractIBW: Error, wave BG does not exist in folder :ORIGINAL"
 			endif
@@ -772,43 +772,21 @@ End
 Function/S PLEMd2ExtractWaveList(wavIBW)
 	Wave wavIBW
 
-	String strHeader, strList, strReadLine, strItem
-	String strListWaveNumbers, strListWaveNames
-	Variable numListWaveNumbers, numListWaveNames
-	Variable i, numCount, numItem
+	String strHeader, strList, strReadLine
+	Variable i, numLines, startLine, endLine
 
 	strHeader=note(wavIBW)
-	numCount = ItemsInList(strHeader, "\r")
-
-	i=0
-	do
-		i += 1
-		strReadLine = StringFromList(i, strHeader, "\r")
-	while ((StringMatch(strReadLine, "*IGOR2*") != 1) && (i<numCount))
-	strListWaveNumbers = StringFromList(1, strReadLine, ":")
-
-	do
-		i += 1
-		strReadLine = StringFromList(i, strHeader, "\r")
-	while ((StringMatch(strReadLine, "*IGOR3*") != 1) && (i<numCount))
-	strListWaveNames = StringFromList(1, strReadLine, ":")
-
-	numListWaveNumbers = ItemsInList(strListWaveNumbers, ";")
-	numListWaveNames = ItemsInList(strListWaveNames, ";")
-	if(numListWaveNumbers != numListWaveNames)
-		print "PLEMd2ExtractWaveList: Size Missmatch in Binary File. Check Labview Programming"
-		return ""
+	startLine = strsearch(strHeader, "IGOR3:", 0) + 6
+	if(startLine < 0)
+		Abort "Critical: String IGOR3: missing in WaveNote"
 	endif
 
-	strList = ""
-	for(i = 0; i < numListWaveNames; i += 1)
-		strItem = StringFromList(i, strListWaveNames, ";")
-		numItem = str2num(StringFromList(i, strListWaveNumbers, ";"))
-		if(strlen(strItem) > 0)
-			strList=AddListItem(strItem, strList, ";", numItem)
-		endif
-	endfor
-	return strList
+	endLine = strsearch(strHeader, "\r", startLine) - 1
+	if(endLine < 0)
+		endLine = strlen(strHeader)
+	endif
+
+	return strHeader[startLine, endLine]
 End
 
 Function/S PLEMd2ExtractPower(wavIBW)
@@ -843,50 +821,55 @@ Function/S PLEMd2ExtractPower(wavIBW)
 	return strListPower
 End
 
-Function PLEMd2DuplicateByNum(numPLEM)
+Function/WAVE PLEMd2DuplicateByNum(numPLEM)
 	Variable numPLEM
 	if(numPLEM < 0)
 		print "PLEMd2DuplicateByNum: Wrong Function Call numPLEM out of range"
-		return 0
+		return $""
 	endif
 	String strPLEM
 	strPLEM = PLEMd2strPLEM(numPLEM)
-	PLEMd2Duplicate(strPLEM)
+	return PLEMd2Duplicate(strPLEM)
 End
 
-Function/S	PLEMd2Duplicate(strPLEM)
+Function/WAVE PLEMd2Duplicate(strPLEM, [overwrite])
 	String strPLEM
+	variable overwrite
+
+	String strTemp, strWavename
+	Variable i
 
 	Struct PLEMd2Stats stats
 	PLEMd2statsLoad(stats, strPLEM)
+	
+	overwrite = ParamIsDefault(overwrite) ? 1 : !!overwrite
 
-	SetDataFolder $(stats.strDataFolder)
-	Wave PLEM
-	String strWavename="root:" + stats.strPLEM
-	String strTemp = strWavename
-	Variable i=0
-	if(WaveExists($strWavename))
+	strWavename = "root:" + stats.strPLEM
+	strTemp = strWavename
+
+	if(!overwrite && WaveExists($strWavename))
 		print "PLEMd2Duplicate: Wave already exists. Using incremental WaveName"
+		i = -1
 		do
-			wave wavTemp =$("")
+			i += 1
 			strTemp = strWavename + "_" + num2str(i)
-			wave wavTemp = $strTemp
-			i+=1
-		while (WaveExists(wavTemp))
+			wave/Z wv = $strTemp
+		while(WaveExists(wv))
 		strWavename = strTemp
-		wave wavTemp =$("")
 	endif
-	Duplicate PLEM $strWavename
-	wave wavDuplicated = $strWavename
+
+	Duplicate/O stats.wavPLEM $strWavename/WAVE=wv
 	print "PLEMd2Duplicate: WaveName is " + strWavename
-	SetDataFolder root:
-	return GetwavesDataFolder(wavDuplicated,2)
+
+	return wv
 End
 
 Function PLEMd2FixWavenotes(wavIBW)
 	WAVE wavIBW
 
-	String strHeader
+	String strHeader, strWaveNames, strWaveNamesNew, falseBackground, i
+
+	print "PLEMd2FixWavenotes: Trying to correct WaveNote"
 
 	strHeader = Note(wavIBW)
 	if((StringMatch(strHeader, "*IGOR2:*")) == 0)
@@ -895,8 +878,18 @@ Function PLEMd2FixWavenotes(wavIBW)
 		//rename IGOR4 to IGOR3 and IGOR3 to IGOR2.
 		strHeader = ReplaceString("IGOR3:",strHeader, "IGOR2:")
 		strHeader = ReplaceString("IGOR4:",strHeader, "IGOR3:")
-		Note/K/NOCR wavIBW strHeader
 	Endif
+
+	strWaveNames = PLEMd2ExtractWaveList(wavIBW)
+	if(StringMatch(strWaveNames, "*BG;*") && StringMatch(strWaveNames, "*BG_*"))
+		//mixed multiple and single background during measurement, revert to single bg
+		strWaveNamesNew = RemoveFromList(ListMatch(strWaveNames, "BG_*"), strWaveNames)
+		//strWaveNames	= strHeader[strsearch(strHeader, "IGOR3:",0), strlen(strHeader)]
+		strHeader = ReplaceString("IGOR3:" + strWaveNames, strHeader, "IGOR3:" + strWaveNamesNew)
+	endif
+	
+	Note/K wavIBW strHeader
+	strHeader = Note(wavIBW)
 End
 
 Function PLEMd2AtlasReload(strPLEM)
