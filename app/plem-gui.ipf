@@ -18,7 +18,7 @@ Function PLEMd2Display(strPLEM)
 	endif
 
 	// check if window already exists
-	winPLEM = "win_" + stats.strPLEM
+	winPLEM = PLEMd2getWindow(stats.strPLEM)
 	DoWindow/F $winPLEM
 	// DoWindow sets the variable V_flag:
 	// 	1 window existed
@@ -501,16 +501,3 @@ Function SetVarProcCalculate(sva) : SetVariableControl
 	return 0
 End
 
-Function/S PLEMd2window2strPLEM(strWindow)
-	String strWindow
-	Variable numStart, numEnd
-
-	numEnd = strsearch(strWindow, "#",0)
-	numStart = strsearch(strWindow, "win_", 0)
-
-	if(numEnd == -1 && numStart != -1)
-		return strWindow[numStart+4,inf]
-	else
-		return strWindow[numStart+4,numEnd-1]
-	endif
-End

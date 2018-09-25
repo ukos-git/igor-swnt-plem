@@ -6,6 +6,29 @@ static StrConstant cstrPLEMd2maps 	= ":maps"
 static StrConstant cstrPLEMd2info 	= ":INFO"
 static StrConstant cstrPLEMd2chirality = ":CHIRALITY"
 static StrConstant cstrPLEMd2originals = ":ORIGINAL"
+static StrConstant cstrPLEMd2windowPrefix = ""
+static StrConstant cstrPLEMd2windowSuffix = "_graph"
+
+Function/S PLEMd2getWindow(strPLEM)
+	String strPLEM
+
+	return cstrPLEMd2windowPrefix + strPLEM + cstrPLEMd2windowSuffix
+
+End
+
+Function/S PLEMd2window2strPLEM(strWindow)
+	String strWindow
+	Variable numStart, numEnd
+
+	numStart = strlen(cstrPLEMd2windowPrefix) > 0 ? strsearch(strWindow, cstrPLEMd2windowPrefix, 0) : 0
+	numEnd = strlen(cstrPLEMd2windowSuffix) > 0 ? strsearch(strWindow, cstrPLEMd2windowSuffix, 0) : strsearch(strWindow, "#", 0)
+
+	if(numEnd == -1 && numStart != -1)
+		return strWindow[numStart+4,inf]
+	else
+		return strWindow[numStart+4,numEnd-1]
+	endif
+End
 
 static Function/DF returnDataFolderReference(strDataFolder)
 	String strDataFolder

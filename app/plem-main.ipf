@@ -1027,7 +1027,7 @@ Function PLEMd2AtlasEdit(strPLEM)
 
 	PLEMd2statsLoad(stats, strPLEM)
 
-	winPLEMedit = "win_" + stats.strPLEM + "_edit"
+	winPLEMedit = PLEMd2getWindow(stats.strPLEM) + "_edit"
 	DoWindow/F $winPLEMedit
 	if(V_flag == 0)
 		Edit stats.wavchiralitynm, stats.wav2Dfit, stats.wav1Dfit, stats.wavEnergyS1, stats.wavEnergyS2, stats.wavChiralityn, stats.wavChiralityM
@@ -1345,7 +1345,7 @@ Function PLEMd2AtlasFit3D(strPLEM)
 	endif
 
 	// check if window already exists
-	winPLEMfit = "win_" + stats.strPLEM + "_fit"
+	winPLEMfit = PLEMd2getWindow(stats.strPLEM) + "_fit"
 	DoWindow/F $winPLEMfit
 	if(V_flag == 2)
 		print "PLEMd2AtlasFit: Fit-Graph was hidden. Case not handled. check code"
