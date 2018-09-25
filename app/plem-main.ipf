@@ -483,6 +483,26 @@ Function PLEMd2ExtractIBW(strPLEM, wavIBW)
 		numSizeAdjustment = 0.977 // real magnification from setup found by trial and error
 		stats.booSwitchX = !stats.booSwitchX // xeva has reverse readout
 	endif
+	
+	if(stats.numCalibrationMode != 1)
+		//todo counterpart in PLEMd2setScale
+		stats.numPLEMBottomY	= (str2num(StringFromList(1, StringFromList(0, strWavePL), "_")) + str2num(StringFromList(2, StringFromList(0, strWavePL), "_"))) / 2
+	endif
+
+	PLEMd2statsSave(stats)
+
+	print GetWavesDataFolder(stats.wavPLEM, 2)
+End
+
+static Function PLEMd2setScale(stats)
+	Struct PLEMd2stats &stats
+	
+	NVAR/Z numSizeAdjustment = root:numSizeAdjustment
+	if(!NVAR_EXISTS(numSizeAdjustment))
+		Variable/G root:numSizeAdjustment = 1
+		NVAR numSizeAdjustment = root:numSizeAdjustment
+		print "Error: sizeAdjustment set to 1"
+	endif
 
 	if(stats.numCalibrationMode == 1)
 		if(stats.numReadOutMode == 1)
@@ -499,7 +519,7 @@ Function PLEMd2ExtractIBW(strPLEM, wavIBW)
 		stats.numPLEMLeftX = stats.wavWavelength[0]
 		stats.numPLEMDeltaX = PLEMd2Delta(stats.wavWavelength, normal = 1)
 
-		stats.numPLEMBottomY	= (str2num(StringFromList(1, StringFromList(0, strWavePL), "_")) + str2num(StringFromList(2, StringFromList(0, strWavePL), "_"))) / 2
+		stats.numPLEMBottomY	= stats.numPLEMBottomY //todo
 		stats.numPLEMDeltaY	= PLEMd2Delta(stats.wavExcitation)
 
 		// since PLEMv3.0 excitation is saved multiplied by 10.
@@ -507,12 +527,11 @@ Function PLEMd2ExtractIBW(strPLEM, wavIBW)
 			stats.numPLEMBottomY /= 10
 		endif
 	endif
-	SetScale/P x stats.numPLEMLeftX, stats.numPLEMDeltaX, "", stats.wavPLEM, stats.wavMeasure, stats.wavBackground
-	SetScale/P y stats.numPLEMBottomY, stats.numPLEMDeltaY, "", stats.wavPLEM, stats.wavMeasure, stats.wavBackground
 
 	PLEMd2statsSave(stats)
-
-	print GetWavesDataFolder(stats.wavPLEM, 2)
+	
+	SetScale/P x stats.numPLEMLeftX, stats.numPLEMDeltaX, "", stats.wavPLEM, stats.wavMeasure, stats.wavBackground
+	SetScale/P y stats.numPLEMBottomY, stats.numPLEMDeltaY, "", stats.wavPLEM, stats.wavMeasure, stats.wavBackground
 End
 
 // recalculate laserposition for rotated image
@@ -553,6 +572,8 @@ Function PLEMd2BuildMaps(strPLEM)
 
 	Struct PLEMd2stats stats
 	PLEMd2statsLoad(stats, strPLEM)
+	
+	PLEMd2setScale(stats)
 
 	if(stats.numRotation != 0)
 		// reset PLEM for rotation
