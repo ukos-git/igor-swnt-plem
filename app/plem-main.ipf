@@ -1355,7 +1355,7 @@ Function PLEMd2AtlasFit3D(strPLEM)
 	// 	1 window existed
 	// 	0 no such window
 	// 	2 window is hidden.
-	if(V_flag == 1)
+	if(!!V_flag)
 		String listContour = ContourNameList("", ";")
 		for(i = 0; i < ItemsInList(listContour); i += 1)
 			RemoveContour $(StringFromList(i, listContour))
