@@ -1349,7 +1349,7 @@ Function PLEMd2AtlasFit3D(strPLEM)
 	PLEMd2AtlasMerge3d(stats.wavPLEMfit,stats.wavPLEMfitSingle)
 
 	// check if window already exists
-	winPLEM = "win_" + stats.strPLEM
+	winPLEM = PLEMd2getWindow(stats.strPLEM)
 	DoWindow/F $winPLEM
 	// DoWindow sets the variable V_flag:
 	// 	1 window existed
