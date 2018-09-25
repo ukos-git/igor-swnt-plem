@@ -576,8 +576,7 @@ Function PLEMd2BuildMaps(strPLEM)
 	PLEMd2setScale(stats)
 
 	if(stats.numRotation != 0)
-		// reset PLEM for rotation
-		Redimension/N=(stats.numPLEMTotalX, stats.numPLEMTotalY) stats.wavPLEM
+		Redimension/N=(DimSize(stats.wavMeasure, 0), DimSize(stats.wavMeasure, 1)) stats.wavPLEM
 	endif
 
 	if(stats.booInterpolate == 1)
