@@ -180,8 +180,11 @@ Function PLEMd2Open([strFile, display])
 	if(ParamIsDefault(display))
 		display = 1
 	endif
-	if(strlen(strFile) == 0)
-		return -1
+
+	// check for valid filename
+	GetFileFolderInfo/Q/Z=1 strFile
+	if(!!V_Flag || !V_isFile)
+		Abort "PLEMd2Open: Invalid filename"
 	endif
 
 	strFileName 	= ParseFilePath(3, strFile, ":", 0, 0)
