@@ -458,14 +458,12 @@ Function PLEMd2ExtractIBW(strPLEM, wavIBW)
 	stats.wavYpower	 = str2num(StringFromList(p, PLEMd2ExtractPower(wavIBW), ";"))
 	stats.wavYphoton = (stats.wavYpower * 1e-6) / (6.62606957e-34 * 2.99792458e+8 / (stats.wavExcitation * 1e-9)) 		// power is in uW and Excitation is in nm
 
-	// init camera specific corrections
+	// init camera specific corrections.
+	// Please note that sizeadjustment and rotationadjustment are not
+	// changeable on a "per file base" but on a "per experiment base"
 	stats.numPixelPitch = 1
-	stats.numRotation = 0
 	NVAR/Z numSizeAdjustment = root:numSizeAdjustment
-	if(!NVAR_EXISTS(numSizeAdjustment))
-		Variable/G root:numSizeAdjustment = 1
-		NVAR numSizeAdjustment = root:numSizeAdjustment
-	endif
+	NVAR/Z numRotationAdjustment = root:numRotationAdjustment
 
 	// set camera specific corrections
 	if(stats.numDetector == 0)
@@ -474,17 +472,39 @@ Function PLEMd2ExtractIBW(strPLEM, wavIBW)
 		// Andor iDus
 	elseif(stats.numDetector == 2)
 		// Andor Clara
-		stats.numPixelPitch = 6.45 	// 6.45um according to specification
-		numSizeAdjustment = 0.960 // real magnification from setup found by trial and error
+		stats.numPixelPitch = 6.45 	// 6.45um
+
+		// magnification adjustment
+		if(!NVAR_EXISTS(numSizeAdjustment))
+			Variable/G root:numSizeAdjustment = 0.960
+			NVAR numSizeAdjustment = root:numSizeAdjustment
+		endif
 
 		// rotation adjustments
-		stats.numRotation = -0.8 // mounted camera is rotated depending on setup
+		if(!NVAR_EXISTS(numRotationAdjustment))
+			// mounted camera is rotated depending on setup
+			Variable/G root:numRotationAdjustment = -0.8
+			NVAR numRotationAdjustment = root:numRotationAdjustment
+		endif
 		PLEMd2rotateLaser(stats)
 	elseif(stats.numDetector == 3)
 		// Xencis XEVA
-		stats.numPixelPitch = 30 // 30um according to manual
-		numSizeAdjustment = 0.977 // real magnification from setup found by trial and error
+		stats.numPixelPitch = 30 // 30um
+
+		// magnification adjustment
+		if(!NVAR_EXISTS(numSizeAdjustment))
+			Variable/G root:numSizeAdjustment = 0.977
+			NVAR numSizeAdjustment = root:numSizeAdjustment
+		endif
+
 		stats.booSwitchX = !stats.booSwitchX // xeva has reverse readout
+	endif
+	if(!NVAR_EXISTS(numRotationAdjustment))
+		Variable/G root:numRotationAdjustment = 0
+		NVAR numRotationAdjustment = root:numRotationAdjustment
+	endif
+	if(!NVAR_EXISTS(numSizeAdjustment))
+		Variable/G root:numSizeAdjustment = 1
 	endif
 	
 	if(stats.numCalibrationMode != 1)
@@ -546,7 +566,8 @@ static Function PLEMd2rotateLaser(stats)
 	dim0 = stats.numLaserPositionX
 	dim1 = stats.numLaserPositionY
 
-	PLEMd2rotatePoint(dim0, dim1, stats.numPLEMTotalX, stats.numPLEMTotalY, stats.numRotation)
+	NVAR numRotationAdjustment = root:numRotationAdjustment
+	PLEMd2rotatePoint(dim0, dim1, stats.numPLEMTotalX, stats.numPLEMTotalY, numRotationAdjustment)
 
 	stats.numLaserPositionX = dim0
 	stats.numLaserPositionY = dim1
@@ -556,7 +577,7 @@ static Function PLEMd2rotatePoint(pointX, pointY, totalX, totalY, rotation)
 	Variable &pointX, &pointY
 	Variable totalX, totalY, rotation
 
-	// calculate LaserPosition (x,y) for rotated image when numRotation != 0
+	// calculate LaserPosition (x,y) for rotated image when numRotationAdjustment != 0
 	Make/FREE/U/I/N=(totalX, totalY) wv = 0
 	wv[pointX][pointY] = 1000
 	ImageRotate/Q/E=(0)/O/A=(rotation) wv
@@ -578,9 +599,8 @@ Function PLEMd2BuildMaps(strPLEM)
 	
 	PLEMd2setScale(stats)
 
-	if(stats.numRotation != 0)
-		Redimension/N=(DimSize(stats.wavMeasure, 0), DimSize(stats.wavMeasure, 1)) stats.wavPLEM
-	endif
+	// reset PLEM size to measurement (rotation changes it)
+	Redimension/N=(DimSize(stats.wavMeasure, 0), DimSize(stats.wavMeasure, 1)) stats.wavPLEM
 
 	if(stats.booInterpolate == 1)
 		numExcitation = DimSize(stats.wavExcitation, 0)
@@ -624,8 +644,9 @@ Function PLEMd2BuildMaps(strPLEM)
 	if(stats.booQuantumEfficiency)
 		stats.wavPLEM *= 1 // QE not handled
 	endif
-	if(stats.numRotation != 0)
-		ImageRotate/Q/E=(NaN)/O/A=(stats.numRotation) stats.wavPLEM
+	NVAR numRotationAdjustment = root:numRotationAdjustment
+	if(numRotationAdjustment != 0)
+		ImageRotate/Q/E=(NaN)/O/A=(numRotationAdjustment) stats.wavPLEM
 	endif
 End
 

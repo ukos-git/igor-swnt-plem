@@ -36,7 +36,7 @@ Structure PLEMd2stats
 	variable numPositionX, numPositionY, numPositionZ, booSwitchX, booSwitchY
 
 	// image mode information (PLEMv3.3)
-	variable numReadOutMode, numLaserPositionX, numLaserPositionY, numMagnification, numRotation, numPixelPitch
+	variable numReadOutMode, numLaserPositionX, numLaserPositionY, numMagnification, numPixelPitch
 
 	// variables from IBW file
 	String strDate, strUser, strFileName
@@ -139,7 +139,6 @@ Function PLEMd2statsLoad(stats, strMap)
 	stats.numLaserPositionX = getMapVariable(strMap, "gnumLaserPositionX")
 	stats.numLaserPositionY = getMapVariable(strMap, "gnumLaserPositionY")
 	stats.numMagnification 	= getMapVariable(strMap, "gnumMagnification")
-	stats.numRotation 		= getMapVariable(strMap, "gnumRotation")
 	stats.numPixelPitch		= getMapVariable(strMap, "gnumPixelPitch")
 End
 
@@ -212,7 +211,6 @@ Function PLEMd2statsSave(stats)
 	setMapVariable(strMap, "gnumLaserPositionX", stats.numLaserPositionX)
 	setMapVariable(strMap, "gnumLaserPositionY", stats.numLaserPositionY)
 	setMapVariable(strMap, "gnumMagnification", stats.numMagnification)
-	setMapVariable(strMap, "gnumRotation", stats.numRotation)
 	setMapVariable(strMap, "gnumPixelPitch", stats.numPixelPitch)
 End
 
@@ -244,7 +242,6 @@ Function PLEMd2statsInitialize(strMap)
 	stats.booNormalization		= 0
 	stats.booFilter		= 0
 	stats.booInterpolate = 0
-	stats.numRotation = 0
 
 	PLEMd2statsSave(stats)
 End
