@@ -23,10 +23,12 @@ Function/S PLEMd2window2strPLEM(strWindow)
 	numStart = strlen(cstrPLEMd2windowPrefix) > 0 ? strsearch(strWindow, cstrPLEMd2windowPrefix, 0) : 0
 	numEnd = strlen(cstrPLEMd2windowSuffix) > 0 ? strsearch(strWindow, cstrPLEMd2windowSuffix, 0) : strsearch(strWindow, "#", 0)
 
-	if(numEnd == -1 && numStart != -1)
-		return strWindow[numStart+4,inf]
+	if(numEnd == -1 && numStart == -1)
+		return strWindow
+	elseif(numEnd == -1 && numStart != -1)
+		return strWindow[numStart,inf]
 	else
-		return strWindow[numStart+4,numEnd-1]
+		return strWindow[numStart,numEnd-1]
 	endif
 End
 
