@@ -503,9 +503,6 @@ Function PLEMd2ExtractIBW(strPLEM, wavIBW)
 		Variable/G root:numRotationAdjustment = 0
 		NVAR numRotationAdjustment = root:numRotationAdjustment
 	endif
-	if(!NVAR_EXISTS(numSizeAdjustment))
-		Variable/G root:numSizeAdjustment = 1
-	endif
 	
 	if(stats.numCalibrationMode != 1)
 		//todo counterpart in PLEMd2setScale
@@ -524,7 +521,7 @@ static Function PLEMd2setScale(stats)
 	if(!NVAR_EXISTS(numSizeAdjustment))
 		Variable/G root:numSizeAdjustment = 1
 		NVAR numSizeAdjustment = root:numSizeAdjustment
-		print "Error: sizeAdjustment set to 1"
+		print "PLEMd2setScale: sizeAdjustment set to 1"
 	endif
 
 	if(stats.numCalibrationMode == 1)
@@ -542,7 +539,7 @@ static Function PLEMd2setScale(stats)
 		stats.numPLEMLeftX = stats.wavWavelength[0]
 		stats.numPLEMDeltaX = PLEMd2Delta(stats.wavWavelength, normal = 1)
 
-		stats.numPLEMBottomY	= stats.numPLEMBottomY //todo
+		stats.numPLEMBottomY	= stats.wavExcitation[0]
 		stats.numPLEMDeltaY	= PLEMd2Delta(stats.wavExcitation)
 
 		// since PLEMv3.0 excitation is saved multiplied by 10.
