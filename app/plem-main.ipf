@@ -1,5 +1,6 @@
-#pragma TextEncoding = "UTF-8"  // For details execute DisplayHelpTopic "The TextEncoding Pragma"
-#pragma rtGlobals = 3           // Use modern global access method and strict wave access.
+#pragma TextEncoding = "UTF-8"
+#pragma rtGlobals=3
+#pragma IgorVersion=8
 
 // Programmed by Matthias Kastner
 // mail@matthias-kastner.de
@@ -7,6 +8,10 @@
 //
 // LICENSE: MIT
 //
+
+// requires igor-common-utilites
+// https://github.com/ukos-git/igor-common-utilities
+#include "common-utilities"
 
 // Variables for current Project only. See also the LoadPreferences towards the end of the procedure for additional settings that are saved system-wide.
 Constant 	cPLEMd2Version = 3003

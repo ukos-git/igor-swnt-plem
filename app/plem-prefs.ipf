@@ -1,5 +1,5 @@
-﻿#pragma TextEncoding = "UTF-8"		// For details execute DisplayHelpTopic "The TextEncoding Pragma"
-#pragma rtGlobals=3		// Use modern global access method and strict wave access.
+﻿#pragma TextEncoding = "UTF-8"
+#pragma rtGlobals=3
 
 static StrConstant PLEMd2WorkingDir0 = "X:nasPLEM:"
 static StrConstant PLEMd2WorkingDir1 = "X:nasPLEM:Kastner Matthias:"

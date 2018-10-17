@@ -1,6 +1,5 @@
-﻿#pragma TextEncoding = "UTF-8"		// For details execute DisplayHelpTopic "The TextEncoding Pragma"
-#pragma rtGlobals=3		// Use modern global access method and strict wave access.
-#pragma IgorVersion = 6.20 // use sdfr
+﻿#pragma TextEncoding = "UTF-8"
+#pragma rtGlobals=3
 
 static StrConstant cstrPLEMd2maps 	= ":maps"
 static StrConstant cstrPLEMd2info 	= ":INFO"
