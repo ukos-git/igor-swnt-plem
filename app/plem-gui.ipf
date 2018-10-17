@@ -169,46 +169,34 @@ End
 
 Function PLEMd2Panel([strWinPLEM])
 	String strWinPLEM
+
 	String strImages, strTraces, strDataFolderMap, strDataFolderInfo
 	// if no argument was selected, take top graph window
 	if(ParamIsDefault(strWinPLEM))
 		strWinPLEM = WinName(0, 1, 1)
 	endif
-	if(strlen(strWinPLEM) == 0)
-		Print "PLEMd2Panel: No window to append to"
-		return 0
+	DoWindow $strWinPLEM
+	if(V_flag != 1)
+		Abort "PLEMd2Panel: No window to append to"
 	endif
 
 	// if the panel is already shown, do nothing
-	DoUpdate /W=$strWinPLEM#PLEMd2Panel
+	DoUpdate/W=$strWinPLEM#PLEMd2Panel
 	if(V_flag != 0)
 		Print "PLEMd2Panel: Panel already exists."
 		return 0
 	endif
 
-	// get the image name and wave reference.
-	strImages = ImageNameList(strWinPLEM, ";")
-	if(ItemsInList(strImages) == 0)
-		strTraces = TraceNameList(strWinPLEM, ";",1)
-		if(ItemsInList(strTraces) == 1)
-			wave wavPLEM = TraceNameToWaveRef(strWinPLEM,StringFromList(0,strTraces))
-		else
-			Print "PLEMd2Panel: No Image found. More than one or no trace found in top graph."
-			return 0
-		endif
-	elseif(ItemsInList(strImages) > 1)
-		Print "PLEMd2Panel: More than one image found in top graph."
-		return 0
-	else
-		wave wavPLEM = ImageNameToWaveRef(strWinPLEM,StringFromList(0,strImages))
-	endif
-	// check for INFO folder
-	strDataFolderMap = GetWavesDataFolder(wavPLEM,1)
+	// get INFO folder (method only works if one trace is present)
+	WAVE wavPLEM = Utilities#getTopWindowWave()
+	strDataFolderMap = GetWavesDataFolder(wavPLEM, 1)
 	strDataFolderInfo = strDataFolderMap + "INFO:"
 	if(DataFolderExists(strDataFolderInfo) == 0)
 		Print "PLEMd2Panel: INFO Data Folder for Image in top graph not found."
 		return 0
 	endif
+
+	// build panel
 	NewPanel /N=PLEMd2Panel/W=(0,0,300,250) /EXT=0 /HOST=$strWinPLEM
 	TitleBox/Z gstrPLEMfull			variable=$(strDataFolderInfo + "gstrPLEMfull"), 			pos={0,0}, 		size={130,0}, disable=0, frame=0, font="Helvetica"
 	SetVariable normalization,		value=$(strDataFolderInfo + "gnumNormalization"),			pos={150,80}, 	title="normalization", size={130,0}, proc=SetVarProcCalculate
