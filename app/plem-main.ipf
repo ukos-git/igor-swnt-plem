@@ -2297,36 +2297,48 @@ Function/WAVE PLEMd2getCoordinates([forceRenew])
 	return wv
 End
 
-Function/WAVE PLEMd2getPower([forceRenew])
-	Variable forceRenew
+// Get the excitation Power from the maps in the given range
+//
+// @param overwrite if set to 1: recreate the wave if it already exists
+// @param range     specify the spectra ids with a numeric, uint wave
+Function/WAVE PLEMd2getPower([overwrite, range])
+	Variable overwrite
+	WAVE/U/I range
 
-	Variable i
-	Variable numMaps = PLEMd2getMapsAvailable()
+	Variable i, dim0, dim1
 
 	DFREF dfr = $cstrPLEMd2root
 	Struct PLEMd2stats stats
 
-	forceRenew = ParamIsDefault(forceRenew) ? 0 : !!forceRenew
+	overwrite = ParamIsDefault(overwrite) ? 0 : !!overwrite
+
+	if(ParamIsDefault(range))
+		Make/FREE/U/I/N=(PLEMd2getMapsAvailable()) range = p
+	endif
+	dim0 = DimSize(range, 0)
 
 	WAVE/Z wv = dfr:power
-	if(WaveExists(wv) && !forceRenew)
-		if(DimSize(wv, 0) == numMaps)
+	if(WaveExists(wv) && !overwrite)
+		if(DimSize(wv, 0) == dim0)
 			return wv
-		else
-			Redimension/N=(numMaps, -1) wv
 		endif
-	else
-		PLEMd2statsLoad(stats, PLEMd2strPLEM(0))
-		Make/O/N=(numMaps, DimSize(stats.wavPLEM, 1)) dfr:power/WAVE=wv = NaN
 	endif
 
+	PLEMd2statsLoad(stats, PLEMd2strPLEM(range[0]))
+	dim1 = DimSize(stats.wavPLEM, 1)
+	if(dim1 == 1)
+		dim1 = 0
+	endif
+	Make/O/N=(dim0, dim1) dfr:power/WAVE=wv = NaN
+
 	WAVE/T wavStrPLEM = PLEMd2getAllstrPLEM()
-	for(i = 0; i < numMaps; i += 1)
-		PLEMd2statsLoad(stats, wavStrPLEM[i])
+	for(i = 0; i < dim0; i += 1)
+		PLEMd2statsLoad(stats, wavStrPLEM[range[i]])
 		wv[i][] = stats.wavYpower[q]
 	endfor
 
-	print GetDataFolder(0, wv)
+	printf "PLEMd2getPower: created %s\r", GetWavesDataFolder(wv, 2)
+
 	return wv
 End
 
