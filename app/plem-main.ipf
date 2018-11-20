@@ -529,18 +529,21 @@ static Function PLEMd2setScale(stats)
 		print "PLEMd2setScale: sizeAdjustment set to 1"
 	endif
 
-	stats.numPLEMLeftX = stats.wavWavelength[0]
-	stats.numPLEMDeltaX = PLEMd2Delta(stats.wavWavelength, normal = 1)
-	if(stats.numCalibrationMode == 1)
-		stats.numPLEMDeltaY 	= (stats.numEmissionEnd - stats.numEmissionStart)
-		stats.numPLEMBottomY 	= stats.numEmissionStart
-	else
-		stats.numPLEMBottomY	= stats.wavExcitation[0]
-		stats.numPLEMDeltaY	= PLEMd2Delta(stats.wavExcitation)
+	// handle spectra
+	if(stats.numReadOutMode != 1)
+		stats.numPLEMLeftX = stats.wavWavelength[0]
+		stats.numPLEMDeltaX = PLEMd2Delta(stats.wavWavelength, normal = 1)
+		if(stats.numCalibrationMode == 1)
+			stats.numPLEMDeltaY 	= (stats.numEmissionEnd - stats.numEmissionStart)
+			stats.numPLEMBottomY 	= stats.numEmissionStart
+		else
+			stats.numPLEMBottomY	= stats.wavExcitation[0]
+			stats.numPLEMDeltaY	= PLEMd2Delta(stats.wavExcitation)
 
-		// since PLEMv3.0 excitation is saved multiplied by 10.
-		if(stats.numPLEMBottomY > 1e3)
-			stats.numPLEMBottomY /= 10
+			// since PLEMv3.0 excitation is saved multiplied by 10.
+			if(stats.numPLEMBottomY > 1e3)
+				stats.numPLEMBottomY /= 10
+			endif
 		endif
 	endif
 
