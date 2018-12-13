@@ -488,9 +488,10 @@ Function PLEMd2ExtractIBW(strPLEM, wavIBW)
 		// rotation adjustments
 		if(!NVAR_EXISTS(numRotationAdjustment))
 			// mounted camera is rotated depending on setup
-			Variable/G root:numRotationAdjustment = -0.8
+			Variable/G root:numRotationAdjustment = -0.95
 			NVAR numRotationAdjustment = root:numRotationAdjustment
 		endif
+		numRotationAdjustment = 0.95 // overwrite! better rotation for mkl23clarascan
 		PLEMd2rotateLaser(stats)
 	elseif(stats.numDetector == 3)
 		// Xencis XEVA
