@@ -491,7 +491,7 @@ Function PLEMd2ExtractIBW(strPLEM, wavIBW)
 			Variable/G root:numRotationAdjustment = -0.95
 			NVAR numRotationAdjustment = root:numRotationAdjustment
 		endif
-		numRotationAdjustment = 0.95 // overwrite! better rotation for mkl23clarascan
+		numRotationAdjustment = -0.95 // overwrite! better rotation for mkl23clarascan
 		PLEMd2rotateLaser(stats)
 	elseif(stats.numDetector == 3)
 		// Xencis XEVA
