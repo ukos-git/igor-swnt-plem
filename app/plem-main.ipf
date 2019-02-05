@@ -194,7 +194,7 @@ Function PLEMd2Open([strFile, display])
 
 	strFileName = ParseFilePath(3, strFile, ":", 0, 0)
 	strFileType = ParseFilePath(4, strFile, ":", 0, 0)
-	strPLEM = CleanupName(ReplaceString(" ", strFileName, ""), 0)
+	strPLEM = CleanupName(strFileName, 0)
 
 	// Loading Procedure (LoadWave is not dfr aware)
 	DFREF dfrSave = GetDataFolderDFR()
