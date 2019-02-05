@@ -265,9 +265,10 @@ Function PLEMd2ProcessIBW(strPLEM)
 	DFREF dfrPLEM = PLEMd2MapFolder(strPLEM)
 	WAVE/Z wavIBW = dfrPLEM:IBW
 	if(WaveExists(wavIBW))
-		print "Reload IBW from disk using Plemd2Open() for full IBW processing"
 		PLEMd2ExtractInfo(strPLEM, wavIBW)
 		PLEMd2ExtractIBW(strPLEM, wavIBW)
+	else
+		print "Error: Reload IBW from disk using Plemd2Open() for full IBW processing"
 	endif
 
 	PLEMd2BuildMaps(strPLEM)
