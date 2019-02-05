@@ -192,8 +192,8 @@ Function PLEMd2Open([strFile, display])
 		Abort "PLEMd2Open: Invalid filename"
 	endif
 
-	strFileName 	= ParseFilePath(3, strFile, ":", 0, 0)
-	strFileType  	= ParseFilePath(4, strFile, ":", 0, 0)
+	strFileName = ParseFilePath(3, strFile, ":", 0, 0)
+	strFileType = ParseFilePath(4, strFile, ":", 0, 0)
 	strPLEM = CleanupName(ReplaceString(" ", strFileName, ""), 0)
 
 	// Loading Procedure (LoadWave is not dfr aware)
