@@ -124,6 +124,8 @@ Function PLEMd2Decorate([strWinPLEM, booImage])
 		Label/W=$strWinPLEM left "excitation / nm"
 		Label/W=$strWinPLEM bottom "emission / nm"
 	endif
+
+	ModifyGraph width={Plan,1,bottom,left}
 End
 
 Function PLEMd2ShowNote([strWinPLEM])
