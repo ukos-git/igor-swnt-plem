@@ -310,3 +310,21 @@ Function setAtlasVariable(strMap, var, value)
 	DFREF dfrAtlas = returnMapChiralityFolder(strMap)
 	setGvar(var, value, dfrAtlas)
 End
+
+// return the IBW file for the selected ple map
+Function/WAVE PLEMd2wavIBW(strPLEM)
+	String strPLEM
+
+	DFREF dfrPLEM = PLEMd2MapFolder(strPLEM)
+	DFREF dfr = dfrPLEM:ORIGINAL
+	if(DataFolderRefStatus(dfr) == 0)
+		return $""
+	endif
+
+	if(CountObjectsDFR(dfr, 1) != 1)
+		Abort "no or more than one wave in map's DataFolder!"
+	endif
+
+	WAVE wavIBW = dfr:$GetIndexedObjNameDFR(dfr, 1, 0)
+	return wavIBW
+End

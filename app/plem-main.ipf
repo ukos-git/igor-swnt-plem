@@ -206,40 +206,50 @@ Function PLEMd2Open([strFile, display])
 	strFileType = ParseFilePath(4, strFile, ":", 0, 0)
 	strPLEM = CleanupName(strFileName, 0)
 
-	// Loading Procedure (LoadWave is not dfr aware)
-	DFREF dfrSave = GetDataFolderDFR()
+	// create dfr for loaded data
 	DFREF dfrPLEM = PLEMd2MapFolder(strPLEM)
-	SetDataFolder dfrPLEM
+	NewDataFolder/O dfrPLEM:ORIGINAL
+	DFREF dfrLoad = dfrPLEM:ORIGINAL
+
+	// Loading Procedure (LoadWave is not dfr aware)
 	strswitch(strFileType)
 		case "ibw":
-			WAVE/Z wavIBW = dfrPLEM:IBW
+			// remove lock
+			if(CountObjectsDFR(dfrLoad, 1) == 1)
+				WAVE wavIBW = dfrLoad:$GetIndexedObjNameDFR(dfrLoad, 1, 0)
+				SetWaveLock 0, wavIBW
+			endif
 
-			// load wave
-			LoadWave/Q/A strFile
-			if(ItemsInList(S_waveNames) != 1)
+			// load wave to dfrLoad using original name from IBW (overwrite)
+			DFREF dfrSave = GetDataFolderDFR()
+			SetDataFolder dfrLoad
+			KillWaves/A
+			KillStrings/A
+			LoadWave/Q/N/O strFile
+			if(V_flag != 1)
+				KillWaves/A
 				SetDataFolder dfrSave
 				Abort "PLEMd2Open: Error Loaded more than one or no Wave from Igor Binary File"
 			endif
-
-			// move loaded wave to IBW and make it read-only
-			WAVE loaded = dfrPLEM:$StringFromList(0, S_waveNames)
-			if(WaveExists(wavIBW) && WaveCRC(0, wavIBW, 0) == WaveCRC(0, loaded, 0))
-				KillWaves/Z loaded
-			else
-				SetWaveLock 0, wavIBW
-				KillWaves/Z wavIBW
-				Rename loaded, IBW
-				WAVE wavIBW = dfrPLEM:IBW
-				SetWaveLock 1, wavIBW
-			endif
-
 			SetDataFolder dfrSave
+
+			// reference loaded wave and lock it.
+			WAVE/Z wavIBW = PLEMd2wavIBW(strPLEM)
+			SetWaveLock 1, wavIBW
+			String/G dfrLoad:$NameOfWave(wavIBW) = WaveHash(wavIBW, 1)
+
 			break
 		default:
-			SetDataFolder dfrSave
 			Abort "PLEMd2Open: Could not open file"
 		break
 	endswitch
+
+	// cleanup old IBW
+	WAVE/Z oldIBW = dfrPLEM:IBW
+	if(WaveExists(oldIBW))
+		SetWaveLock 0, oldIBW
+		KillWaves/Z oldIBW
+	endif
 
 	// init PLEMd2
 	PLEMd2init()
@@ -255,15 +265,12 @@ Function PLEMd2Open([strFile, display])
 
 	// clean exit
 	PLEMd2exit()
-
-	SetDataFolder dfrSave
 End
 
 Function PLEMd2ProcessIBW(strPLEM)
 	String strPLEM
 
-	DFREF dfrPLEM = PLEMd2MapFolder(strPLEM)
-	WAVE/Z wavIBW = dfrPLEM:IBW
+	WAVE/Z wavIBW = PLEMd2wavIBW(strPLEM)
 	if(WaveExists(wavIBW))
 		PLEMd2ExtractInfo(strPLEM, wavIBW)
 		PLEMd2ExtractIBW(strPLEM, wavIBW)
