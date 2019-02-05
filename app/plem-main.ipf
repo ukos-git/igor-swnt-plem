@@ -208,7 +208,7 @@ Function PLEMd2Open([strFile, display])
 
 	// Loading Procedure (LoadWave is not dfr aware)
 	DFREF dfrSave = GetDataFolderDFR()
-	DFREF dfrPLEM = returnMapFolder(strPLEM)
+	DFREF dfrPLEM = PLEMd2MapFolder(strPLEM)
 	SetDataFolder dfrPLEM
 	strswitch(strFileType)
 		case "ibw":
@@ -221,15 +221,18 @@ Function PLEMd2Open([strFile, display])
 				Abort "PLEMd2Open: Error Loaded more than one or no Wave from Igor Binary File"
 			endif
 
-			// move loaded wave to IBW
+			// move loaded wave to IBW and make it read-only
 			WAVE loaded = dfrPLEM:$StringFromList(0, S_waveNames)
 			if(WaveExists(wavIBW) && WaveCRC(0, wavIBW, 0) == WaveCRC(0, loaded, 0))
 				KillWaves/Z loaded
 			else
+				SetWaveLock 0, wavIBW
 				KillWaves/Z wavIBW
 				Rename loaded, IBW
 				WAVE wavIBW = dfrPLEM:IBW
+				SetWaveLock 1, wavIBW
 			endif
+
 			SetDataFolder dfrSave
 			break
 		default:
@@ -259,7 +262,7 @@ End
 Function PLEMd2ProcessIBW(strPLEM)
 	String strPLEM
 
-	DFREF dfrPLEM = returnMapFolder(strPLEM)
+	DFREF dfrPLEM = PLEMd2MapFolder(strPLEM)
 	WAVE/Z wavIBW = dfrPLEM:IBW
 	if(WaveExists(wavIBW))
 		print "Reload IBW from disk using Plemd2Open() for full IBW processing"

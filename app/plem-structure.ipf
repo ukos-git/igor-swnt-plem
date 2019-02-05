@@ -47,7 +47,7 @@ Function PLEMd2statsLoad(stats, strMap)
 	Struct PLEMd2stats &stats
 	String strMap
 
-	DFREF dfrMap = returnMapFolder(strMap)
+	DFREF dfrMap = PLEMd2MapFolder(strMap)
 	Wave stats.wavPLEM 			= createWave(dfrMap, "PLEM")
 	Wave stats.wavPLEMfitSingle	= createWave(dfrMap, "PLEMfit")
 	Wave stats.wavMeasure 		= createWave(dfrMap, "MEASURE", setWaveType = PLEMd2WaveTypeUnsigned16)
@@ -229,7 +229,7 @@ Function PLEMd2statsInitialize(strMap)
 
 	stats.numPLEM = PLEMd2AddMap(strMap)
 	stats.strPLEM = strMap
-	stats.strDataFolder =  GetDataFolder(1, returnMapFolder(strMap))
+	stats.strDataFolder =  GetDataFolder(1, PLEMd2MapFolder(strMap))
 	stats.numVersion = cPLEMd2Version
 
 	stats.numNormalization = 1

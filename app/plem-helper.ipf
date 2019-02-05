@@ -56,7 +56,7 @@ static Function/DF returnMapsFolder()
 End
 
 // Function returns DataFolder reference to base directory of map specified by strMap
-Function/DF returnMapFolder(strMap)
+Function/DF PLEMd2MapFolder(strMap)
 	String strMap
 
 	String strDataFolder
@@ -87,7 +87,7 @@ static Function/DF returnMapInfoFolder(strMap)
 		Abort "Need a valid Map String"
 	endif
 
-	DFREF dfrMap = returnMapFolder(strMap)
+	DFREF dfrMap = PLEMd2MapFolder(strMap)
 	DFREF dfrInfo = DataFolderReference(cstrPLEMd2root + cstrPLEMd2maps + ":" + strMap + cstrPLEMd2info)
 	return dfrInfo
 End
@@ -95,7 +95,7 @@ End
 // Function returns DataFolder reference to current map's info folder where NVAR and SVAR are saved
 Function/DF returnMapChiralityFolder(strMap)
 	String strMap
-	DFREF dfrMap = returnMapFolder(strMap)
+	DFREF dfrMap = PLEMd2MapFolder(strMap)
 	DFREF dfrChirality = DataFolderReference(cstrPLEMd2root + cstrPLEMd2maps + ":" + strMap + cstrPLEMd2chirality)
 	return dfrChirality
 End
