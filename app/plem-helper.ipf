@@ -31,48 +31,64 @@ Function/S PLEMd2window2strPLEM(strWindow)
 	endif
 End
 
-static Function/DF returnDataFolderReference(strDataFolder)
-	String strDataFolder
-	NewDataFolder/O $strDataFolder
-	DFREF myDFR = $strDataFolder
-	if(DataFolderRefStatus(myDFR) == 0) // DFR is invalid
-		Abort "Data Folder could not be created"
+static Function/DF DataFolderReference(dataFolderNameStr)
+	String dataFolderNameStr
+
+	if(!DataFolderExists(dataFolderNameStr))
+		NewDataFolder/O $dataFolderNameStr // can only create one level
 	endif
-	return myDFR
+
+	DFREF dfr = $dataFolderNameStr
+	return dfr
 End
 
 // Function returns DataFolder reference to package root.
 static Function/DF returnPackageRoot()
-	DFREF dfrPackage = returnDataFolderReference(cstrPLEMd2root)
+	DFREF dfrPackage = DataFolderReference(cstrPLEMd2root)
 	return dfrPackage
 End
 
 // Function returns DataFolder reference to base directory where maps are stored
 static Function/DF returnMapsFolder()
 	DFREF dfrPackage = returnPackageRoot()
-	DFREF dfrMaps = returnDataFolderReference(cstrPLEMd2root + cstrPLEMd2maps)
+	DFREF dfrMaps = DataFolderReference(cstrPLEMd2root + cstrPLEMd2maps)
 	return dfrMaps
 End
 
 // Function returns DataFolder reference to base directory of map specified by strMap
 Function/DF returnMapFolder(strMap)
 	String strMap
+
+	String strDataFolder
 	if(strlen(strMap) == 0)
-		Abort "Can not create such a folder"
+		Abort "Need a valid Map String"
 	endif
+
 	DFREF dfrMaps = returnMapsFolder()
-	DFREF dfrMap = returnDataFolderReference(cstrPLEMd2root + cstrPLEMd2maps + ":" + strMap)
+	DFREF dfrMap = DataFolderReference(PLEMd2mapFolderString(strMap))
 	return dfrMap
+End
+
+Function/S PLEMd2mapFolderString(strMap)
+	String strMap
+
+	if(strlen(strMap) == 0)
+		Abort "Need a valid Map String"
+	endif
+
+	return cstrPLEMd2root + cstrPLEMd2maps + ":" + strMap
 End
 
 // Function returns DataFolder reference to current map's info folder where NVAR and SVAR are saved
 static Function/DF returnMapInfoFolder(strMap)
 	String strMap
+
 	if(strlen(strMap) == 0)
-		abort
+		Abort "Need a valid Map String"
 	endif
+
 	DFREF dfrMap = returnMapFolder(strMap)
-	DFREF dfrInfo = returnDataFolderReference(cstrPLEMd2root + cstrPLEMd2maps + ":" + strMap + cstrPLEMd2info)
+	DFREF dfrInfo = DataFolderReference(cstrPLEMd2root + cstrPLEMd2maps + ":" + strMap + cstrPLEMd2info)
 	return dfrInfo
 End
 
@@ -80,7 +96,7 @@ End
 Function/DF returnMapChiralityFolder(strMap)
 	String strMap
 	DFREF dfrMap = returnMapFolder(strMap)
-	DFREF dfrChirality = returnDataFolderReference(cstrPLEMd2root + cstrPLEMd2maps + ":" + strMap + cstrPLEMd2chirality)
+	DFREF dfrChirality = DataFolderReference(cstrPLEMd2root + cstrPLEMd2maps + ":" + strMap + cstrPLEMd2chirality)
 	return dfrChirality
 End
 

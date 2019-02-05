@@ -119,10 +119,20 @@ End
 
 Function PLEMd2reset()
 	print "PLEMd2reset: reset"
+
+	Variable i, numMaps
+
 	NVAR gnumPLEMd2IsInit = root:gnumPLEMd2IsInit //ToDo assure someHow that global NVAR was set.
 	gnumPLEMd2IsInit = 0
+
 	PLEMd2exit() //needed to restore old DataFolder
 	PLEMd2init()  //...before it is saved again. (Overwrite Protection)
+
+	// reset IBW files
+	numMaps = PLEMd2MapStringReInit()
+	for(i = 0; i < numMaps; i += 1)
+		PLEMd2ProcessIBW(PLEMd2strPLEM(i))
+	endfor
 End
 
 Function PLEMd2exit()
@@ -202,17 +212,24 @@ Function PLEMd2Open([strFile, display])
 	SetDataFolder dfrPLEM
 	strswitch(strFileType)
 		case "ibw":
+			WAVE/Z wavIBW = dfrPLEM:IBW
+
 			// load wave
-			LoadWave/Q/A/N=temp strFile
+			LoadWave/Q/A strFile
 			if(ItemsInList(S_waveNames) != 1)
 				SetDataFolder dfrSave
 				Abort "PLEMd2Open: Error Loaded more than one or no Wave from Igor Binary File"
 			endif
 
 			// move loaded wave to IBW
-			strWave	= StringFromList(0, S_waveNames)
-			Duplicate/FREE $strwave wavIBW
-			KillWaves/Z $strWave
+			WAVE loaded = dfrPLEM:$StringFromList(0, S_waveNames)
+			if(WaveExists(wavIBW) && WaveCRC(0, wavIBW, 0) == WaveCRC(0, loaded, 0))
+				KillWaves/Z loaded
+			else
+				KillWaves/Z wavIBW
+				Rename loaded, IBW
+				WAVE wavIBW = dfrPLEM:IBW
+			endif
 			SetDataFolder dfrSave
 			break
 		default:
@@ -228,9 +245,7 @@ Function PLEMd2Open([strFile, display])
 	PLEMd2statsInitialize(strPLEM)
 
 	// create and display waves
-	PLEMd2ExtractInfo(strPLEM, wavIBW)
-	PLEMd2ExtractIBW(strPLEM, wavIBW)
-	PLEMd2BuildMaps(strPLEM)
+	PLEMd2ProcessIBW(strPLEM)
 	if(display)
 		PLEMd2Display(strPLEM)
 	endif
@@ -239,6 +254,20 @@ Function PLEMd2Open([strFile, display])
 	PLEMd2exit()
 
 	SetDataFolder dfrSave
+End
+
+Function PLEMd2ProcessIBW(strPLEM)
+	String strPLEM
+
+	DFREF dfrPLEM = returnMapFolder(strPLEM)
+	WAVE/Z wavIBW = dfrPLEM:IBW
+	if(WaveExists(wavIBW))
+		print "Reload IBW from disk using Plemd2Open() for full IBW processing"
+		PLEMd2ExtractInfo(strPLEM, wavIBW)
+		PLEMd2ExtractIBW(strPLEM, wavIBW)
+	endif
+
+	PLEMd2BuildMaps(strPLEM)
 End
 
 Function/DF PLEMd2ExtractWaves(wavIBW)
@@ -625,30 +654,38 @@ Function PLEMd2BuildMaps(strPLEM)
 			WaveClear wavBackground, wavMeasure
 		endfor
 	endif
+
+	WAVE wavPLEM = stats.wavPLEM // work around bug in Multithread assignment which can not use stats.wavPLEM
 	if(stats.booBackground)
-		stats.wavPLEM = (stats.wavMeasure - stats.wavBackground)
+		Multithread wavPLEM[][] = (stats.wavMeasure[p][q] - stats.wavBackground[p][q])
 	else
-		stats.wavPLEM = stats.wavMeasure
+		Multithread wavPLEM = stats.wavMeasure
 	endif
+
 	if(stats.booPower)
 		if(DimSize(stats.wavPLEM, 1) == DimSize(stats.wavYpower, 0))
-			stats.wavPLEM /= stats.wavYpower[q]
+			Multithread wavPLEM /= stats.wavYpower[q]
 		else
-			stats.wavPLEM /= stats.wavYpower[0]
+			Multithread wavPLEM /= stats.wavYpower[0]
 		endif
 	endif
+
 	if(stats.booPhoton)
-		stats.wavPLEM /= stats.wavYphoton[q]
+		Multithread wavPLEM /= stats.wavYphoton[q]
 	endif
+
 	if(stats.booNormalization)
-		stats.wavPLEM /= stats.numNormalization
+		Multithread wavPLEM /= stats.numNormalization
 	endif
+
 	if(stats.booGrating)
-		stats.wavPLEM /= stats.wavGrating[p]
+		Multithread wavPLEM /= stats.wavGrating[p]
 	endif
+
 	if(stats.booQuantumEfficiency)
-		stats.wavPLEM *= 1 // QE not handled
+		// stats.wavPLEM *= 1 // QE not handled
 	endif
+
 	NVAR numRotationAdjustment = root:numRotationAdjustment
 	if(numRotationAdjustment != 0)
 		ImageRotate/Q/E=(NaN)/O/A=(numRotationAdjustment) stats.wavPLEM
@@ -1753,12 +1790,12 @@ Function PLEMd2KillMap(strMap)
 	SVAR gstrMapsAvailable = dfr:gstrMapsAvailable
 	NVAR gnumMapsAvailable = dfr:gnumMapsAvailable
 
-	String strKillDataFolder = cstrPLEMd2root + strMap
-
 	if(FindListItem(strMap, gstrMapsAvailable) != -1)
 		gstrMapsAvailable = RemoveFromList(strMap, gstrMapsAvailable)
 		gnumMapsAvailable = ItemsInList(gstrMapsAvailable)
 	endif
+
+	String strKillDataFolder = PLEMd2mapFolderString(strMap)
 	if(DataFolderExists(strKillDataFolder))
 		KillDataFolder/Z $strKillDataFolder
 		if(V_flag != 0)
@@ -1792,6 +1829,9 @@ Function PLEMd2MapExists(strMap)
 	return 0
 End
 
+// check maps folder for content
+//
+// return number of maps
 Function PLEMd2MapStringReInit()
 	DFREF dfr = $cstrPLEMd2root
 	SVAR gstrMapsFolder = dfr:gstrMapsFolder
@@ -1809,6 +1849,8 @@ Function PLEMd2MapStringReInit()
 		gstrMapsAvailable += strMap + ";"
 	endfor
 	gnumMapsAvailable = ItemsInList(gstrMapsAvailable)
+
+	return gnumMapsAvailable
 End
 
 Function PLEMd2d1Kill(strWhichOne)

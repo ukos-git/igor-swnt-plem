@@ -20,7 +20,7 @@ Menu "PLEM", dynamic //create menu bar entry
 //	SubMenu "Displayer2"
 		PLEMd2MenuInit()+"Init",/q, PLEMd2()
 		"Open", PLEMd2open()
-		"Decorate Image",PLEMd2Decorate()
+		"Reset", PLEMd2reset()
 		"Info", PLEMd2Panel()
 		"Atlas", PLEMd2PanelAtlas()
 //		"-"
