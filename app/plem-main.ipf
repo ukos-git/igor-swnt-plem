@@ -186,7 +186,7 @@ Function PLEMd2Open([strFile, display])
 	String strFile
 	Variable display
 
-	String strFileName, strFileType
+	String strFileName, strFileType, strPartialPath
 	String strWave, strPLEM
 
 	if(ParamIsDefault(strFile))
@@ -1538,7 +1538,6 @@ Function/S PLEMd2PopUpChooseFile([strPrompt])
 	String strPrompt
 
 	Variable refNum
-	String strOutputPath = ""
 	String strOutputFile = ""
 	String fileFilters = "Igor Binary File (*.ibw):.ibw;General Text Files (*.txt, *.csv):.txt,.csv;All Files:.*;"
 	String strPath = ""
@@ -1576,7 +1575,6 @@ Function/S PLEMd2PopUpChooseFile([strPrompt])
 
 
 	return strOutputFile
-
 End
 
 //imports Maps and corresponding files from
