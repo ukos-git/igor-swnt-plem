@@ -1,8 +1,6 @@
 ﻿#pragma TextEncoding = "UTF-8"
 #pragma rtGlobals=3
 
-static StrConstant PLEMd2WorkingDir0 = "X:nasPLEM:"
-static StrConstant PLEMd2WorkingDir1 = "X:nasPLEM:Kastner Matthias:"
 StrConstant PLEMd2PackageName = "PLEM-displayer2"
 static StrConstant PLEMd2PrefsFileName = "PLEMd2Preferences.bin"
 static Constant PLEMd2PrefsRecordID = 0
@@ -28,13 +26,7 @@ static Function PLEMd2DefaultPackagePrefsStruct(prefs)
 	prefs.panelCoords[2] = 5+190	// Right
 	prefs.panelCoords[3] = 40+125	// Bottom
 
-	GetFileFolderInfo/Q/Z=1 PLEMd2WorkingDir0
-	if(V_flag == 0)
-		prefs.strMapsPath = PLEMd2WorkingDir0
-	else
-		//fallback
-		prefs.strMapsPath = PLEMd2WorkingDir1
-	endif
+	prefs.strMapsPath = SpecialDirPath("Documents", 0, 0, 0)
 	Variable i
 	for(i=0; i<100; i+=1)
 		prefs.reserved[i] = 0
