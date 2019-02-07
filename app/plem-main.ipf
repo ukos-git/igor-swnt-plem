@@ -186,7 +186,7 @@ Function PLEMd2Open([strFile, display])
 	String strFile
 	Variable display
 
-	String strFileName, strFileType, strSaveDataFolder
+	String strFileName, strFileType
 	String strWave, strPLEM
 
 	if(ParamIsDefault(strFile))
