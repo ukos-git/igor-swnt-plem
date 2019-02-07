@@ -107,9 +107,8 @@ Function PLEMd2initialize()
 	PLEMd2initVar()
 End
 
+// force reset package
 Function PLEMd2reset()
-	print "PLEMd2reset: reset"
-
 	Variable i, numMaps
 
 	if(PLEMd2isInitialized())
