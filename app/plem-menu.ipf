@@ -20,11 +20,13 @@ Menu "PLEM", dynamic //create menu bar entry
 //	SubMenu "Displayer2"
 		PLEMd2MenuInit() + "Init", /q, PLEMd2initialize()
 		"Open", PLEMd2open()
-		"Reset", PLEMd2reset()
 		"Info", PLEMd2Panel()
+		"-"
+		"Clean", PLEMd2Clean()
+		"Reset", PLEMd2reset()
+		"-"
 		"Atlas", PLEMd2PanelAtlas()
-//		"-"
-//		"Clean up Variables", PLEMd2Clean()
+
 //	End
 	SubMenu "Display"
 	//List all available Maps in current project (max 30)
