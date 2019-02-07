@@ -14,7 +14,7 @@
 #include "common-utilities"
 
 // Variables for current Project only. See also the LoadPreferences towards the end of the procedure for additional settings that are saved system-wide.
-Constant 	cPLEMd2Version = 3003
+Constant 	cPLEMd2Version = 4000
 StrConstant cstrPLEMd2root = "root:PLEMd2"
 
 Function PLEMd2initVar()
@@ -168,8 +168,11 @@ Function PLEMd2Open([strFile, display])
 	String strFile
 	Variable display
 
-	String strFileName, strFileType, strPartialPath
+	String strFileName, strFileType, strPartialPath, strBasePath
 	String strWave, strPLEM
+
+	Struct PLEMd2Prefs prefs
+	PLEMd2LoadPackagePrefs(prefs)
 
 	// this function serves as entrypoint for most activities
 	PLEMd2initialize()
@@ -187,9 +190,21 @@ Function PLEMd2Open([strFile, display])
 		Abort "PLEMd2Open: Invalid filename"
 	endif
 
+	// DisplayHelpTopic "Symbolic Paths"
+	strBasePath = prefs.strBasePath
+	GetFileFolderInfo/Q/Z=1 strBasePath
+	if(!V_flag && V_isFolder)
+		PathInfo PLEMbasePath
+		if(!V_flag)
+			NewPath/O/Q/Z PLEMbasePath, strBasePath
+		endif
+	endif
+
 	strFileName = ParseFilePath(3, strFile, ":", 0, 0)
-	strFileType = ParseFilePath(4, strFile, ":", 0, 0)
 	strPLEM = CleanupName(strFileName, 0)
+
+	strFileType = ParseFilePath(4, strFile, ":", 0, 0)
+	strPartialPath = ReplaceString(RemoveEnding(strBasePath, ":"), strFile, "", 0, 1)
 
 	// create dfr for loaded data
 	DFREF dfrPLEM = PLEMd2MapFolder(strPLEM)
@@ -210,7 +225,12 @@ Function PLEMd2Open([strFile, display])
 			SetDataFolder dfrLoad
 			KillWaves/A
 			KillStrings/A
-			LoadWave/Q/N/O strFile
+			PathInfo PLEMbasePath
+			if(V_flag)
+				LoadWave/Q/N/O/P=PLEMbasePath strPartialPath
+			else
+				LoadWave/Q/N/O strFile
+			endif
 			if(V_flag != 1)
 				KillWaves/A
 				SetDataFolder dfrSave

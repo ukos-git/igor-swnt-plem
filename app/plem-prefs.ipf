@@ -4,13 +4,14 @@
 StrConstant PLEMd2PackageName = "PLEM-displayer2"
 static StrConstant PLEMd2PrefsFileName = "PLEMd2Preferences.bin"
 static Constant PLEMd2PrefsRecordID = 0
-static Constant reserved = 100  // Reserved uint32 capacity for future use
+static Constant reserved = 90  // Reserved uint32 capacity for future use
 
 // Global Preferences stored in Igor Folder
 Structure PLEMd2Prefs
 	uint32 version
 	double panelCoords[4]
 	uchar  strLastPath[256]
+	char   strBasePath[40]
 	uint32 reserved[reserved]
 EndStructure
 
@@ -26,6 +27,7 @@ static Function PLEMd2DefaultPackagePrefsStruct(prefs)
 	prefs.panelCoords[3] = 40+125	// Bottom
 
 	prefs.strLastPath = SpecialDirPath("Documents", 0, 0, 0)
+	prefs.strBasePath = ""
 	Variable i
 	for(i = 0; i < reserved; i += 1)
 		prefs.reserved[i] = 0
@@ -88,4 +90,37 @@ Function PLEMd2SavePackagePrefs(prefs)
 	STRUCT PLEMd2Prefs &prefs
 	//print "PLEMd2:SavePackagePrefs: Saving to " + SpecialDirPath("Packages", 0, 0, 0)
 	SavePackagePreferences PLEMd2PackageName, PLEMd2PrefsFileName, PLEMd2PrefsRecordID, prefs
+End
+
+// Save the location of the base path where all ibw files are saved.
+//
+// DisplayHelpTopic "Symbolic Paths"
+Function PLEMd2SetBasePath()
+	String strBasePath
+
+	Struct PLEMd2Prefs prefs
+	PLEMd2LoadPackagePrefs(prefs)
+
+	strBasePath = prefs.strBasePath
+	NewPath/O/Q/Z PLEMbasePath, strBasePath
+	if(!V_flag)
+		PathInfo/S path
+	endif
+
+	NewPath/O/Q/Z/M="Set PLEM base path" PLEMbasePath
+	if(V_flag)
+		return 0 // user canceled
+	endif
+
+	PathInfo PLEMbasePath
+	strBasePath = S_path
+	if(!V_flag)
+		return 0 // invalid path
+	endif
+
+	GetFileFolderInfo/Q/Z=1 strBasePath
+	if(!V_flag && V_isFolder)
+		prefs.strBasePath = strBasePath
+		PLEMd2SavePackagePrefs(prefs)
+	endif
 End
