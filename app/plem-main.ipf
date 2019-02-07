@@ -1538,43 +1538,50 @@ Function/S PLEMd2PopUpChooseFile([strPrompt])
 	String strPrompt
 
 	Variable refNum
-	String strOutputFile = ""
+	String strFileName, strLastPath, strFolderName
 	String fileFilters = "Igor Binary File (*.ibw):.ibw;General Text Files (*.txt, *.csv):.txt,.csv;All Files:.*;"
-	String strPath = ""
 
+	// get last path
 	Struct PLEMd2Prefs prefs
 	PLEMd2LoadPackagePrefs(prefs)
-	strPath = prefs.strMapsPath
+	strLastPath = prefs.strLastPath
 
-	strPrompt = selectstring(paramIsDefault(strPrompt), strPrompt, "choose file")
-	GetFileFolderInfo/Q/Z=1 strPath
-
-	if(V_Flag != 0)
-		print "PLEMd2PopUpChooseFile: Path does not exist. Switching to System Documents Folder"
-		strPath = SpecialDirPath("Documents", 0, 0, 0 )
-	endif
-
-	NewPath/O/Q/Z path, strPath
-	PathInfo/S path
-	if(V_flag == 0)
-		print "PLEMd2PopUpChooseFile: Selected Path is not valid. Check code."
-		return ""
-	endif
-
-	//Display /D ialog for /R eading from File
-	//Path was magically set by the /S flag from PathInfo.
-	Open/Z=2/D/F=fileFilters/R/M=strPrompt refNum
-	strOutputFile = S_fileName
-	if(V_flag == 0)
-		GetFileFolderInfo/Q/Z=1 ParseFilePath(1, strOutputFile, ":", 1, 0)
-		if(V_isFolder == 1)
-			prefs.strMapsPath = S_Path
-			PLEMd2SavePackagePrefs(prefs)
+	GetFileFolderInfo/Q/Z=1 strLastPath
+	if(V_Flag || !V_isFolder)
+		strLastPath = prefs.strBasePath
+		GetFileFolderInfo/Q/Z=1 strLastPath
+		if(V_Flag || !V_isFolder)
+			strLastPath = SpecialDirPath("Documents", 0, 0, 0 )
 		endif
 	endif
 
+	//Display file Dialog starting with last path
+	NewPath/O/Q PLEMd2LastPath, strLastPath
+	if(V_flag)
+		Abort "Invalid Path"
+	endif
+	PathInfo/S PLEMd2LastPath
+	if(!V_flag)
+		Abort "Symbolic path does not exist"
+	endif
+	strPrompt = SelectString(ParamIsDefault(strPrompt), strPrompt, "choose file")
+	Open/D/R/Z=2/F=fileFilters/M=strPrompt refNum
+	if(V_flag)
+		KillPath/Z PLEMd2LastPath
+		return ""
+	endif
+	strFileName = S_fileName
+	KillPath/Z PLEMd2LastPath // we don't need the path reference
 
-	return strOutputFile
+	// save as last path
+	strFolderName = ParseFilePath(1, strFileName, ":", 1, 0)
+	GetFileFolderInfo/Q/Z=1 strFolderName
+	if(V_isFolder)
+		prefs.strLastPath = strFolderName
+		PLEMd2SavePackagePrefs(prefs)
+	endif
+
+	return strFileName
 End
 
 //imports Maps and corresponding files from

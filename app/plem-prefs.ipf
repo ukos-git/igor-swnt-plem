@@ -10,7 +10,7 @@ static Constant reserved = 100  // Reserved uint32 capacity for future use
 Structure PLEMd2Prefs
 	uint32 version
 	double panelCoords[4]
-	uchar  strMapsPath[256]
+	uchar  strLastPath[256]
 	uint32 reserved[reserved]
 EndStructure
 
@@ -25,7 +25,7 @@ static Function PLEMd2DefaultPackagePrefsStruct(prefs)
 	prefs.panelCoords[2] = 5+190	// Right
 	prefs.panelCoords[3] = 40+125	// Bottom
 
-	prefs.strMapsPath = SpecialDirPath("Documents", 0, 0, 0)
+	prefs.strLastPath = SpecialDirPath("Documents", 0, 0, 0)
 	Variable i
 	for(i = 0; i < reserved; i += 1)
 		prefs.reserved[i] = 0
