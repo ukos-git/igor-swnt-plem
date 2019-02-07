@@ -4,15 +4,14 @@
 StrConstant PLEMd2PackageName = "PLEM-displayer2"
 static StrConstant PLEMd2PrefsFileName = "PLEMd2Preferences.bin"
 static Constant PLEMd2PrefsRecordID = 0
+static Constant reserved = 100  // Reserved uint32 capacity for future use
 
-// Global Preferences stored in igor Folder
-// adopted from igor manual
+// Global Preferences stored in Igor Folder
 Structure PLEMd2Prefs
-//use uint, double, uchar as NVAR SVAR etc are not yet initialized
-	uint32	version			// Preferences structure version number. 1,2,3,4,...
-	double	panelCoords[4]	// left, top, right, bottom
-	uchar	strMapsPath[256]
-	uint32	reserved[100]	// Reserved for future use
+	uint32 version
+	double panelCoords[4]
+	uchar  strMapsPath[256]
+	uint32 reserved[reserved]
 EndStructure
 
 //	Sets prefs structure to default values.
@@ -28,7 +27,7 @@ static Function PLEMd2DefaultPackagePrefsStruct(prefs)
 
 	prefs.strMapsPath = SpecialDirPath("Documents", 0, 0, 0)
 	Variable i
-	for(i=0; i<100; i+=1)
+	for(i = 0; i < reserved; i += 1)
 		prefs.reserved[i] = 0
 	endfor
 End
