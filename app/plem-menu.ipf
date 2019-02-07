@@ -18,7 +18,7 @@ Menu "PLEM", dynamic //create menu bar entry
 //		"Kill: All", PLEMd2d1Kill("all")
 //	End
 //	SubMenu "Displayer2"
-		PLEMd2MenuInit()+"Init",/q, PLEMd2()
+		PLEMd2MenuInit() + "Init", /q, PLEMd2initialize()
 		"Open", PLEMd2open()
 		"Reset", PLEMd2reset()
 		"Info", PLEMd2Panel()
@@ -132,7 +132,7 @@ Function/S PLEMd2Menu(numPLEM)
 
 	//dynamic Menus are called every time the menu bar is pressed.
 	//global Variables should not automatically occur in other projects. so don't create them.
-	if(PLEMd2isInit())
+	if(PLEMd2isInitialized())
 		SVAR gstrMapsAvailable = $(cstrPLEMd2root + ":gstrMapsAvailable")
 		NVAR gnumMapsAvailable	 = $(cstrPLEMd2root + ":gnumMapsAvailable")
 		if(numPLEM<gnumMapsAvailable)
@@ -144,7 +144,7 @@ Function/S PLEMd2Menu(numPLEM)
 End
 
 Function/t PLEMd2MenuInit()
-	if(PLEMd2isInit())
+	if(PLEMd2isInitialized())
 		return "!" + num2char(18) //on
 	else
 		return "" // off

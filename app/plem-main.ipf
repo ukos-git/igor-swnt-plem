@@ -74,47 +74,37 @@ Function PLEMd2initVar()
 	SetDataFolder $cstrPLEMd2root
 End
 
-Function PLEMd2isInit()
-	//numInit only chages if all the tests are ok.
-	Variable numInit = 0
-	String strGlobalVariables = ""
-	DFREF saveDFR = GetDataFolderDFR()
-
-	SetDataFolder root:
-
-	if(FindListItem("gnumPLEMd2IsInit", VariableList("gnum*", ";",4)) != -1)
-		NVAR gnumPLEMd2IsInit
-			if(DataFolderExists(cstrPLEMd2root))
-				SetDataFolder $cstrPLEMd2root
-				//Check if Version of Procedure matches Project.
-				if(FindListItem("gnumPLEMd2Version",VariableList("gnum*", ";",4)) != -1)
-					NVAR gnumPLEMd2Version
-					if(!(gnumPLEMd2Version<cPLEMd2Version))
-						//only at this point we can be sure, that the project is initialized.
-						numInit = gnumPLEMd2IsInit
-					endif
-				endif
-			endif
+Function PLEMd2isInitialized()
+	NVAR/Z gnumPLEMd2IsInit = root:gnumPLEMd2IsInit
+	if(!NVAR_EXISTS(gnumPLEMd2IsInit))
+		return 0
 	endif
-
-	SetDataFolder saveDFR
-	return numInit
+	return gnumPLEMd2IsInit
 End
 
-//The Init and exit Function should be called before and after a menu item is called.
-//strSaveDataFolder should be handled differently. Global Vars are not suitable here.
-Function PLEMd2init()
-	//remember current path
-	String strSaveDataFolder = GetDataFolder(1)
-
-	if(PLEMd2isInit() == 0)
-		PLEMd2initVar()
+// check if the Experiment was created with the same version as the program.
+//
+// Note: use PLEMd2init() for initialization
+Function PLEMd2CheckExperimentVersion()
+	DFREF packageRoot = $cstrPLEMd2root
+	if(!DataFolderRefStatus(packageRoot))
+		return 0
 	endif
 
-	//Save Original Path in Project Root
-	DFREF packageRoot = $cstrPLEMd2root
-	SVAR savedfr = packageRoot:gstrSaveDataFolder
-	savedfr = strSaveDataFolder
+	NVAR/Z ExperimentVersion = packageRoot:gnumPLEMd2Version
+	if(ExperimentVersion == cPLEMd2Version)
+		return 1
+	endif
+End
+
+// automatically initialize the current experiment to default values if necessary
+Function PLEMd2initialize()
+	if(PLEMd2isInitialized() && PLEMd2CheckExperimentVersion())
+		return 0 // already initialized.
+	endif
+
+	PLEMd2Clean()
+	PLEMd2initVar()
 End
 
 Function PLEMd2reset()
@@ -122,11 +112,11 @@ Function PLEMd2reset()
 
 	Variable i, numMaps
 
-	NVAR gnumPLEMd2IsInit = root:gnumPLEMd2IsInit //ToDo assure someHow that global NVAR was set.
-	gnumPLEMd2IsInit = 0
-
-	PLEMd2exit() //needed to restore old DataFolder
-	PLEMd2init()  //...before it is saved again. (Overwrite Protection)
+	if(PLEMd2isInitialized())
+		NVAR gnumPLEMd2IsInit = root:gnumPLEMd2IsInit
+		gnumPLEMd2IsInit = 0
+	endif
+	PLEMd2initialize()
 
 	// reset IBW files
 	numMaps = PLEMd2MapStringReInit()
@@ -135,51 +125,44 @@ Function PLEMd2reset()
 	endfor
 End
 
-Function PLEMd2exit()
-	DFREF packageRoot = $cstrPLEMd2root
-	SVAR savedfr = packageRoot:gstrSaveDataFolder
-	DFREF dfr = $savedfr
-
-	SetDataFolder dfr
-End
-
-Function PLEMd2()
-	//INIT
-	STRUCT PLEMd2Prefs prefs
-
-	// init prefs
-	PLEMd2LoadPackagePrefs(prefs)
-	PLEMd2SavePackagePrefs(prefs)
-
-	//init module
-	PLEMd2init()
-	PLEMd2exit()
-End
-
+// cleanup package root
 Function PLEMd2Clean()
 	String strVariables, strStrings, strAvailable
-	String strSaveDataFolder = GetDataFolder(1)
 	Variable i, numAvailable
 
-	SetDataFolder root:
+	DFREF dfrSave = GetDataFolderDFR()
+	DFREF packageRoot = $cstrPLEMd2root
 
-	strVariables	= VariableList("V_*", ";",4)	//Scalar Variables
-	strVariables	+= VariableList("*", ";",2)	//System Variables
-	strStrings	= StringList("S_*", ";")
+	// we assume that all paths belong to previous versions of the program.
+	if(PLEMd2CheckExperimentVersion())
+		KillPath/A/Z
+	endif
+
+	if(!DataFolderRefStatus(packageRoot))
+		return 0
+	endif
+
+	SetDataFolder packageRoot
+
+	strVariables  = VariableList("V_*", ";", 4)	 // Scalar Igor Variables
+	strVariables += VariableList("*", ";", 2)	//System Variables
+	strStrings    = StringList("S_*", ";") // Scalar Igor Strings
+
+	// @todo add all variables except those that are needed in the current Experiment Version
 
 	numAvailable = ItemsInList(strVariables)
 	for(i = 0; i < numAvailable; i += 1)
 		strAvailable = StringFromList(i, strVariables)
-		Killvariables/Z $("root:" + strAvailable)
+		Killvariables/Z $strAvailable
 	endfor
 
 	numAvailable = ItemsInList(strStrings)
 	for(i = 0; i < numAvailable; i += 1)
 		strAvailable = StringFromList(i, strStrings)
-		Killstrings/Z $("root:" + strAvailable)
+		Killstrings/Z $strAvailable
 	endfor
 
-	SetDataFolder $strSaveDataFolder
+	SetDataFolder dfrSave
 End
 
 Function PLEMd2Open([strFile, display])
@@ -188,6 +171,9 @@ Function PLEMd2Open([strFile, display])
 
 	String strFileName, strFileType, strPartialPath
 	String strWave, strPLEM
+
+	// this function serves as entrypoint for most activities
+	PLEMd2initialize()
 
 	if(ParamIsDefault(strFile))
 		strFile = PLEMd2PopUpChooseFile()
@@ -251,9 +237,6 @@ Function PLEMd2Open([strFile, display])
 		KillWaves/Z oldIBW
 	endif
 
-	// init PLEMd2
-	PLEMd2init()
-
 	// init stats
 	PLEMd2statsInitialize(strPLEM)
 
@@ -262,9 +245,6 @@ Function PLEMd2Open([strFile, display])
 	if(display)
 		PLEMd2Display(strPLEM)
 	endif
-
-	// clean exit
-	PLEMd2exit()
 End
 
 Function PLEMd2ProcessIBW(strPLEM)
@@ -295,7 +275,6 @@ Function/DF PLEMd2ExtractWaves(wavIBW)
 	numTotalX	= DimSize(wavIBW, 0)
 	numTotalY	= DimSize(wavIBW, 1)
 	if(numTotalY == 0 || numTotalX == 0)
-		PLEMd2exit()
 		Abort "PLEMd2ExtractWaves: Binary File has no waves"
 	endif
 	if(numTotalY != ItemsInList(strWaveNames))
@@ -1592,7 +1571,7 @@ Function PLEMd2d1Import(numKillWavesAfterwards)
 	//if(ParamIsDefault(numKillWavesAfterwards))
 	//	numKillWavesAfterwards = 0
 	//endif
-	PLEMd2init()
+	PLEMd2initialize()
 	DFREF dfr = $cstrPLEMd2root
 	SVAR gstrMapsFolder = dfr:gstrMapsFolder
 	SVAR gstrMapsAvailable = dfr:gstrMapsAvailable
@@ -1755,7 +1734,6 @@ Function PLEMd2d1Import(numKillWavesAfterwards)
 		//Save stats.
 		PLEMd2statsSave(stats)
 	endfor
-	PLEMd2exit()
 End
 
 Function PLEMd2getMapsAvailable()
@@ -1871,7 +1849,7 @@ End
 
 Function PLEMd2d1Kill(strWhichOne)
 	String strWhichOne
-	PLEMd2Init()
+	PLEMd2initialize()
 
 	SVAR gstrPLEMd1root
 	SetDataFolder $gstrPLEMd1root
@@ -1957,7 +1935,6 @@ Function PLEMd2d1Kill(strWhichOne)
 		endif
 	endfor
 	print "PLEMd2d1Kill: deleted " + strWhichOne + ": " + num2str(numCount) + " "
-	PLEMd2exit()
 End
 
 Function/S PLEMd2d1Find()
@@ -2003,7 +1980,7 @@ End
 
 Function PLEMd2d1isInit()
 	//directory persistent: function does not switch the current directory.
-	if(PLEMd2isInit() == 0)
+	if(PLEMd2isInitialized() == 0)
 		return 0
 	else
 		SVAR gstrPLEMd1root = $(cstrPLEMd2root + ":gstrPLEMd1root")

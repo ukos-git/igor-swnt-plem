@@ -221,9 +221,8 @@ Function PLEMd2statsInitialize(strMap)
 	String strMap
 	Struct PLEMd2Stats stats
 
-	if(PLEMd2isInit() != 1)
-		print "PLEMd2statsInitialize: PLEMd2isInit returned false"
-		return 0
+	if(!PLEMd2isInitialized())
+		Abort "PLEMd2statsInitialize: PLEMd2 is not initialized."
 	endif
 	PLEMd2statsLoad(stats, strMap)
 
@@ -249,12 +248,16 @@ End
 Function/S PLEMd2FullPathByString(strPLEM)
 	String strPLEM
 
-	String strSaveDataFolder = GetDataFolder(1)
-	SetDataFolder $cstrPLEMd2root
-	SVAR gstrMapsFolder
+	String fullPath
 
-	String strMap = gstrMapsFolder + ":" + strPLEM + ":PLEM"
+	DFREF packageRoot = $cstrPLEMd2root
+	SVAR/Z mapsFolder = packageRoot:gstrMapsFolder
+	if(!SVAR_EXISTS(mapsFolder))
+		Abort "Function can not return proper results if SVAR is missing"
+	endif
 
-	SetDataFolder $strSaveDataFolder
-	return strMap
+	fullPath  = ParseFilePath(2, mapsFolder, ":", 0, 0)
+	fullPath += strPLEM + ":PLEM"
+
+	return fullPath
 End
