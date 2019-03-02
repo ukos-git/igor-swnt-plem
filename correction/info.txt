@@ -1,0 +1,30 @@
+
+Betreff:	Gitter- und Sensor-Quanten-Effizienzen
+Datum:	Wed, 7 Oct 2015 14:41:44 +0000
+Von:	Olaf Koschuetzke <koschuetzke@lot-qd.de>
+An:	Belinda Boehm <belinda.boehm@uni-wuerzburg.de>
+Kopie (CC):	Thorsten Pieper <pieper@lot-qd.de>, Markus Krause <krause@lot-qd.de>
+
+Sehr geehrte Frau Böhm,
+ 
+mein Kollege Dr. Pieper ist diese Woche im Urlaub, weshalb ich Ihre Fragen beantworten möchte.
+ 
+Leider bekommt Andor von seinem Gitterlieferanten (Newport Richardson Gratings) keine Gittereffizienzkurven in tabellarischer Form sondern nur in Form von Graphen.
+ 
+Auf der Webseite von Richardson Gratings
+ 
+http://www.gratinglab.com/Products/Product_Tables/T2.aspx
+ 
+finden Sie die Kurven der drei Gitter hier:
+ 
+Gitter A-SR3-GRT-0150-0500
+http://www.gratinglab.com/Products/Product_Tables/Efficiency/Efficiency.aspx?catalog=53-*-201R
+
+Gitter A-SR3-GRT-0150-0800
+http://www.gratinglab.com/Products/Product_Tables/Efficiency/Efficiency.aspx?catalog=53-*-426R
+
+Gitter  A-SR3-GRT-0150-1250
+http://www.gratinglab.com/Products/Product_Tables/Efficiency/Efficiency.aspx?catalog=53-*-500R
+ 
+Die Quanteneffizienzen der Detektoren Newton DU920P-OE und InGaAs iDus DU491A-1.7 haben wir in Tabellenform (siehe Anlage); für InGaAs 1,7 µm allerdings nur für Raumtemperatur. Bitte beachten Sie, dass sich die Quanteneffizienz von InGaAs bei Kühlung verändert, wie es im beigefügten TIF-Bild zu sehen ist.
+ 
