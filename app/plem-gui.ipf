@@ -190,7 +190,7 @@ Function PLEMd2Panel([strWinPLEM])
 	endif
 
 	// get INFO folder (method only works if one trace is present)
-	WAVE wavPLEM = Utilities#getTopWindowWave()
+	WAVE wavPLEM = getTopWindowWave()
 	strDataFolderMap = GetWavesDataFolder(wavPLEM, 1)
 	strDataFolderInfo = strDataFolderMap + "INFO:"
 	if(DataFolderExists(strDataFolderInfo) == 0)
