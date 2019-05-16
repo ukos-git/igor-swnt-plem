@@ -31,7 +31,7 @@ Function/S PLEMd2window2strPLEM(strWindow)
 	endif
 End
 
-static Function/DF DataFolderReference(dataFolderNameStr)
+Function/DF DataFolderReference(dataFolderNameStr)
 	String dataFolderNameStr
 
 	if(!DataFolderExists(dataFolderNameStr))

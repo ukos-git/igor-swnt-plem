@@ -4,7 +4,7 @@
 StrConstant PLEMd2PackageName = "PLEM-displayer2"
 static StrConstant PLEMd2PrefsFileName = "PLEMd2Preferences.bin"
 static Constant PLEMd2PrefsRecordID = 0
-static Constant reserved = 90  // Reserved uint32 capacity for future use
+static Constant reserved = 70  // Reserved uint32 capacity for future use
 
 // Global Preferences stored in Igor Folder
 Structure PLEMd2Prefs
@@ -12,6 +12,7 @@ Structure PLEMd2Prefs
 	double panelCoords[4]
 	uchar  strLastPath[256]
 	char   strBasePath[40]
+	char   strCorrectionPath[80]
 	uint32 reserved[reserved]
 EndStructure
 
@@ -28,6 +29,7 @@ static Function PLEMd2DefaultPackagePrefsStruct(prefs)
 
 	prefs.strLastPath = SpecialDirPath("Documents", 0, 0, 0)
 	prefs.strBasePath = ""
+	prefs.strCorrectionPath = ""
 	Variable i
 	for(i = 0; i < reserved; i += 1)
 		prefs.reserved[i] = 0
@@ -104,7 +106,7 @@ Function PLEMd2SetBasePath()
 	strBasePath = prefs.strBasePath
 	NewPath/O/Q/Z PLEMbasePath, strBasePath
 	if(!V_flag)
-		PathInfo/S path
+		PathInfo/S PLEMbasePath
 	endif
 
 	NewPath/O/Q/Z/M="Set PLEM base path" PLEMbasePath
@@ -121,6 +123,39 @@ Function PLEMd2SetBasePath()
 	GetFileFolderInfo/Q/Z=1 strBasePath
 	if(!V_flag && V_isFolder)
 		prefs.strBasePath = strBasePath
+		PLEMd2SavePackagePrefs(prefs)
+	endif
+End
+
+// Save the location of the base path where all ibw files are saved.
+//
+// DisplayHelpTopic "Symbolic Paths"
+Function PLEMd2SetCorrectionPath()
+	String strCorrectionPath
+
+	Struct PLEMd2Prefs prefs
+	PLEMd2LoadPackagePrefs(prefs)
+
+	strCorrectionPath = prefs.strCorrectionPath
+	NewPath/O/Q/Z PLEMCorrectionPath, strCorrectionPath
+	if(!V_flag)
+		PathInfo/S PLEMCorrectionPath
+	endif
+
+	NewPath/O/Q/Z/M="Set PLEMCorrectionPath path" PLEMCorrectionPath
+	if(V_flag)
+		return 0 // user canceled
+	endif
+
+	PathInfo PLEMCorrectionPath
+	strCorrectionPath = S_path
+	if(!V_flag)
+		return 0 // invalid path
+	endif
+
+	GetFileFolderInfo/Q/Z=1 strCorrectionPath
+	if(!V_flag && V_isFolder)
+		prefs.strCorrectionPath = strCorrectionPath
 		PLEMd2SavePackagePrefs(prefs)
 	endif
 End

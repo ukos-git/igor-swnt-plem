@@ -24,7 +24,7 @@ Menu "PLEM", dynamic //create menu bar entry
 		"-"
 		"Clean", PLEMd2Clean()
 		"Reset", PLEMd2reset()
-		"Set Base Path", PLEMd2SetBasePath()
+		"Set Paths", PLEMd2SetPaths()
 		"-"
 		"Atlas", PLEMd2PanelAtlas()
 
@@ -152,4 +152,9 @@ Function/t PLEMd2MenuInit()
 	else
 		return "" // off
 	endif
+End
+
+Function PLEMd2SetPaths()
+	PLEMd2SetBasePath()
+	PLEMd2SetCorrectionPath()
 End
