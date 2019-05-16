@@ -1131,33 +1131,37 @@ Function PLEMd2AtlasEdit(strPLEM)
 
 End
 
+// uses 2d fit result to clean
 Function PLEMd2AtlasClean(strPLEM)
 	String strPLEM
 
 	Variable i, numPoints
-
 	Variable xmin, xmax, ymin, ymax
+	Variable threshold = 0
 
 	Struct PLEMd2stats stats
 	PLEMd2statsLoad(stats, strPLEM)
 
 	// get boundaries of current window
 	PLEMd2Display(strPLEM)
-	getAxis/Q left
+	GetAxis/Q left
 	ymin = V_min
 	ymax = V_max
-	getAxis/Q bottom
+	GetAxis/Q bottom
 	xmin = V_min
 	xmax = V_max
 
+	// define threshold
+	StatsQuantiles/TM stats.wav2Dfit
+	threshold = V_Q25 / 4
+
 	numPoints = DimSize(stats.wavchiralitynm, 0)
-	for(i = 0; i < DimSize(stats.wavchiralitynm, 0); i += 1)
-		if((stats.wav1Dfit[i] == 0) || (stats.wavEnergyS2[i] < ymin) || (stats.wavEnergyS2[i] > ymax) || (stats.wavEnergyS1[i] < xmin) || (stats.wavEnergyS1[i] > xmax))
+	for(i = numPoints - 1; i >= 0; i -= 1)
+		if((stats.wav2Dfit[i] <= threshold) || (stats.wavEnergyS2[i] < ymin) || (stats.wavEnergyS2[i] > ymax) || (stats.wavEnergyS1[i] < xmin) || (stats.wavEnergyS1[i] > xmax))
 			print "deleting " + stats.wavchiralitynm[i]
 			print (stats.wavEnergyS2[i]), (stats.wavEnergyS1[i])
-			DeletePoints i,1, stats.wavchiralitynm, stats.wavchiralityn, stats.wavchiralitym
-			DeletePoints i,1, stats.wav2Dfit, stats.wav1Dfit, stats.wavEnergyS1, stats.wavEnergyS2
-			i-=1
+			DeletePoints i, 1, stats.wavchiralitynm, stats.wavchiralityn, stats.wavchiralitym
+			DeletePoints i, 1, stats.wav2Dfit, stats.wav1Dfit, stats.wavEnergyS1, stats.wavEnergyS2
 		endif
 	endfor
 End
@@ -1334,8 +1338,8 @@ Function PLEMd2AtlasFit3D(strPLEM)
 	//Display
 	//AppendImage stats.wavPLEM
 
-	numDeltaS1 = 50
-	numDeltaS2 = 50
+	numDeltaS1 = 25
+	numDeltaS2 = 25
 	
 	rightXvalue = stats.numPLEMleftX + stats.numPLEMTotalX * stats.numPLEMdeltaX
 	topYvalue = stats.numPLEMbottomY + stats.numPLEMTotalY * stats.numPLEMdeltaY
