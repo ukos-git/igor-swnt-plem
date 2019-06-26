@@ -200,17 +200,17 @@ Function PLEMd2Panel([strWinPLEM])
 
 	// build panel
 	NewPanel /N=PLEMd2Panel/W=(0,0,300,250) /EXT=0 /HOST=$strWinPLEM
-	TitleBox/Z gstrPLEMfull			variable=$(strDataFolderInfo + "gstrPLEMfull"), 			pos={0,0}, 		size={130,0}, disable=0, frame=0, font="Helvetica"
-	SetVariable normalization,		value=$(strDataFolderInfo + "gnumNormalization"),			pos={150,80}, 	title="normalization", size={130,0}, proc=SetVarProcCalculate
-	SetVariable delatX,				value=$(strDataFolderInfo + "gnumPLEMDeltaX"),				pos={150,100},	title="deltaX", size={130,0}, noedit=1
-	CheckBox boxBackground 			variable=$(strDataFolderInfo + "gbooBackground"), 			pos={10,20}, 	title="background", proc=CheckProcCalculate
-	CheckBox boxPower 				variable=$(strDataFolderInfo + "gbooPower"), 				pos={10,40}, 	title="power", proc=CheckProcCalculate
-	CheckBox boxPhoton				variable=$(strDataFolderInfo + "gbooPhoton"), 				pos={10,60}, 	title="photon", proc=CheckProcCalculate
-	CheckBox boxGrating 				variable=$(strDataFolderInfo + "gbooGrating"), 				pos={10,120}, 	title="grating", proc=CheckProcCalculate
-	CheckBox boxQuantumEfficiency	variable=$(strDataFolderInfo + "gbooQuantumEfficiency"),	pos={10,160}, 	title="detector", proc=CheckProcCalculate
-	CheckBox boxNormalization		variable=$(strDataFolderInfo + "gbooNormalization"), 		pos={10,80}, 	title="normalization", proc=CheckProcCalculate
-	CheckBox boxFilter				variable=$(strDataFolderInfo + "gbooFilter"), 				pos={10,140}, 	title="filter", proc=CheckProcCalculate
-	CheckBox boxInterpolate			variable=$(strDataFolderInfo + "gbooInterpolate"), 			pos={10,100}, 	title="interpolate", proc=CheckProcCalculate
+	TitleBox/Z gstrPLEMfull			variable=$(strDataFolderInfo + "gstrPLEMfull"),          pos={0,0},     size={130,0}, disable=0, frame=0, font="Helvetica"
+	SetVariable normalization,		value=$(strDataFolderInfo + "gnumNormalization"),        pos={150,80},  title="normalization", size={130,0}, proc=SetVarProcCalculate
+	SetVariable delatX,				value=$(strDataFolderInfo + "gnumPLEMDeltaX"),	           pos={150,100}, title="deltaX", size={130,0}, noedit=1
+	CheckBox boxBackground 			variable=$(strDataFolderInfo + "gbooBackground"),        pos={10,20},   title="background", proc=CheckProcCalculate
+	CheckBox boxPower 				variable=$(strDataFolderInfo + "gbooPower"),                pos={10,40},   title="power", proc=CheckProcCalculate
+	CheckBox boxPhoton				variable=$(strDataFolderInfo + "gbooPhoton"),               pos={10,60},   title="photon", proc=CheckProcCalculate
+	CheckBox boxGrating 				variable=$(strDataFolderInfo + "gbooGrating"),           pos={10,120},  title="grating", proc=CheckProcCalculate
+	CheckBox boxQuantumEfficiency	variable=$(strDataFolderInfo + "gbooQuantumEfficiency"), pos={10,160},  title="detector", proc=CheckProcCalculate
+	CheckBox boxNormalization		variable=$(strDataFolderInfo + "gbooNormalization"),     pos={10,80},   title="normalization", proc=CheckProcCalculate
+	CheckBox boxFilter				variable=$(strDataFolderInfo + "gbooFilter"),               pos={10,140},  title="filter", proc=CheckProcCalculate
+	CheckBox boxInterpolate			variable=$(strDataFolderInfo + "gbooInterpolate"),       pos={10,100},  title="interpolate", proc=CheckProcCalculate
 
 	Button ProcessIBW, pos={150, 30}, size={130,30}, proc=ButtonProcProcessIBW,title="reset"
 //	Button BuildMaps, pos={150, 180}, size={130,30}, proc=ButtonProcBuildMaps,title="calculate"
