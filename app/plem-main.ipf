@@ -673,6 +673,9 @@ Function PLEMd2BuildMaps(strPLEM)
 		Multithread wavPLEM = stats.wavMeasure
 	endif
 
+	if(stats.booTime)
+		Multithread wavPLEM /= stats.numExposure
+	endif
 	if(stats.numDetector == 2 || stats.numDetector == 3)
 		NVAR numRotationAdjustment = root:numRotationAdjustment
 		if(numRotationAdjustment != 0)

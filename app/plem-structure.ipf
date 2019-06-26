@@ -20,7 +20,7 @@ Structure PLEMd2stats
 	// Normalization Value
 	Variable numNormalization
 	// Switches for calculation
-	Variable booBackground, booPower, booPhoton, booGrating, booQuantumEfficiency, booNormalization, booFilter, booInterpolate
+	Variable booBackground, booPower, booPhoton, booGrating, booQuantumEfficiency, booNormalization, booFilter, booInterpolate, booTime
 	// chirality waves
 	Wave/D wavAtlasS1nm, wavAtlasS2nm, wavAtlasN, wavAtlasM, wavAtlasNM
 	Wave/D wavEnergyS1, wavEnergyS2, wavChiralityn, wavChiralitym, wav2Dfit, wav1Dfit
@@ -92,6 +92,7 @@ Function PLEMd2statsLoad(stats, strMap)
 	stats.booNormalization		= getMapVariable(strMap, "gbooNormalization")
 	stats.booFilter				= getMapVariable(strMap, "gbooFilter")
 	stats.booInterpolate 		= getMapVariable(strMap, "gbooInterpolate")
+	stats.booTime              = getMapVariable(strMap, "gbooTime")
 
 	stats.numS1offset 	= getMapVariable(strMap, "gnumS1offset")
 	stats.numS2offset 	= getMapVariable(strMap, "gnumS2offset")
@@ -164,6 +165,7 @@ Function PLEMd2statsSave(stats)
 	setMapVariable(strMap, "gbooNormalization", stats.booNormalization)
 	setMapVariable(strMap, "gbooFilter", stats.booFilter)
 	setMapVariable(strMap, "gbooInterpolate", stats.booInterpolate)
+	setMapVariable(strMap, "gbooTime", stats.booTime)
 
 	setMapVariable(strMap, "gnumS1offset", stats.numS1offset)
 	setMapVariable(strMap, "gnumS2offset", stats.numS2offset)

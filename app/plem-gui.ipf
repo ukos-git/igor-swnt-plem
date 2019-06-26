@@ -211,9 +211,9 @@ Function PLEMd2Panel([strWinPLEM])
 	CheckBox boxNormalization     variable=$(strDataFolderInfo + "gbooNormalization"),     pos={10,80},   title="normalization", proc=CheckProcCalculate
 	CheckBox boxFilter            variable=$(strDataFolderInfo + "gbooFilter"),            pos={10,140},  title="filter", proc=CheckProcCalculate
 	CheckBox boxInterpolate       variable=$(strDataFolderInfo + "gbooInterpolate"),       pos={10,100},  title="interpolate", proc=CheckProcCalculate
+	CheckBox boxTime              variable=$(strDataFolderInfo + "gbooTime"),              pos={10,180},  title="cts/s", proc=CheckProcCalculate
 
 	Button ProcessIBW, pos={150, 30}, size={130,30}, proc=ButtonProcProcessIBW,title="reset"
-//	Button BuildMaps, pos={150, 180}, size={130,30}, proc=ButtonProcBuildMaps,title="calculate"
 	Button ShowNote, pos={150, 140}, size={130,30}, proc=ButtonProcShowNote,title="WaveNote"
 	DoWindow PLEMd2Panel
 End
