@@ -399,8 +399,8 @@ Function PLEMd2ExtractIBW(strPLEM, wavIBW)
 	// Grating Waves (requires stats.wavWavelength)
 	WAVE/Z grating = PLEMd2getGrating(stats)
 	if(!WaveExists(grating))
-		stats.wavGrating = 1
-		print "PLEMd2ExtractIBW: Grating Wave was set to 1"
+		WAVE/Z wv = stats.wavGrating
+		KillWaves/Z wv
 	else
 		WAVE/Z gratingX = $(GetWavesDataFolder(grating, 2) + "_wl")
 		if(WaveExists(gratingX))
@@ -414,8 +414,8 @@ Function PLEMd2ExtractIBW(strPLEM, wavIBW)
 	// Grating Waves (requires stats.wavWavelength)
 	WAVE/Z qe = PLEMd2getQuantumEfficiency(stats)
 	if(!WaveExists(qe))
-		stats.wavQE = 1
-		print "PLEMd2ExtractIBW: Grating Wave was set to 1"
+		WAVE wv = stats.wavQE
+		KillWaves/Z wv
 	else
 		WAVE/Z qeX = $(GetWavesDataFolder(qe, 2) + "_wl")
 		if(WaveExists(gratingX))
@@ -484,8 +484,10 @@ Function PLEMd2ExtractIBW(strPLEM, wavIBW)
 
 	// Power correction waves
 	// requires Excitation wave for Photon Energy
-	stats.wavYpower	 = str2num(StringFromList(p, PLEMd2ExtractPower(wavIBW), ";"))
-	stats.wavYphoton = (stats.wavYpower * 1e-6) / (6.62606957e-34 * 2.99792458e+8 / (stats.wavExcitation * 1e-9)) 		// power is in uW and Excitation is in nm
+	if(stats.numDetector == 0 || stats.numDetector == 1)
+		stats.wavYpower	 = str2num(StringFromList(p, PLEMd2ExtractPower(wavIBW), ";"))
+		stats.wavYphoton = (stats.wavYpower * 1e-6) / (6.62606957e-34 * 2.99792458e+8 / (stats.wavExcitation * 1e-9)) 		// power is in uW and Excitation is in nm
+	endif
 
 	// init camera specific corrections.
 	// Please note that sizeadjustment and rotationadjustment are not
@@ -657,6 +659,16 @@ Function PLEMd2BuildMaps(strPLEM)
 		Multithread wavPLEM = stats.wavMeasure
 	endif
 
+	if(stats.numDetector == 2 || stats.numDetector == 3)
+		NVAR numRotationAdjustment = root:numRotationAdjustment
+		if(numRotationAdjustment != 0)
+			ImageRotate/Q/E=(NaN)/O/A=(numRotationAdjustment) stats.wavPLEM
+		endif
+		return NaN
+	endif
+
+	// spectrum corrections
+
 	if(stats.booPower)
 		if(DimSize(stats.wavPLEM, 1) == DimSize(stats.wavYpower, 0))
 			Multithread wavPLEM /= stats.wavYpower[q]
@@ -679,11 +691,6 @@ Function PLEMd2BuildMaps(strPLEM)
 
 	if(stats.booQuantumEfficiency)
 		stats.wavPLEM /= stats.wavQE[p]
-	endif
-
-	NVAR numRotationAdjustment = root:numRotationAdjustment
-	if(numRotationAdjustment != 0)
-		ImageRotate/Q/E=(NaN)/O/A=(numRotationAdjustment) stats.wavPLEM
 	endif
 End
 
@@ -968,9 +975,6 @@ Function PLEMd2FixWavenotes(wavIBW)
 		//strWaveNames	= strHeader[strsearch(strHeader, "IGOR3:",0), strlen(strHeader)]
 		strHeader = ReplaceString("IGOR3:" + strWaveNames, strHeader, "IGOR3:" + strWaveNamesNew)
 	endif
-	
-	Note/K wavIBW strHeader
-	strHeader = Note(wavIBW)
 End
 
 Function PLEMd2AtlasReload(strPLEM)

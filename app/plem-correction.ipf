@@ -91,6 +91,10 @@ Function/WAVE PLEMd2getGrating(stats)
 	Struct PLEMd2stats &stats
 
 	String strGrating
+	
+	if(stats.numDetector == 2 || stats.numDetector == 3)
+		return $"" // clara and xeva
+	endif
 
 	strGrating = PLEMd2getGratingString(stats.numGrating, PLEMd2getSystem(stats.strUser))
 
@@ -112,6 +116,10 @@ Function/WAVE PLEMd2getQuantumEfficiency(stats)
 	Struct PLEMd2stats &stats
 
 	String strDetector
+
+	if(stats.numDetector == 2 || stats.numDetector == 3)
+		return $"" // clara and xeva
+	endif
 
 	strDetector = PLEMd2getDetectorQEstring(stats.numDetector, stats.numCooling, PLEMd2getSystem(stats.strUser))
 
