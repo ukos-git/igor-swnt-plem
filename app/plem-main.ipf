@@ -770,7 +770,7 @@ Function PLEMd2ExtractInfo(strPLEM, wavIBW)
 
 	stats.strPLEM = strPLEM
 
-	stats.strDate 		= PLEMd2ExtractSearch(wavIBW, "Date")
+	stats.strDate 		= PLEMd2ExtractSearch(wavIBW, "Date") /// @see PLEMd2Date2Minutes
 	stats.strUser 		= PLEMd2ExtractSearch(wavIBW, "User")
 	stats.strFileName 	= PLEMd2ExtractSearch(wavIBW, "File")
 
@@ -808,6 +808,27 @@ Function PLEMd2ExtractInfo(strPLEM, wavIBW)
 	stats.numMagnification 	= PLEMd2ExtractVariables(wavIBW, "numMagnification")
 
 	PLEMd2statsSave(stats)
+End
+
+// @brief convert the stats.strDate string and return the time in minutes
+//
+// expected format for strDateTime: "DD.MM.YYYY/HH:MM"
+Function PLEMd2Date2Minutes(strDateTime)
+	string strDateTime
+
+	string strDate, strTime
+	variable minutes
+
+	// format is DD.MM.YYYY
+	strDate = StringFromList(0, strDateTime, "/")
+	// format is HH:MM
+	strTime = StringFromList(1, strDateTime, "/")
+
+	minutes = date2secs(str2num(StringFromList(2, strDate, ".")), str2num(StringFromList(1, strDate, ".")), str2num(StringFromList(0, strDate, "."))) / 60
+	minutes += str2num(StringFromList(0, strTime, ":")) * 60
+	minutes += str2num(StringFromList(1, strTime, ":"))
+
+	return minutes
 End
 
 //This Function is called every time. we probably could make it more efficient. ;_(
@@ -861,7 +882,7 @@ Function/S PLEMd2ExtractSearch(wavIBW, strFind)
 		strReadLine = StringFromList(i, strHeader, "\r\n")
 	while ((StringMatch(strReadLine, "*" + strFind + "*") != 1) && (i<numCount))
 
-	strItem = StringFromList(1, strReadLine, ":")
+	strItem = TrimString(strReadLine[strsearch(strReadLine, ":", 0) + 1, inf])
 	if((strlen(strReadLine)>0) && (strlen(strItem)>0))
 		strReturn = strItem
 	else
