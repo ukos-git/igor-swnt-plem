@@ -283,7 +283,15 @@ Function/DF PLEMd2ExtractWaves(wavIBW)
 		strWaveNames = PLEMd2ExtractWaveList(wavIBW)
 	endif
 	if(numTotalY != ItemsInList(strWaveNames))
-		printf "PLEMd2ExtractWaves: Missmatch in wavenames:\r%s\rWaveNames not correct in WaveNote. Counting %d data columns and %d labels.\rManual interaction needed.", strWaveNames, numTotalY, ItemsInList(strWaveNames)
+		printf "PLEMd2ExtractWaves: Missmatch in wavenames:\r%s\rWaveNames not correct in WaveNote. Counting %d data columns and %d labels.\r", strWaveNames, numTotalY, ItemsInList(strWaveNames)
+		if(numTotalY < ItemsInList(strWaveNames))
+			print "PLEMd2ExtractWaves: probably canceled measurement"
+			do
+				strWaveNames = RemoveListItem(ItemsInList(strWaveNames) - 1, strWaveNames)
+			while(numTotalY < ItemsInList(strWaveNames))
+		else
+			Abort "Manual interaction needed."
+		endif
 	endif
 
 	//Extract Columns from Binary Wave and give them proper names
@@ -354,7 +362,13 @@ Function PLEMd2ExtractIBW(strPLEM, wavIBW)
 
 	// error checking for multiple background
 	if(stats.numbackground == PLEM_MULTIPLE_BACKGROUND && ItemsInList(strWaveBG, ";") != ItemsInList(strWavePL, ";"))
-		Abort "PLEMd2ExtractIBW: Error Size Missmatch between Background Maps and PL Maps"
+		printf "number of bg: %d\t number of pl: %d\r", ItemsInList(strWaveBG, ";"), ItemsInList(strWavePL, ";")
+		if(WhichListItem("BG", strWaveBG) != -1)
+			print "mixed Single and multiple BG mode. Switching to single Background mode."
+			stats.numbackground = PLEM_SINGLE_BACKGROUND
+		else
+			Abort "PLEMd2ExtractIBW: Error Size Missmatch between Background Maps and PL Maps"
+		endif
 	endif
 
 	stats.numCalibrationMode = 0
