@@ -437,7 +437,8 @@ Function PLEMd2ExtractIBW(strPLEM, wavIBW)
 		else
 			Interpolate2/T=1/I=3/Y=stats.wavQE/X=stats.wavWavelength qe
 		endif
-		// WAVE/Z qeErr = $(GetWavesDataFolder(qe, 2) + "_err")
+		WAVE qe = stats.wavQE
+		Multithread qe[] = stats.wavWavelength[p] > qeX[0] && stats.wavWavelength[p] < qeX[DimSize(qeX, 0) - 1] ? stats.wavQE[p] : NaN
 	endif
 
 	// different handling for spectra in calibration mode (1) and for maps (0)
