@@ -33,9 +33,6 @@ Function PLEMd2initVar()
 	//during run time it is set in PMRinit() but we will already switch folders here. so better also here safe the path.
 	String/G gstrSaveDataFolder = strSaveDataFolder
 
-	//Specify source for new correction files (displayer2) and old files (displayer1 or Tilman's original)
-	String/G gstrPathBase	= SpecialDirPath("Igor Pro User Files", 0, 0, 0 ) + "User Procedures:PLEMd2:"
-
 	String/G gstrPLEMd1root = cstrPLEMd2root + ":" + "PLEMd1"
 	String/G gstrMapsFolder = cstrPLEMd2root + ":" + "maps"
 
@@ -441,6 +438,51 @@ Function PLEMd2ExtractIBW(strPLEM, wavIBW)
 		Multithread qe[] = stats.wavWavelength[p] > qeX[0] && stats.wavWavelength[p] < qeX[DimSize(qeX, 0) - 1] ? stats.wavQE[p] : NaN
 	endif
 
+	// excitation filter
+	WAVE/Z filter = PLEMd2getFilterExc(stats)
+	if(!WaveExists(filter))
+		WAVE filter = stats.wavFilterExc
+		KillWaves/Z filter
+	else
+		WAVE/Z filterX = $(GetWavesDataFolder(filter, 2) + "_wl")
+		if(WaveExists(filterX))
+			Interpolate2/T=1/I=3/Y=stats.wavFilterExc/X=stats.wavExcitation filterX, filter
+		else
+			Interpolate2/T=1/I=3/Y=stats.wavFilterExc/X=stats.wavExcitation filter
+		endif
+		WAVE mirror = PLEMd2getReflMirror()
+		WAVE mirrorX = $(GetWavesDataFolder(mirror, 2) + "_wl")
+		Duplicate/FREE stats.wavFilterExc mirrorExc
+		Interpolate2/T=1/I=3/Y=mirrorExc/X=stats.wavExcitation mirrorX, mirror
+		stats.wavFilterExc /= (mirrorExc[p]^2)
+		WaveClear mirror, mirrorX, mirrorExc, filterX
+	endif
+	WaveClear filter
+
+	// emission filter
+	WAVE/Z filter = PLEMd2getFilterEmi(stats)
+	if(!WaveExists(filter))
+		WAVE filter = stats.wavFilterEmi
+		KillWaves/Z filter
+	else
+		WAVE/Z filterX = $(GetWavesDataFolder(filter, 2) + "_wl")
+		if(WaveExists(filterX))
+			Interpolate2/T=1/I=3/Y=stats.wavFilterEmi/X=stats.wavWavelength filterX, filter
+		else
+			Interpolate2/T=1/I=3/Y=stats.wavFilterEmi/X=stats.wavWavelength filter
+		endif
+		WAVE mirror = PLEMd2getReflMirror()
+		WAVE mirrorX = $(GetWavesDataFolder(mirror, 2) + "_wl")
+		Duplicate/FREE stats.wavFilterEmi mirrorEmi
+		Interpolate2/T=1/I=3/Y=mirrorEmi/X=stats.wavExcitation mirrorX, mirror
+		stats.wavFilterExc /= (mirrorEmi[p]^2)
+		if(PLEMd2getSystem(stats.strUser) == PLEM_SYSTEM_MICROSCOPE)
+			stats.wavFilterExc /= mirrorEmi[p] // one more mirror on Microscope
+		endif
+		WaveClear mirror, mirrorX, mirrorExc, filterX
+	endif
+	WaveClear filter
+
 	// different handling for spectra in calibration mode (1) and for maps (0)
 	if(stats.numCalibrationMode == 1)
 		wave wavMeasure 	= dfr:$(StringFromList(0, strWavePL))
@@ -694,14 +736,26 @@ Function PLEMd2BuildMaps(strPLEM)
 
 	if(stats.booPower)
 		if(DimSize(stats.wavPLEM, 1) == DimSize(stats.wavYpower, 0))
-			Multithread wavPLEM /= stats.wavYpower[q]
+			if(stats.booFilter)
+				Multithread wavPLEM /= (stats.wavYpower[q] / stats.wavFilterExc[q])
+			else
+				Multithread wavPLEM /= stats.wavYpower[q]
+			endif
 		else
 			Multithread wavPLEM /= stats.wavYpower[0]
 		endif
 	endif
 
 	if(stats.booPhoton)
-		Multithread wavPLEM /= stats.wavYphoton[q]
+		if(stats.booFilter)
+			Multithread wavPLEM /= (stats.wavYphoton[q] / stats.wavFilterExc[q])
+		else
+			Multithread wavPLEM /= stats.wavYphoton[q]
+		endif
+	endif
+
+	if(stats.booFilter)
+		Multithread wavPLEM /= stats.wavFilterEmi[p]
 	endif
 
 	if(stats.booNormalization)

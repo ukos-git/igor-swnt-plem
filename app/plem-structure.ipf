@@ -16,7 +16,7 @@ Structure PLEMd2stats
 	Wave wavPLEM, wavMeasure, wavBackground
 	//1D-Waves
 	Wave wavExcitation, wavWavelength
-	Wave wavYpower, wavYphoton, wavGrating, wavQE
+	Wave wavYpower, wavYphoton, wavGrating, wavQE, wavFilterExc, wavFilterEmi
 	// Normalization Value
 	Variable numNormalization
 	// Switches for calculation
@@ -58,6 +58,8 @@ Function PLEMd2statsLoad(stats, strMap)
 	Wave stats.wavYphoton 		= createWave(dfrMap, "yPhoton")
 	Wave stats.wavGrating 		= createWave(dfrMap, "yGrating")
 	Wave stats.wavQE            = createWave(dfrMap, "yQuantum") /// @todo re-calculate qe and grating when needed instead of storing them to save disk space
+	Wave stats.wavFilterExc     = createWave(dfrMap, "yFilter")
+	Wave stats.wavFilterEmi     = createWave(dfrMap, "xFilter")
 
 	DFREF dfrAtlas = returnMapChiralityFolder(strMap)
 	Wave/D stats.wavEnergyS1 		= createWave(dfrAtlas, "PLEMs1nm")
@@ -244,7 +246,7 @@ Function PLEMd2statsInitialize(strMap)
 	stats.booGrating  	= 1
 	stats.booQuantumEfficiency = 1
 	stats.booNormalization		= 0
-	stats.booFilter		= 0
+	stats.booFilter		= 1
 	stats.booInterpolate = 0
 	stats.booTime = 1
 	stats.booWavelengthPitch = 1

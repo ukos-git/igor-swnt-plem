@@ -85,6 +85,54 @@ Function/S PLEMd2getDetectorQEString(numDetector, numCooling, numSystem)
 	return "_none_"
 End
 
+// get the filter for correcting excitation
+Function/S PLEMd2getFilterExcString(numSystem, numDetector)
+	Variable numSystem, numDetector
+
+	switch(numSystem)
+		case PLEM_SYSTEM_LIQUID:
+			break
+		case PLEM_SYSTEM_MICROSCOPE:
+			switch(numDetector)
+				case 0: // Andor Newton
+				case 1: // Andor iDus
+					return "filterChroma760refl"
+				case 2: // Andor Clara
+				case 3: // Xenics Xeva
+				default:
+					break
+			endswitch
+			break
+		default:
+	endswitch
+
+	return "_none_"
+End
+
+// get the filter for correcting excitation
+Function/S PLEMd2getFilterEmiString(numSystem, numDetector)
+	Variable numSystem, numDetector
+
+	switch(numSystem)
+		case PLEM_SYSTEM_LIQUID:
+			break // currently no check for liquid system filter wheel
+		case PLEM_SYSTEM_MICROSCOPE:
+			switch(numDetector)
+				case 0: // Andor Newton
+				case 1: // Andor iDus
+					return "fg830"
+				case 2: // Andor Clara
+				case 3: // Xenics Xeva
+				default:
+					break
+			endswitch
+			break
+		default:
+	endswitch
+
+	return "_none_"
+End
+
 // Get the (un-interpolated) grating wave for the current PLEM
 // Loads the wave from PLEMCorrectionPath if not present in the current experiment
 Function/WAVE PLEMd2getGrating(stats)
@@ -132,6 +180,67 @@ Function/WAVE PLEMd2getQuantumEfficiency(stats)
 	PLEMd2LoadCorrectionWaves(strDetector)
 
 	WAVE wv = dfr:$strDetector
+	return wv
+End
+
+Function/WAVE PLEMd2getFilterExc(stats)
+	Struct PLEMd2stats &stats
+
+	String strFilter
+
+	if(stats.numDetector == 2 || stats.numDetector == 3)
+		return $"" // clara and xeva
+	endif
+
+	strFilter = PLEMd2getFilterExcString(PLEMd2getSystem(stats.strUser), stats.numDetector)
+
+	DFREF dfr = DataFolderReference(cstrPLEMd2correction)
+	WAVE/Z wv = dfr:$strFilter
+	if(WaveExists(wv))
+		return wv
+	endif
+
+	PLEMd2LoadCorrectionWaves(strFilter)
+
+	WAVE wv = dfr:$strFilter
+	return wv
+End
+
+Function/WAVE PLEMd2getFilterEmi(stats)
+	Struct PLEMd2stats &stats
+
+	String strFilter
+
+	if(stats.numDetector == 2 || stats.numDetector == 3)
+		return $"" // clara and xeva
+	endif
+
+	strFilter = PLEMd2getFilterEmiString(PLEMd2getSystem(stats.strUser), stats.numDetector)
+
+	DFREF dfr = DataFolderReference(cstrPLEMd2correction)
+	WAVE/Z wv = dfr:$strFilter
+	if(WaveExists(wv))
+		return wv
+	endif
+
+	PLEMd2LoadCorrectionWaves(strFilter)
+
+	WAVE wv = dfr:$strFilter
+	return wv
+End
+
+Function/WAVE PLEMd2getReflMirror()
+	String strMirror = "reflSilver"
+
+	DFREF dfr = DataFolderReference(cstrPLEMd2correction)
+	WAVE/Z wv = dfr:$strMirror
+	if(WaveExists(wv))
+		return wv
+	endif
+
+	PLEMd2LoadCorrectionWaves(strMirror)
+
+	WAVE wv = dfr:$strMirror
 	return wv
 End
 
