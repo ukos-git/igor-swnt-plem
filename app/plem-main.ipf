@@ -432,7 +432,7 @@ Function PLEMd2ExtractIBW(strPLEM, wavIBW)
 		KillWaves/Z wv
 	else
 		WAVE/Z qeX = $(GetWavesDataFolder(qe, 2) + "_wl")
-		if(WaveExists(gratingX))
+		if(WaveExists(qeX))
 			Interpolate2/T=1/I=3/Y=stats.wavQE/X=stats.wavWavelength qeX, qe
 		else
 			Interpolate2/T=1/I=3/Y=stats.wavQE/X=stats.wavWavelength qe
