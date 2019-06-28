@@ -454,34 +454,18 @@ Function PLEMd2ExtractIBW(strPLEM, wavIBW)
 		WAVE mirrorX = $(GetWavesDataFolder(mirror, 2) + "_wl")
 		Duplicate/FREE stats.wavFilterExc mirrorExc
 		Interpolate2/T=1/I=3/Y=mirrorExc/X=stats.wavExcitation mirrorX, mirror
-		stats.wavFilterExc /= (mirrorExc[p]^2)
+		if(PLEMd2getSystem(stats.strUser) == PLEM_SYSTEM_MICROSCOPE)
+			stats.wavFilterExc /= (mirrorExc[p]^2) // mirror uplift on Microscope
+		endif
 		WaveClear mirror, mirrorX, mirrorExc, filterX
 	endif
 	WaveClear filter
 
-	// emission filter
-	WAVE/Z filter = PLEMd2getFilterEmi(stats)
+	PLEMd2SetEmissionFilter(stats)
+	WAVE filter = stats.wavFilterEmi
 	if(!WaveExists(filter))
-		WAVE filter = stats.wavFilterEmi
 		KillWaves/Z filter
-	else
-		WAVE/Z filterX = $(GetWavesDataFolder(filter, 2) + "_wl")
-		if(WaveExists(filterX))
-			Interpolate2/T=1/I=3/Y=stats.wavFilterEmi/X=stats.wavWavelength filterX, filter
-		else
-			Interpolate2/T=1/I=3/Y=stats.wavFilterEmi/X=stats.wavWavelength filter
-		endif
-		WAVE mirror = PLEMd2getReflMirror()
-		WAVE mirrorX = $(GetWavesDataFolder(mirror, 2) + "_wl")
-		Duplicate/FREE stats.wavFilterEmi mirrorEmi
-		Interpolate2/T=1/I=3/Y=mirrorEmi/X=stats.wavExcitation mirrorX, mirror
-		stats.wavFilterExc /= (mirrorEmi[p]^2)
-		if(PLEMd2getSystem(stats.strUser) == PLEM_SYSTEM_MICROSCOPE)
-			stats.wavFilterExc /= mirrorEmi[p] // one more mirror on Microscope
-		endif
-		WaveClear mirror, mirrorX, mirrorExc, filterX
 	endif
-	WaveClear filter
 
 	// different handling for spectra in calibration mode (1) and for maps (0)
 	if(stats.numCalibrationMode == 1)

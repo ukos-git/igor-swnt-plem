@@ -4,11 +4,13 @@
 Constant PLEM_SYSTEM_LIQUID = 0
 Constant PLEM_SYSTEM_MICROSCOPE = 1
 
+// @hacky system identification.
 Function PLEMd2getSystem(strUser)
 	String strUser
 
 	strswitch(TrimString(strUser))
 		case "the master of microscopy":
+		case "unknown":
 			return PLEM_SYSTEM_MICROSCOPE
 		case "":
 			return -1
@@ -206,16 +208,17 @@ Function/WAVE PLEMd2getFilterExc(stats)
 	return wv
 End
 
-Function/WAVE PLEMd2getFilterEmi(stats)
+Function/WAVE PLEMd2getFilterEmi(stats, [strFilter])
 	Struct PLEMd2stats &stats
-
 	String strFilter
 
 	if(stats.numDetector == 2 || stats.numDetector == 3)
 		return $"" // clara and xeva
 	endif
 
-	strFilter = PLEMd2getFilterEmiString(PLEMd2getSystem(stats.strUser), stats.numDetector)
+	if(ParamIsDefault(strFilter))
+		strFilter = PLEMd2getFilterEmiString(PLEMd2getSystem(stats.strUser), stats.numDetector)
+	endif
 
 	DFREF dfr = DataFolderReference(cstrPLEMd2correction)
 	WAVE/Z wv = dfr:$strFilter
@@ -242,6 +245,34 @@ Function/WAVE PLEMd2getReflMirror()
 
 	WAVE wv = dfr:$strMirror
 	return wv
+End
+
+
+Function PLEMd2SetEmissionFilter(stats, [filter])
+	Struct PLEMd2stats &stats
+	String filter
+
+	// emission filter
+	if(ParamIsDefault(filter))
+		WAVE/Z wv = PLEMd2getFilterEmi(stats)
+	else
+		WAVE/Z wv = PLEMd2getFilterEmi(stats, strFilter = filter)
+	endif
+
+	WAVE/Z wvX = $(GetWavesDataFolder(wv, 2) + "_wl")
+	if(WaveExists(wvX))
+		Interpolate2/T=1/I=3/Y=stats.wavFilterEmi/X=stats.wavWavelength wvX, wv
+	else
+		Interpolate2/T=1/I=3/Y=stats.wavFilterEmi/X=stats.wavWavelength wv
+	endif
+	WAVE mirror = PLEMd2getReflMirror()
+	WAVE mirrorX = $(GetWavesDataFolder(mirror, 2) + "_wl")
+	Duplicate/FREE stats.wavFilterEmi mirrorEmi
+	Interpolate2/T=1/I=3/Y=mirrorEmi/X=stats.wavExcitation mirrorX, mirror
+	stats.wavFilterEmi /= (mirrorEmi[p]^2)
+	if(PLEMd2getSystem(stats.strUser) == PLEM_SYSTEM_MICROSCOPE)
+		stats.wavFilterEmi /= mirrorEmi[p] // one more mirror on Microscope
+	endif
 End
 
 Function PLEMd2LoadCorrectionWaves(strCorrectionWave)
