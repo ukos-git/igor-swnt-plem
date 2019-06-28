@@ -667,33 +667,13 @@ Function PLEMd2BuildMaps(strPLEM)
 	variable i, numExcitation
 
 	Struct PLEMd2stats stats
-	PLEMd2statsLoad(stats, strPLEM)
-	
+	PLEMd2statsLoad(stats, strPLEM)	
 	PLEMd2setScale(stats)
+	WAVE wavPLEM = stats.wavPLEM // work around bug in Multithread assignment which can not use stats.wavPLEM
 
 	// reset PLEM size to measurement (rotation changes it)
 	Redimension/N=(DimSize(stats.wavMeasure, 0), DimSize(stats.wavMeasure, 1)) stats.wavPLEM
 
-	if(stats.booInterpolate == 1)
-		numExcitation = DimSize(stats.wavExcitation, 0)
-		for(i = 0; i < numExcitation; i += 1)
-			Duplicate/FREE/R=[][i] stats.wavMeasure wavMeasure, wavTempMeasure
-			Redimension/N=(-1, 0) wavTempMeasure
-			Duplicate/FREE/R=[][i] stats.wavBackground wavBackground, wavTempBackground
-			Redimension/N=(-1, 0) wavTempBackground
-
-			Interpolate2 /T=1 /I=3 /Y=wavTempMeasure stats.wavWavelength, wavMeasure
-			interpolate2 /T=1 /I=3 /Y=wavTempBackground stats.wavWavelength, wavBackground
-
-			stats.wavMeasure[][i] 		= wavTempMeasure[p]
-			stats.wavBackground[][i] 	= wavTempBackground[p]
-
-			WaveClear wavTempBackground, wavTempMeasure
-			WaveClear wavBackground, wavMeasure
-		endfor
-	endif
-
-	WAVE wavPLEM = stats.wavPLEM // work around bug in Multithread assignment which can not use stats.wavPLEM
 	if(stats.booBackground)
 		Multithread wavPLEM[][] = (stats.wavMeasure[p][q] - stats.wavBackground[p][q])
 	else

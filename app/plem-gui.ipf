@@ -211,7 +211,7 @@ Function PLEMd2Panel([strWinPLEM])
 	CheckBox boxQuantumEfficiency variable=$(strDataFolderInfo + "gbooQuantumEfficiency"), pos={10,160},  title="detector", proc=CheckProcCalculate
 	CheckBox boxNormalization     variable=$(strDataFolderInfo + "gbooNormalization"),     pos={10,80},   title="normalization", proc=CheckProcCalculate
 	CheckBox boxFilter            variable=$(strDataFolderInfo + "gbooFilter"),            pos={10,140},  title="filter", proc=CheckProcCalculate
-	CheckBox boxInterpolate       variable=$(strDataFolderInfo + "gbooInterpolate"),       pos={10,100},  title="interpolate", proc=CheckProcCalculate
+	CheckBox boxWLdelta       variable=$(strDataFolderInfo + "gbooWavelengthPitch"),       pos={10,100},  title="cts/nm", proc=CheckProcCalculate
 	CheckBox boxTime              variable=$(strDataFolderInfo + "gbooTime"),              pos={10,180},  title="cts/s", proc=CheckProcCalculate
 
 	Button ProcessIBW, pos={150, 30}, size={130,30}, proc=ButtonProcProcessIBW,title="reset"

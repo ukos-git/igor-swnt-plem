@@ -20,7 +20,7 @@ Structure PLEMd2stats
 	// Normalization Value
 	Variable numNormalization
 	// Switches for calculation
-	Variable booBackground, booPower, booPhoton, booGrating, booQuantumEfficiency, booNormalization, booFilter, booInterpolate, booTime, booWavelengthPitch
+	Variable booBackground, booPower, booPhoton, booGrating, booQuantumEfficiency, booNormalization, booFilter, booTime, booWavelengthPitch
 	// chirality waves
 	Wave/D wavAtlasS1nm, wavAtlasS2nm, wavAtlasN, wavAtlasM, wavAtlasNM
 	Wave/D wavEnergyS1, wavEnergyS2, wavChiralityn, wavChiralitym, wav2Dfit, wav1Dfit
@@ -93,7 +93,6 @@ Function PLEMd2statsLoad(stats, strMap)
 	stats.booQuantumEfficiency 	= getMapVariable(strMap, "gbooQuantumEfficiency")
 	stats.booNormalization		= getMapVariable(strMap, "gbooNormalization")
 	stats.booFilter				= getMapVariable(strMap, "gbooFilter")
-	stats.booInterpolate 		= getMapVariable(strMap, "gbooInterpolate")
 	stats.booTime              = getMapVariable(strMap, "gbooTime")
 	stats.booWavelengthPitch   = getMapVariable(strMap, "gbooWavelengthPitch")
 
@@ -167,7 +166,6 @@ Function PLEMd2statsSave(stats)
 	setMapVariable(strMap, "gbooQuantumEfficiency", stats.booQuantumEfficiency)
 	setMapVariable(strMap, "gbooNormalization", stats.booNormalization)
 	setMapVariable(strMap, "gbooFilter", stats.booFilter)
-	setMapVariable(strMap, "gbooInterpolate", stats.booInterpolate)
 	setMapVariable(strMap, "gbooTime", stats.booTime)
 	setMapVariable(strMap, "gbooWavelengthPitch", stats.booWavelengthPitch)
 
@@ -247,7 +245,6 @@ Function PLEMd2statsInitialize(strMap)
 	stats.booQuantumEfficiency = 1
 	stats.booNormalization		= 0
 	stats.booFilter		= 1
-	stats.booInterpolate = 0
 	stats.booTime = 1
 	stats.booWavelengthPitch = 1
 
