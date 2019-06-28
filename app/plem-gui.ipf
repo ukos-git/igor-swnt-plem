@@ -1,5 +1,6 @@
 #pragma TextEncoding = "UTF-8"
 #pragma rtGlobals=3
+#include <Graph Utility Procs>
 
 Function PLEMd2Display(strPLEM)
 	String strPLEM
@@ -458,18 +459,138 @@ End
 Function CheckProcCalculate(cba) : CheckBoxControl
 	STRUCT WMCheckboxAction &cba
 
+	String strPLEM
+	Variable mini, maxi
+
 	switch( cba.eventCode )
 		case 2: // mouse up
 			Variable checked = cba.checked
-			String strPLEM
+			PLEMd2GetGraphMinMax(cba.win, mini, maxi)
 			strPLEM = PLEMd2window2strPLEM(cba.win)
 			PLEMd2BuildMaps(strPLEM)
+			PLEMd2SetGraphMinMax(cba.win, mini, maxi)
 			break
 		case -1: // control being killed
 			break
 	endswitch
 
 	return 0
+End
+
+// @brief get the minimum and maximum scaling of the wave in the displayed range in percent
+static Function PLEMd2GetGraphMinMax(win, mini, maxi)
+	String win
+	Variable &mini, &maxi
+
+	Variable Ymin, Ymax
+	Variable Pmin, Pmax, Qmin, Qmax, Zmin, Zmax
+	string info
+	String strPLEM = PLEMd2window2strPLEM(win)
+	Struct PLEMd2stats stats
+
+	PLEMd2statsload(stats, strPLEM)
+	WAVE PLEM = stats.wavPLEM
+
+	GetAxis/Q bottom
+	if(!!V_flag)
+		print "SMAdisplayOriginal: Error getting bottom axis in top Graph"
+		return -1
+	endif
+	Pmin = ScaleToIndex(PLEM, V_min, 0)
+	Pmax = ScaleToIndex(PLEM, V_max, 0)
+
+	GetAxis/Q left
+	if(!!V_flag)
+		print "SMAdisplayOriginal: Error getting bottom axis in top Graph"
+		return -1
+	endif
+	Ymin = V_min
+	Ymax = V_max
+
+	if(DimSize(PLEM, 1) > 1) // map
+		Qmin = ScaleToIndex(PLEM, Ymin, 1)
+		Qmax = ScaleToIndex(PLEM, Ymax, 1)
+		info = WMGetRECREATIONFromInfo(ImageInfo(StringFromList(0, win, "#"), "PLEM", 0))
+		info = info[strsearch(info, "{", 0) + 1, strsearch(info, "}", 0) - 1]
+		Zmin = str2num(StringFromList(0, info, ","))
+		Zmax = str2num(StringFromList(1, info, ","))
+		Duplicate/FREE/R=[Pmin, Pmax][Qmin, Qmax] PLEM temp
+	else
+		Duplicate/FREE/R=[Pmin, Pmax] PLEM temp
+	endif
+	WaveStats/Q/M=1 temp
+	mini = (Zmin - V_min) / (V_max - V_min)
+	maxi = (Zmax - V_min) / (V_max - V_min)
+End
+
+// @brief get the minimum and maximum scaling of the wave in the window range
+static Function PLEMd2SetGraphMinMax(win, mini, maxi)
+	String win
+	Variable mini, maxi
+
+	Variable Ymin, Ymax
+	Variable Pmin, Pmax, Qmin, Qmax, Zmin, Zmax
+	string info
+	String strPLEM = PLEMd2window2strPLEM(win)
+	Struct PLEMd2stats stats
+
+	if(!!numType(mini) && !!numType(maxi))
+		return 1
+	endif
+
+	PLEMd2statsload(stats, strPLEM)
+	WAVE PLEM = stats.wavPLEM
+
+	GetAxis/Q bottom
+	if(!!V_flag)
+		print "SMAdisplayOriginal: Error getting bottom axis in top Graph"
+		return -1
+	endif
+	Pmin = ScaleToIndex(PLEM, V_min, 0)
+	Pmax = ScaleToIndex(PLEM, V_max, 0)
+
+	GetAxis/Q left
+	if(!!V_flag)
+		print "SMAdisplayOriginal: Error getting bottom axis in top Graph"
+		return -1
+	endif
+	Ymin = V_min
+	Ymax = V_max
+
+	if(DimSize(PLEM, 1) > 1) // map
+		Qmin = ScaleToIndex(PLEM, Ymin, 1)
+		Qmax = ScaleToIndex(PLEM, Ymax, 1)
+		info = WMGetRECREATIONFromInfo(ImageInfo(StringFromList(0, win, "#"), "PLEM", 0))
+		info = info[strsearch(info, "{", 0) + 1, strsearch(info, "}", 0) - 1]
+		Zmin = str2num(StringFromList(0, info, ","))
+		Zmax = str2num(StringFromList(1, info, ","))
+		Duplicate/FREE/R=[Pmin, Pmax][Qmin, Qmax] PLEM temp
+	else
+		Zmin = Ymin
+		Zmax = Ymax
+		Duplicate/FREE/R=[Pmin, Pmax] PLEM temp
+	endif
+	WaveStats/Q/M=1 temp
+	mini = V_min + mini * (V_max - V_min)
+	maxi = V_min + maxi * (V_max - V_min)
+
+	if(DimSize(PLEM, 1) > 1) // map
+		if(!!numType(mini))
+			ModifyImage PLEM ctab= {*,maxi,$StringFromList(2, info, ","),str2num(StringFromList(3, info, ","))}
+		elseif(!!numType(maxi))
+			ModifyImage PLEM ctab= {mini,*,$StringFromList(2, info, ","),str2num(StringFromList(3, info, ","))}
+		else
+			ModifyImage PLEM ctab= {mini,maxi,$StringFromList(2, info, ","),str2num(StringFromList(3, info, ","))}
+		endif
+	else
+		if(!!numType(mini))
+			SetAxis left, *, maxi
+		elseif(!!numType(maxi))
+			SetAxis left, mini, *
+		else
+			SetAxis left, mini, maxi
+		endif
+	endif
 End
 
 Function SetVarProcCalculate(sva) : SetVariableControl
