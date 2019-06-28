@@ -246,6 +246,7 @@ Function PLEMd2statsInitialize(strMap)
 	stats.booNormalization		= 0
 	stats.booFilter		= 0
 	stats.booInterpolate = 0
+	stats.booTime = 1
 	stats.booWavelengthPitch = 1
 
 	PLEMd2statsSave(stats)
