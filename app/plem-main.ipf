@@ -317,7 +317,7 @@ Function PLEMd2ExtractIBW(strPLEM, wavIBW)
 	WAVE wavIBW
 
 	Struct PLEMd2stats stats
-	String strWaveBG, strWavePL
+	String strWaveBG, strWavePL, corrections
 	Variable numExcitationFrom, numExcitationTo
 	Variable dim0, dim1
 	Variable i,j, numItems
@@ -407,65 +407,21 @@ Function PLEMd2ExtractIBW(strPLEM, wavIBW)
 	// set x-Scaling
 	stats.wavWavelength = wavWavelength
 
-	// Grating Waves (requires stats.wavWavelength)
-	WAVE/Z grating = PLEMd2getGrating(stats)
-	if(!WaveExists(grating))
-		WAVE/Z wv = stats.wavGrating
-		KillWaves/Z wv
-	else
-		WAVE/Z gratingX = $(GetWavesDataFolder(grating, 2) + "_wl")
-		if(WaveExists(gratingX))
-			Interpolate2/T=1/I=3/Y=stats.wavGrating/X=stats.wavWavelength gratingX, grating
-		else
-			Interpolate2/T=1/I=3/Y=stats.wavGrating/X=stats.wavWavelength grating
-		endif
-		// WAVE/Z gratingErr = $(GetWavesDataFolder(grating, 2) + "_err")
-	endif
+	// Grating Waves
+	corrections = PLEMd2getGratingString(stats.numGrating, PLEMd2getSystem(stats.strUser))
+	PLEMd2SetCorrection(corrections, stats.wavGrating, stats.wavWavelength)
 
-	// Grating Waves (requires stats.wavWavelength)
-	WAVE/Z qe = PLEMd2getQuantumEfficiency(stats)
-	if(!WaveExists(qe))
-		WAVE wv = stats.wavQE
-		KillWaves/Z wv
-	else
-		WAVE/Z qeX = $(GetWavesDataFolder(qe, 2) + "_wl")
-		if(WaveExists(qeX))
-			Interpolate2/T=1/I=3/Y=stats.wavQE/X=stats.wavWavelength qeX, qe
-		else
-			Interpolate2/T=1/I=3/Y=stats.wavQE/X=stats.wavWavelength qe
-		endif
-		WAVE qe = stats.wavQE
-		Multithread qe[] = stats.wavWavelength[p] > qeX[0] && stats.wavWavelength[p] < qeX[DimSize(qeX, 0) - 1] ? stats.wavQE[p] : NaN
-	endif
+	// Quantum efficiency
+	corrections = PLEMd2getDetectorQEstring(stats.numDetector, stats.numCooling, PLEMd2getSystem(stats.strUser))
+	WAVE/Z qe = PLEMd2SetCorrection(corrections, stats.wavQE, stats.wavWavelength)
 
 	// excitation filter
-	WAVE/Z filter = PLEMd2getFilterExc(stats)
-	if(!WaveExists(filter))
-		WAVE filter = stats.wavFilterExc
-		KillWaves/Z filter
-	else
-		WAVE/Z filterX = $(GetWavesDataFolder(filter, 2) + "_wl")
-		if(WaveExists(filterX))
-			Interpolate2/T=1/I=3/Y=stats.wavFilterExc/X=stats.wavExcitation filterX, filter
-		else
-			Interpolate2/T=1/I=3/Y=stats.wavFilterExc/X=stats.wavExcitation filter
-		endif
-		WAVE mirror = PLEMd2getReflMirror()
-		WAVE mirrorX = $(GetWavesDataFolder(mirror, 2) + "_wl")
-		Duplicate/FREE stats.wavFilterExc mirrorExc
-		Interpolate2/T=1/I=3/Y=mirrorExc/X=stats.wavExcitation mirrorX, mirror
-		if(PLEMd2getSystem(stats.strUser) == PLEM_SYSTEM_MICROSCOPE)
-			stats.wavFilterExc /= (mirrorExc[p]^2) // mirror uplift on Microscope
-		endif
-		WaveClear mirror, mirrorX, mirrorExc, filterX
-	endif
-	WaveClear filter
+	corrections = PLEMd2getFilterExcString(PLEMd2getSystem(stats.strUser), stats.numDetector)
+	PLEMd2SetCorrection(corrections, stats.wavFilterExc, stats.wavExcitation)
 
-	PLEMd2SetEmissionFilter(stats)
-	WAVE filter = stats.wavFilterEmi
-	if(!WaveExists(filter))
-		KillWaves/Z filter
-	endif
+	// emission filter
+	corrections = PLEMd2getFilterEmiString(PLEMd2getSystem(stats.strUser), stats.numDetector)
+	PLEMd2SetCorrection(corrections, stats.wavFilterEmi, stats.wavWavelength)
 
 	// different handling for spectra in calibration mode (1) and for maps (0)
 	if(stats.numCalibrationMode == 1)

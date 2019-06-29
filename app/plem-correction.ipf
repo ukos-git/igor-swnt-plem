@@ -50,7 +50,7 @@ Function/S PLEMd2getGratingString(numGrating, numSystem)
 		default:
 	endswitch
 
-	return "_none_"
+	return ""
 End
 
 // get the file to load as quantum efficiency correction
@@ -84,7 +84,7 @@ Function/S PLEMd2getDetectorQEString(numDetector, numCooling, numSystem)
 		default:
 	endswitch
 
-	return "_none_"
+	return ""
 End
 
 // get the filter for correcting excitation
@@ -98,7 +98,8 @@ Function/S PLEMd2getFilterExcString(numSystem, numDetector)
 			switch(numDetector)
 				case 0: // Andor Newton
 				case 1: // Andor iDus
-					return "filterChroma760refl"
+					// it is possible to add filterChroma760refl but it does not have good accuracy.
+					return "reflSilver;reflSilver"
 				case 2: // Andor Clara
 				case 3: // Xenics Xeva
 				default:
@@ -122,7 +123,8 @@ Function/S PLEMd2getFilterEmiString(numSystem, numDetector)
 			switch(numDetector)
 				case 0: // Andor Newton
 				case 1: // Andor iDus
-					return "fg830"
+					// manual possiblility: filterFEHL0750
+					return "filterCG830;filterChroma760trans;reflSilver;reflSilver;reflSilver"
 				case 2: // Andor Clara
 				case 3: // Xenics Xeva
 				default:
@@ -132,32 +134,7 @@ Function/S PLEMd2getFilterEmiString(numSystem, numDetector)
 		default:
 	endswitch
 
-	return "_none_"
-End
-
-// Get the (un-interpolated) grating wave for the current PLEM
-// Loads the wave from PLEMCorrectionPath if not present in the current experiment
-Function/WAVE PLEMd2getGrating(stats)
-	Struct PLEMd2stats &stats
-
-	String strGrating
-	
-	if(stats.numDetector == 2 || stats.numDetector == 3)
-		return $"" // clara and xeva
-	endif
-
-	strGrating = PLEMd2getGratingString(stats.numGrating, PLEMd2getSystem(stats.strUser))
-
-	DFREF dfr = DataFolderReference(cstrPLEMd2correction)
-	WAVE/Z wv = dfr:$strGrating
-	if(WaveExists(wv))
-		return wv
-	endif
-
-	PLEMd2LoadCorrectionWaves(strGrating)
-
-	WAVE wv = dfr:$strGrating
-	return wv
+	return ""
 End
 
 // Get the (un-interpolated) quantum efficiency wave for the current PLEM
@@ -171,7 +148,6 @@ Function/WAVE PLEMd2getQuantumEfficiency(stats)
 		return $"" // clara and xeva
 	endif
 
-	strDetector = PLEMd2getDetectorQEstring(stats.numDetector, stats.numCooling, PLEMd2getSystem(stats.strUser))
 
 	DFREF dfr = DataFolderReference(cstrPLEMd2correction)
 	WAVE/Z wv = dfr:$strDetector
@@ -185,94 +161,63 @@ Function/WAVE PLEMd2getQuantumEfficiency(stats)
 	return wv
 End
 
-Function/WAVE PLEMd2getFilterExc(stats)
-	Struct PLEMd2stats &stats
+Function/S PLEMd2LoadFilters(strFilters)
+	String strFilters
 
+	Variable i, numFilters
 	String strFilter
 
-	if(stats.numDetector == 2 || stats.numDetector == 3)
-		return $"" // clara and xeva
-	endif
-
-	strFilter = PLEMd2getFilterExcString(PLEMd2getSystem(stats.strUser), stats.numDetector)
-
 	DFREF dfr = DataFolderReference(cstrPLEMd2correction)
-	WAVE/Z wv = dfr:$strFilter
-	if(WaveExists(wv))
-		return wv
-	endif
+	numFilters = ItemsInList(strFilters)
+	for(i = 0; i < numFilters; i += 1)
+		strFilter = StringFromList(i, strFilters)
+		WAVE/Z wv = dfr:$strFilter
+		if(!WaveExists(wv))
+			PLEMd2LoadCorrectionWaves(strFilter)
+		endif
+	endfor
 
-	PLEMd2LoadCorrectionWaves(strFilter)
-
-	WAVE wv = dfr:$strFilter
-	return wv
+	return strFilters
 End
 
-Function/WAVE PLEMd2getFilterEmi(stats, [strFilter])
-	Struct PLEMd2stats &stats
+Function/WAVE PLEMd2SetCorrection(filters, target, targetX)
+	String filters
+	WAVE target, targetX
+
 	String strFilter
-
-	if(stats.numDetector == 2 || stats.numDetector == 3)
-		return $"" // clara and xeva
-	endif
-
-	if(ParamIsDefault(strFilter))
-		strFilter = PLEMd2getFilterEmiString(PLEMd2getSystem(stats.strUser), stats.numDetector)
-	endif
+	Variable i, numFilters, mini, maxi
 
 	DFREF dfr = DataFolderReference(cstrPLEMd2correction)
-	WAVE/Z wv = dfr:$strFilter
-	if(WaveExists(wv))
-		return wv
-	endif
 
-	PLEMd2LoadCorrectionWaves(strFilter)
+	filters = PLEMd2LoadFilters(filters)
+	numFilters = ItemsInList(filters)
+	for(i = 0; i < numFilters; i += 1)
+		strFilter = StringFromList(i, filters)
+		WAVE/Z wv = dfr:$(strFilter)
+		if(!WaveExists(wv))
+			Abort "Filter not found."
+		endif
 
-	WAVE wv = dfr:$strFilter
-	return wv
-End
+		WAVE/Z wvX = dfr:$(strFilter + "_wl")
+		Duplicate/FREE target dummy
+		// linear interpolation to target wave
+		if(WaveExists(wvX))
+			Interpolate2/T=1/I=3/Y=dummy/X=targetX wvX, wv
+		else
+			Interpolate2/T=1/I=3/Y=dummy/X=targetX wv
+		endif
+		mini = WaveMin(wvX)
+		maxi = WaveMax(wvX)
+		dummy[] = targetX[p] > mini && targetX[p] < maxi ? dummy[p] : NaN
 
-Function/WAVE PLEMd2getReflMirror()
-	String strMirror = "reflSilver"
+		if(i == 0)
+			Duplicate/O dummy target
+		else
+			target *= dummy
+		endif
+	endfor
 
-	DFREF dfr = DataFolderReference(cstrPLEMd2correction)
-	WAVE/Z wv = dfr:$strMirror
-	if(WaveExists(wv))
-		return wv
-	endif
-
-	PLEMd2LoadCorrectionWaves(strMirror)
-
-	WAVE wv = dfr:$strMirror
-	return wv
-End
-
-
-Function PLEMd2SetEmissionFilter(stats, [filter])
-	Struct PLEMd2stats &stats
-	String filter
-
-	// emission filter
-	if(ParamIsDefault(filter))
-		WAVE/Z wv = PLEMd2getFilterEmi(stats)
-	else
-		WAVE/Z wv = PLEMd2getFilterEmi(stats, strFilter = filter)
-	endif
-
-	WAVE/Z wvX = $(GetWavesDataFolder(wv, 2) + "_wl")
-	if(WaveExists(wvX))
-		Interpolate2/T=1/I=3/Y=stats.wavFilterEmi/X=stats.wavWavelength wvX, wv
-	else
-		Interpolate2/T=1/I=3/Y=stats.wavFilterEmi/X=stats.wavWavelength wv
-	endif
-	WAVE mirror = PLEMd2getReflMirror()
-	WAVE mirrorX = $(GetWavesDataFolder(mirror, 2) + "_wl")
-	Duplicate/FREE stats.wavFilterEmi mirrorEmi
-	Interpolate2/T=1/I=3/Y=mirrorEmi/X=stats.wavExcitation mirrorX, mirror
-	stats.wavFilterEmi /= (mirrorEmi[p]^2)
-	if(PLEMd2getSystem(stats.strUser) == PLEM_SYSTEM_MICROSCOPE)
-		stats.wavFilterEmi /= mirrorEmi[p] // one more mirror on Microscope
-	endif
+	return target
 End
 
 Function PLEMd2LoadCorrectionWaves(strCorrectionWave)
