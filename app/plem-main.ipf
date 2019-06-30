@@ -1910,9 +1910,9 @@ Function/WAVE PLEMd2NanotubeRangePLEM(stats)
 	endif
 
 	if(DimSize(stats.wavPLEM, 1) > 1)
-		Duplicate/FREE/R=[ScaleToIndex(stats.wavPLEM, stats.numDetector == 0 ? 800 : 950, 0), ScaleToIndex(stats.wavPLEM, stats.numDetector == 0 ? 1040 : 1350, 0)][ScaleToIndex(stats.wavPLEM, 550, 1), *] stats.wavPLEM, wv
+		Duplicate/FREE/R=[ScaleToIndex(stats.wavPLEM, stats.numDetector == 0 ? 800 : 950, 0), ScaleToIndex(stats.wavPLEM, stats.numDetector == 0 ? 1040 : 1280, 0)][ScaleToIndex(stats.wavPLEM, 540, 1), *] stats.wavPLEM, wv
 	else		
-		Duplicate/FREE/R=[ScaleToIndex(stats.wavPLEM, stats.numDetector == 0 ? 800 : 950, 0), ScaleToIndex(stats.wavPLEM, stats.numDetector == 0 ? 1040 : 1350, 0)] stats.wavPLEM, wv
+		Duplicate/FREE/R=[ScaleToIndex(stats.wavPLEM, stats.numDetector == 0 ? 800 : 950, 0), ScaleToIndex(stats.wavPLEM, stats.numDetector == 0 ? 1040 : 1280, 0)] stats.wavPLEM, wv
 	endif
 	return wv
 End
