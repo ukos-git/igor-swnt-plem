@@ -398,8 +398,8 @@ Function PLEMd2ExtractIBW(strPLEM, wavIBW)
 	Redimension/N=(dim0, dim1) stats.wavPLEM, stats.wavMeasure, stats.wavBackground
 	PLEMd2CopyWaveNote(wavIBW, stats.wavPLEM)
 	if(stats.numReadOutMode == 1)
-		dim0 = 0 // no wavelength
-		dim1 = 1 // save power and excitation wl
+		// dim0 = 0 // no wavelength
+		// dim1 = 1 // save power and excitation wl
 	endif
 	Redimension/N=(dim0) stats.wavWavelength, stats.wavGrating, stats.wavQE
 	Redimension/N=(dim1) stats.wavExcitation, stats.wavYpower, stats.wavYphoton
