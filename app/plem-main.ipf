@@ -1900,3 +1900,19 @@ Function/WAVE PLEMd2getPhoton([forceRenew])
 	print GetWavesDataFolder(wv, 0)
 	return wv
 End
+
+// return PLEM with measurement range (setup specific)
+Function/WAVE PLEMd2NanotubeRangePLEM(stats)
+	Struct PLEMd2stats &stats
+
+	if(stats.numDetector > 1)
+		Abort "Only for Newton and Idus"
+	endif
+
+	if(DimSize(stats.wavPLEM, 1) > 1)
+		Duplicate/FREE/R=[ScaleToIndex(stats.wavPLEM, stats.numDetector == 0 ? 800 : 950, 0), ScaleToIndex(stats.wavPLEM, stats.numDetector == 0 ? 1040 : 1350, 0)][ScaleToIndex(stats.wavPLEM, 550, 1), *] stats.wavPLEM, wv
+	else		
+		Duplicate/FREE/R=[ScaleToIndex(stats.wavPLEM, stats.numDetector == 0 ? 800 : 950, 0), ScaleToIndex(stats.wavPLEM, stats.numDetector == 0 ? 1040 : 1350, 0)] stats.wavPLEM, wv
+	endif
+	return wv
+End
