@@ -358,20 +358,6 @@ Function ButtonProcAtlasFit3D(ba) : ButtonControl
 	return 0
 End
 
-Function ButtonProcAtlasFit2D(ba) : ButtonControl
-	STRUCT WMButtonAction &ba
-	switch( ba.eventCode )
-		case 2: // mouse up
-			String strPLEM
-			strPLEM = PLEMd2window2strPLEM(ba.win)
-			PLEMd2AtlasFit2D(strPLEM)
-			break
-		case -1: // control being killed
-			break
-	endswitch
-	return 0
-End
-
 Function ButtonProcAtlasFit1D(ba) : ButtonControl
 	STRUCT WMButtonAction &ba
 	switch( ba.eventCode )

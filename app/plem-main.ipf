@@ -1178,7 +1178,7 @@ Function PLEMd2AtlasFit1D(strPLEM)
 	String strPLEM
 
 	Variable i, j, numAtlas, numFits
-	Variable numDelta = 20, numAccuracy = 0
+	Variable numDelta = 30, numAccuracy = 0
 	Variable fit_start, fit_end
 	Variable numEnergyS1, numEnergyS2
 	Variable numPlank = 4.135667516E-12 //meV s
@@ -1186,11 +1186,13 @@ Function PLEMd2AtlasFit1D(strPLEM)
 	String strWavPLEMfitSingle, strWavPLEMfit
 
 	Variable V_fitOptions = 4 // used to suppress CurveFit dialog
-	Variable V_FitQuitReason  // stores the CurveFit Quit Reason
-	Variable V_FitError   // Curve Fit error
+	Variable err
 
 	Struct PLEMd2stats stats
 	PLEMd2statsLoad(stats, strPLEM)
+	WAVE PLEM = removeSpikes(stats.wavPLEM)
+
+	Make/O/T/N=2 root:T_Constraints/WAVE=T_Constraints = {"K3 > 100","K3 < 300"} // width constrainment
 
 	numFits = numpnts(stats.wavEnergyS1)
 	for(i = 0; i < numFits; i += 1)
@@ -1209,21 +1211,29 @@ Function PLEMd2AtlasFit1D(strPLEM)
 			fit_end = V_Value
 		endif
 		do
+			fit_start -= 1
+			fit_end += 1
+		while(abs(fit_end - fit_start) < 10)
+
+		do
 			numAccuracy += 1
 			FindValue/T=(numAccuracy)/V=(stats.wavEnergyS2[i]) stats.wavExcitation
 		while(V_Value == -1)
 
-		Duplicate/FREE/R=[fit_start, fit_end][V_Value] stats.wavPLEM fitme
-		Redimension/N=(fit_end - fit_start + 1) fitme
-		Duplicate/FREE fitme fitresult
-		CurveFit/Q lor fitme /D=fitresult
-		if(V_FitError == 0)
-			Wavestats/Q fitresult
-			stats.wavEnergyS1[i] = stats.wavWavelength[(V_maxRowLoc + fit_start)] // (unscaled) point from original wavelength wave
-		else
+		Duplicate/FREE/R=[fit_start, fit_end][V_Value] PLEM fitme
+		Redimension/N=(-1, 0) fitme
+		Duplicate/FREE/R=[fit_start, fit_end] stats.wavWavelength xfitme
+		try
+			// K0+K1*exp(-((x-K2)/K3)^2).
+			CurveFit/Q gauss fitme/X=xfitme/C=T_Constraints; AbortOnRTE
+			WAVE W_coef
+			print W_coef[3]
+			stats.wavEnergyS1[i] = W_coef[2]
+		catch
+			err = GetRTError(1)
 			stats.wavEnergyS1[i] = 0
-		endif
-		WaveClear fitme, fitresult
+		endtry
+		WaveClear fitme, xfitme
 
 		// fit Emission
 		// find p,q
@@ -1239,24 +1249,29 @@ Function PLEMd2AtlasFit1D(strPLEM)
 		else
 			fit_end = V_Value
 		endif
+		do
+			fit_start -= 1
+			fit_end += 1
+		while(abs(fit_end - fit_start) < 5)
 		numAccuracy = 0
 		do
 			numAccuracy += 1
 			FindValue/T=(numAccuracy)/V=(stats.wavEnergyS1[i]) stats.wavWavelength
 		while(V_Value == -1)
 
-		Duplicate/FREE/R=[V_Value][fit_start, fit_end] stats.wavPLEM fitme
+		Duplicate/FREE/R=[V_Value][fit_start, fit_end] PLEM fitme
+		Redimension/N=(DimSize(fitme, 1), 0)/E=1 fitme
 		Duplicate/FREE/R=[fit_start, fit_end] stats.wavExcitation xfitme
-		Redimension/N=(fit_end - fit_start + 1) fitme, xfitme
-		Duplicate/FREE fitme fitresult
-		CurveFit/Q lor fitme /D=fitresult
-		if(V_FitError == 0)
-			Wavestats/Q fitresult
-			stats.wavEnergyS2[i] = xfitme[V_maxrowloc]
-		else
-			stats.wavEnergyS2[i] = 0
-		endif
-		WaveClear fitme, fitresult
+		try
+			// K0+K1*exp(-((x-K2)/K3)^2).
+			CurveFit/Q gauss fitme/X=xfitme/C=T_Constraints; AbortOnRTE
+			WAVE W_coef
+			print W_coef[3]
+			stats.wavEnergyS2[i] = W_coef[2]
+		catch
+			err = GetRTError(1)
+		endtry
+		WaveClear fitme, xfitme
 
 		// save measurement data at current point
 		// check if energy is valid
@@ -1296,67 +1311,34 @@ Function PLEMd2AtlasFit1D(strPLEM)
 
 End
 
-Function PLEMd2AtlasFit2D(strPLEM)
-    String strPLEM
-
-    Variable numFits, i
-
-    Struct PLEMd2stats stats
-	PLEMd2statsLoad(stats, strPLEM)
-
-    numFits = numpnts(stats.wavEnergyS1)
-	for(i = 0; i < numFits; i += 1)
-    endfor
-End
-
 Function PLEMd2AtlasFit3D(strPLEM)
 	String strPLEM
 	Struct PLEMd2stats stats
 
 	Variable numS1,numS2
-	Variable numDeltaS1, numDeltaS2
 	Variable numDeltaS1left, numDeltaS1right, numDeltaS2bottom, numDeltaS2top
 	Variable rightXvalue, topYvalue
+	Variable err
 	Variable V_fitOptions=4 // used to suppress CurveFit dialog
-	Variable V_FitQuitReason // stores the CurveFit Quit Reason
-	Variable V_FitError // Curve Fit error
 	String strChirality = ""
-	String strWavPLEMfitSingle, strWavPLEMfit
 	String winPLEMfit, winPLEM
 	Variable i
+	Variable numDeltaS1 = 25, numDeltaS2 = 25
 
 	if(PLEMd2MapExists(strPLEM) == 0)
 		print "PLEMd2AtlasFit: Map does not exist properly"
 		return 0
 	endif
 
-	// make waves
 	PLEMd2statsLoad(stats, strPLEM)
-	strWavPLEMfitSingle 	= GetWavesDataFolder(stats.wavPLEMfitSingle,2)
-	strWavPLEMfit 		= GetWavesDataFolder(stats.wavPLEMfit,2)
-	Make/O/N=(stats.numPLEMtotalx,stats.numPLEMtotaly,numpnts(stats.wavEnergyS1)) $strWavPLEMfit
-	Make/O $strWavPLEMfitSingle //dummy wave
-	// reload wave references
-	PLEMd2statsLoad(stats, strPLEM)
-
-	stats.wavPLEMfit = NaN
-	stats.wavPLEMfitSingle = 0
-	SetScale/P y,stats.numPLEMbottomY,stats.numPLEMdeltaY, "",stats.wavPLEMfit
-	SetScale/P x,stats.numPLEMleftX,stats.numPLEMdeltaX, "",stats.wavPLEMfit
-	//Display
-	//AppendImage stats.wavPLEM
-
-	numDeltaS1 = 25
-	numDeltaS2 = 25
+	Redimension/N=(DimSize(stats.wavPLEM, 0), DimSize(stats.wavPLEM, 1), numpnts(stats.wavEnergyS1)) stats.wavPLEMfit
+	CopyScales stats.wavPLEM, stats.wavPLEMfit, stats.wavPLEMfitSingle
 	
 	rightXvalue = stats.numPLEMleftX + stats.numPLEMTotalX * stats.numPLEMdeltaX
 	topYvalue = stats.numPLEMbottomY + stats.numPLEMTotalY * stats.numPLEMdeltaY
 	
 	// input
-	i=0
 	for(i = 0; i < numpnts(stats.wavEnergyS1); i += 1)
-		stats.wavPLEMfit[][][i]=0
-		stats.wav2Dfit[i] = 0
 		numS1 = stats.wavEnergyS1[i] //x
 		numS2 = stats.wavEnergyS2[i] //y
 
@@ -1397,30 +1379,32 @@ Function PLEMd2AtlasFit3D(strPLEM)
 			stats.wavPLEMfit[][][i] = 0
 			stats.wav2Dfit[i] = 0
 		else
-			V_FitError = 0
-			//Make/O/T fitConstraints={"K6 = 0"}
-			//Make/FREE/O W_coef = {0,1,stats.wavEnergyS1[i], (sqrt(stats.wav2Dfit[i]/(2*pi))), stats.wavEnergyS2[i], (sqrt(stats.wav2Dfit[i]/(2*pi))), 0}
+			// @todo revisit to use custom 2d functions
+			//
+			// Make/O/T fitConstraints={"K6 = 0"}
+			// Make/FREE/O W_coef = {0,1,stats.wavEnergyS1[i], (sqrt(stats.wav2Dfit[i]/(2*pi))), stats.wavEnergyS2[i], (sqrt(stats.wav2Dfit[i]/(2*pi))), 0}
 			// gauss2d=K0+K1*exp((-1/(2*(1-K6^2)))*(((x-K2)/K3)^2 + ((y-K4)/K5)^2 - (2*K6*(x-K2)*(y-K4)/(K3*K5))))
-			CurveFit/Q gauss2D stats.wavPLEM(numS1-numDeltaS1left,numS1+numDeltaS1right)(numS2-numDeltaS2bottom,numS2+numDeltaS2top)
-			//FuncFit/Q PLEMd2SimpleGaussian2D, W_coef stats.wavPLEM(numS1-numDeltaS1left,numS1+numDeltaS1right)(numS2-numDeltaS2bottom,numS2+numDeltaS2top)
-			if(V_FitError == 0)
+			// FuncFit/Q PLEMd2SimpleGaussian2D, W_coef stats.wavPLEM(numS1-numDeltaS1left,numS1+numDeltaS1right)(numS2-numDeltaS2bottom,numS2+numDeltaS2top)
+			// stats.wavPLEMfit[][][i] = PLEMd2SimpleGaussian2D(W_coef, x, y)
+			// stats.wavEnergyS1[i] = W_coef[2]
+			// stats.wavEnergyS2[i] = W_coef[4]
+			// stats.wav2Dfit[i] = W_coef[1]*2*pi* W_coef[3]* W_coef[5] // volume of simpleGaussian
+
+			try
+				CurveFit/Q gauss2D stats.wavPLEM(numS1-numDeltaS1left,numS1+numDeltaS1right)(numS2-numDeltaS2bottom,numS2+numDeltaS2top); AbortOnRTE
 				Wave W_coef
 				stats.wavPLEMfit[][][i] = Gauss2D(W_coef, x, y)
 				stats.wavEnergyS1[i] = W_coef[2]
 				stats.wavEnergyS2[i] = W_coef[4]
 				stats.wav2Dfit[i] = W_coef[1]*2*pi* W_coef[3]* W_coef[5]*sqrt(1-W_coef[6]^2) // volume of 2d gauss without baseline
-
-				//stats.wavPLEMfit[][][i] = PLEMd2SimpleGaussian2D(W_coef, x, y)
-				//stats.wavEnergyS1[i] = W_coef[2]
-				//stats.wavEnergyS2[i] = W_coef[4]
-				//stats.wav2Dfit[i] = W_coef[1]*2*pi* W_coef[3]* W_coef[5] // volume of simpleGaussian
-
-				W_coef = 0
+				stats.wav1Dfit[i] = W_coef[1]
 				WaveClear W_coef
-			else
+			catch
+				err = GetRTError(1)
 				stats.wavPLEMfit[][][i] = 0
 				stats.wav2Dfit[i] = 0
-			endif
+			endtry
+
 			// error checking
 			if((stats.wavEnergyS1[i] < 0) | (stats.wavEnergyS2[i] < 0) | (stats.wav2Dfit[i] < 0))
 				stats.wavPLEMfit[][][i] = 0
@@ -1910,9 +1894,9 @@ Function/WAVE PLEMd2NanotubeRangePLEM(stats)
 	endif
 
 	if(DimSize(stats.wavPLEM, 1) > 1)
-		Duplicate/FREE/R=[ScaleToIndex(stats.wavPLEM, stats.numDetector == 0 ? 800 : 950, 0), ScaleToIndex(stats.wavPLEM, stats.numDetector == 0 ? 1040 : 1280, 0)][ScaleToIndex(stats.wavPLEM, 540, 1), *] stats.wavPLEM, wv
+		Duplicate/FREE/R=[ScaleToIndex(stats.wavPLEM, stats.numDetector == 0 ? 800 : 950, 0), ScaleToIndex(stats.wavPLEM, stats.numDetector == 0 ? 1047 : 1280, 0)][ScaleToIndex(stats.wavPLEM, 540, 1), *] stats.wavPLEM, wv
 	else		
-		Duplicate/FREE/R=[ScaleToIndex(stats.wavPLEM, stats.numDetector == 0 ? 800 : 950, 0), ScaleToIndex(stats.wavPLEM, stats.numDetector == 0 ? 1040 : 1280, 0)] stats.wavPLEM, wv
+		Duplicate/FREE/R=[ScaleToIndex(stats.wavPLEM, stats.numDetector == 0 ? 800 : 950, 0), ScaleToIndex(stats.wavPLEM, stats.numDetector == 0 ? 1047 : 1280, 0)] stats.wavPLEM, wv
 	endif
 	return wv
 End
