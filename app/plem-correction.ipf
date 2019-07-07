@@ -166,6 +166,7 @@ Function/S PLEMd2LoadFilters(strFilters)
 
 	Variable i, numFilters
 	String strFilter
+	String strFiltersOut = ""
 
 	DFREF dfr = DataFolderReference(cstrPLEMd2correction)
 	numFilters = ItemsInList(strFilters)
@@ -173,11 +174,14 @@ Function/S PLEMd2LoadFilters(strFilters)
 		strFilter = StringFromList(i, strFilters)
 		WAVE/Z wv = dfr:$strFilter
 		if(!WaveExists(wv))
-			PLEMd2LoadCorrectionWaves(strFilter)
+			if(PLEMd2LoadCorrectionWaves(strFilter) == 0)
+				continue
+			endif
 		endif
+		strFiltersOut = AddListItem(strFilter, strFiltersOut)
 	endfor
 
-	return strFilters
+	return strFiltersOut
 End
 
 Function/WAVE PLEMd2SetCorrection(filters, target, targetX)
@@ -256,7 +260,9 @@ Function PLEMd2LoadCorrectionWaves(strCorrectionWave)
 	SetDataFolder saveDFR
 
 	PathInfo PLEMCorrectionPath
-	printf "%d/%d files matching %s loaded from %s.\r", numLoaded, numFiles, strCorrectionWave, S_path
+	if(numFiles > 0)
+		printf "%d/%d files matching %s loaded from %s.\r", numLoaded, numFiles, strCorrectionWave, S_path
+	endif
 	return numLoaded
 End
 
