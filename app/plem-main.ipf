@@ -380,7 +380,7 @@ Function PLEMd2ExtractIBW(strPLEM, wavIBW)
 	stats.numPLEMTotalX = NumPnts(wavWavelength)
 
 	if(stats.numReadOutMode == 1)
-		// quick fix for image mode on cameras
+		// quick fix for image mode on cameras @todo: redefine readout mode and data storage in data format specifications
 		if(stats.numPLEMTotalX == 81919)
 			stats.numDetector = PLEMd2cameraXeva
 			stats.numPLEMTotalY = 256
