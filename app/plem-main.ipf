@@ -481,8 +481,8 @@ Function PLEMd2ExtractIBW(strPLEM, wavIBW)
 
 	// Power correction waves
 	// requires Excitation wave for Photon Energy
-		stats.wavYpower	 = str2num(StringFromList(p, PLEMd2ExtractPower(wavIBW), ";"))
 	if(stats.numDetector == PLEMd2detectorNewton || stats.numDetector == PLEMd2detectorIdus)
+		stats.wavYpower  = str2num(StringFromList(p, PLEMd2ExtractPower(wavIBW), ";"))
 		stats.wavYphoton = (stats.wavYpower * 1e-6) / (6.62606957e-34 * 2.99792458e+8 / (stats.wavExcitation * 1e-9)) 		// power is in uW and Excitation is in nm
 	endif
 
