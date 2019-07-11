@@ -61,9 +61,9 @@ Function/S PLEMd2getDetectorQEString(numDetector, numCooling, numSystem)
 	switch(numSystem)
 		case PLEM_SYSTEM_LIQUID:
 			switch(numDetector)
-				case 0: // Andor Newton (70°C)
+				case PLEMd2detectorNewton:
 					return "qeNewtonDU920POEm75"
-				case 1: // Andor iDus
+				case PLEMd2detectorIdus:
 					return "qeIdusDU491A17m90"
 				default:
 					break
@@ -71,12 +71,12 @@ Function/S PLEMd2getDetectorQEString(numDetector, numCooling, numSystem)
 			break
 		case PLEM_SYSTEM_MICROSCOPE:
 			switch(numDetector)
-				case 0: // Andor Newton (90 °C)
+				case PLEMd2detectorNewton:
 					return "qeNewtonDU920POEm100"
-				case 1: // Andor iDus
+				case PLEMd2detectorIdus:
 					return "qeIdusDU491A17m90"
-				case 2: // Andor Clara
-				case 3: // Xenics Xeva
+				case PLEMd2cameraClara:
+				case PLEMd2cameraXeva:
 				default:
 					break
 			endswitch
@@ -96,12 +96,10 @@ Function/S PLEMd2getFilterExcString(numSystem, numDetector)
 			break
 		case PLEM_SYSTEM_MICROSCOPE:
 			switch(numDetector)
-				case 0: // Andor Newton
-				case 1: // Andor iDus
+				case PLEMd2detectorNewton:
+				case PLEMd2detectorIdus:
 					// it is possible to add filterChroma760refl but it does not have good accuracy.
 					return "reflSilver;reflSilver"
-				case 2: // Andor Clara
-				case 3: // Xenics Xeva
 				default:
 					break
 			endswitch
@@ -121,12 +119,10 @@ Function/S PLEMd2getFilterEmiString(numSystem, numDetector)
 			break // currently no check for liquid system filter wheel
 		case PLEM_SYSTEM_MICROSCOPE:
 			switch(numDetector)
-				case 0: // Andor Newton
-				case 1: // Andor iDus
+				case PLEMd2detectorNewton:
+				case PLEMd2detectorIdus:
 					// manual possiblility: filterFEHL0750
 					return "filterCG830;filterChroma760trans;reflSilver;reflSilver;reflSilver"
-				case 2: // Andor Clara
-				case 3: // Xenics Xeva
 				default:
 					break
 			endswitch
@@ -144,10 +140,9 @@ Function/WAVE PLEMd2getQuantumEfficiency(stats)
 
 	String strDetector
 
-	if(stats.numDetector == 2 || stats.numDetector == 3)
-		return $"" // clara and xeva
+	if(stats.numDetector == PLEMd2cameraClara || stats.numDetector == PLEMd2cameraXeva)
+		return $""
 	endif
-
 
 	DFREF dfr = DataFolderReference(cstrPLEMd2correction)
 	WAVE/Z wv = dfr:$strDetector

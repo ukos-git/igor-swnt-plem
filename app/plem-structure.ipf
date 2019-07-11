@@ -1,6 +1,11 @@
 ﻿#pragma TextEncoding = "UTF-8"
 #pragma rtGlobals=3
 
+Constant PLEMd2detectorNewton = 0 // Andor Newton
+Constant PLEMd2detectorIdus   = 1 // Andor Idus
+Constant PLEMd2cameraClara    = 2 // Andor Clara
+Constant PLEMd2cameraXeva     = 3 // Xenics Xeva
+
 //Structure for storing Information about a PLE-Map
 Structure PLEMd2stats
 	//Versioning System to update/create new Global vars.
@@ -39,6 +44,7 @@ Structure PLEMd2stats
 	variable numReadOutMode, numLaserPositionX, numLaserPositionY, numMagnification, numPixelPitch
 
 	// variables from IBW file
+	// Note: numEmission* is the emission from the excitation source
 	String strDate, strUser, strFileName
 	Variable numCalibrationMode, numSlit, numGrating, numFilter, numShutter, numWLcenter, numDetector, numCooling, numExposure, numBinning, numWLfirst, numWLlast, numWLdelta, numEmissionMode, numEmissionPower, numEmissionStart, numEmissionEnd, numEmissionDelta, numEmissionStep, numScans, numBackground
 Endstructure

@@ -381,12 +381,12 @@ Function PLEMd2ExtractIBW(strPLEM, wavIBW)
 
 	if(stats.numReadOutMode == 1)
 		// quick fix for image mode on cameras
-		if(stats.numPLEMTotalX == 81919) // xenics xeva
-			stats.numDetector = 3
+		if(stats.numPLEMTotalX == 81919)
+			stats.numDetector = PLEMd2cameraXeva
 			stats.numPLEMTotalY = 256
 			stats.numPLEMTotalX = 320
 		else
-			stats.numDetector = 2 // andor clara
+			stats.numDetector = PLEMd2cameraClara
 			stats.numPLEMTotalY = 1040
 			stats.numPLEMTotalX = 1392
 		endif
@@ -481,8 +481,8 @@ Function PLEMd2ExtractIBW(strPLEM, wavIBW)
 
 	// Power correction waves
 	// requires Excitation wave for Photon Energy
-	if(stats.numDetector == 0 || stats.numDetector == 1)
 		stats.wavYpower	 = str2num(StringFromList(p, PLEMd2ExtractPower(wavIBW), ";"))
+	if(stats.numDetector == PLEMd2detectorNewton || stats.numDetector == PLEMd2detectorIdus)
 		stats.wavYphoton = (stats.wavYpower * 1e-6) / (6.62606957e-34 * 2.99792458e+8 / (stats.wavExcitation * 1e-9)) 		// power is in uW and Excitation is in nm
 	endif
 
@@ -494,12 +494,14 @@ Function PLEMd2ExtractIBW(strPLEM, wavIBW)
 	NVAR/Z numRotationAdjustment = root:numRotationAdjustment
 
 	// set camera specific corrections
-	if(stats.numDetector == 0)
-		// Andor Newton
-	elseif(stats.numDetector == 1)
-		// Andor iDus
-	elseif(stats.numDetector == 2)
-		// Andor Clara
+	if(stats.numDetector == PLEMd2detectorNewton)
+		// 26x26µm * (binning factors)
+		stats.numPixelPitch = 26
+	elseif(stats.numDetector == PLEMd2detectorIdus)
+		// 25x500µm
+		stats.numPixelPitch = 25
+	elseif(stats.numDetector == PLEMd2cameraClara)
+		// add camera specific settings
 		stats.numPixelPitch = 6.45 	// 6.45um
 
 		// magnification adjustment
@@ -516,8 +518,8 @@ Function PLEMd2ExtractIBW(strPLEM, wavIBW)
 		endif
 		numRotationAdjustment = -0.95 // overwrite! better rotation for mkl23clarascan
 		PLEMd2rotateLaser(stats)
-	elseif(stats.numDetector == 3)
-		// Xencis XEVA
+	elseif(stats.numDetector == plemd2cameraXeva)
+		// add camera specific settings
 		stats.numPixelPitch = 30 // 30um
 
 		// magnification adjustment
@@ -644,7 +646,7 @@ Function PLEMd2BuildMaps(strPLEM)
 		Multithread wavPLEM[][] /= p > 0 ? stats.wavWavelength[p] - stats.wavWavelength[p - 1] : stats.wavWavelength[1] - stats.wavWavelength[0]
 	endif
 
-	if(stats.numDetector == 2 || stats.numDetector == 3)
+	if(stats.numDetector == PLEMd2cameraClara || stats.numDetector == plemd2cameraXeva)
 		NVAR numRotationAdjustment = root:numRotationAdjustment
 		if(numRotationAdjustment != 0)
 			ImageRotate/Q/E=(NaN)/O/A=(numRotationAdjustment) stats.wavPLEM
@@ -1894,9 +1896,9 @@ Function/WAVE PLEMd2NanotubeRangePLEM(stats)
 	endif
 
 	if(DimSize(stats.wavPLEM, 1) > 1)
-		Duplicate/FREE/R=[ScaleToIndex(stats.wavPLEM, stats.numDetector == 0 ? 815 : 950, 0), ScaleToIndex(stats.wavPLEM, stats.numDetector == 0 ? 1035 : 1280, 0)][ScaleToIndex(stats.wavPLEM, 540, 1), *] stats.wavPLEM, wv
-	else		
-		Duplicate/FREE/R=[ScaleToIndex(stats.wavPLEM, stats.numDetector == 0 ? 815 : 950, 0), ScaleToIndex(stats.wavPLEM, stats.numDetector == 0 ? 1035 : 1280, 0)] stats.wavPLEM, wv
+		Duplicate/FREE/R=[ScaleToIndex(stats.wavPLEM, stats.numDetector == PLEMd2detectorNewton ? 815 : 950, 0), ScaleToIndex(stats.wavPLEM, stats.numDetector == PLEMd2detectorNewton ? 1035 : 1280, 0)][ScaleToIndex(stats.wavPLEM, 540, 1), *] stats.wavPLEM, wv
+	else
+		Duplicate/FREE/R=[ScaleToIndex(stats.wavPLEM, stats.numDetector == PLEMd2detectorNewton ? 815 : 950, 0), ScaleToIndex(stats.wavPLEM, stats.numDetector == PLEMd2detectorNewton ? 1035 : 1280, 0)] stats.wavPLEM, wv
 	endif
 	return wv
 End
