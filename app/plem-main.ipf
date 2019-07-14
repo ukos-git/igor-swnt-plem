@@ -1749,6 +1749,8 @@ Function PLEMd2numPLEM(strPLEM)
 	return FindListItem(strPLEM, strMaps)
 End
 
+// @todo only use wave @c mapsAvailable
+// @see PLEMd2getAllstrPLEM PLEMd2getStrMapsAvailable
 Function/S PLEMd2strPLEM(numPLEM)
 	Variable numPLEM
 
@@ -1758,12 +1760,14 @@ Function/S PLEMd2strPLEM(numPLEM)
 	return StringFromList(numPLEM, strMaps)
 End
 
+// @todo make this the main dependency for @c PLEMd2getStrMapsAvailable and related
+//       make it more robust with crc and datafolder / original IBW checkings
 Function/WAVE PLEMd2getAllstrPLEM([forceRenew])
 	Variable forceRenew
 
 	String strPLEM
 	Variable i
-	Variable numMaps = PLEMd2getMapsAvailable()
+	Variable numMaps = PLEMd2getMapsAvailable() // @todo remove dependency
 
 	DFREF dfr = $cstrPLEMd2root
 	Struct PLEMd2stats stats
@@ -1894,6 +1898,38 @@ Function/WAVE PLEMd2getPhoton([forceRenew])
 	endfor
 
 	print GetWavesDataFolder(wv, 0)
+	return wv
+End
+
+
+Function/WAVE PLEMd2getDetectors()
+	Variable i
+	Variable numMaps
+
+	DFREF dfr = $cstrPLEMd2root
+	Struct PLEMd2stats stats
+
+	WAVE/T wavStrPLEM = PLEMd2getAllstrPLEM()
+
+	WAVE/U/B/Z wv = dfr:detectors
+	NVAR/Z crc = dfr:gnumDetectors
+	if(WaveExists(wv) && NVAR_Exists(crc) && WaveCRC(0, wavStrPLEM) == crc)
+		return wv
+	endif
+
+	if(!NVAR_Exists(crc))
+		Variable/G dfr:gnumDetectors
+		NVAR crc = dfr:gnumDetectors
+	endif
+	numMaps = PLEMd2getMapsAvailable()
+	Make/O/U/B/N=(numMaps) dfr:detectors/WAVE=wv = NaN
+
+	for(i = 0; i < numMaps; i += 1)
+		PLEMd2statsLoad(stats, wavStrPLEM[i])
+		wv[i] = stats.numDetector
+	endfor
+	crc = WaveCRC(0, wavStrPLEM)
+
 	return wv
 End
 
