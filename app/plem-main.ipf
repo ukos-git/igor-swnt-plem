@@ -544,10 +544,10 @@ Function PLEMd2ExtractIBW(strPLEM, wavIBW)
 		Variable/G root:numRotationAdjustment = 0
 		NVAR numRotationAdjustment = root:numRotationAdjustment
 	endif
-	
+
 	if(stats.numCalibrationMode != 1)
 		//todo counterpart in PLEMd2setScale
-		stats.numPLEMBottomY	= (str2num(StringFromList(1, StringFromList(0, strWavePL), "_")) + str2num(StringFromList(2, StringFromList(0, strWavePL), "_"))) / 2
+		stats.numPLEMBottomY = (str2num(StringFromList(1, StringFromList(0, strWavePL), "_")) + str2num(StringFromList(2, StringFromList(0, strWavePL), "_"))) / 2
 	endif
 
 	PLEMd2statsSave(stats)
@@ -557,7 +557,7 @@ End
 
 static Function PLEMd2setScale(stats)
 	Struct PLEMd2stats &stats
-	
+
 	NVAR/Z numSizeAdjustment = root:numSizeAdjustment
 	if(!NVAR_EXISTS(numSizeAdjustment))
 		Variable/G root:numSizeAdjustment = 1
@@ -635,7 +635,7 @@ Function PLEMd2BuildMaps(strPLEM)
 	variable i, numExcitation
 
 	Struct PLEMd2stats stats
-	PLEMd2statsLoad(stats, strPLEM)	
+	PLEMd2statsLoad(stats, strPLEM)
 	PLEMd2setScale(stats)
 	WAVE wavPLEM = stats.wavPLEM // work around bug in Multithread assignment which can not use stats.wavPLEM
 
