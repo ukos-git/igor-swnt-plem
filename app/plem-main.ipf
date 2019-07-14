@@ -166,7 +166,8 @@ Function PLEMd2Open([strFile, display])
 	// check for valid filename
 	GetFileFolderInfo/Q/Z=1 strFile
 	if(!!V_Flag || !V_isFile)
-		Abort "PLEMd2Open: Invalid filename for " + strFile
+		print "PLEMd2Open: Invalid filename for " + strFile
+		return 1
 	endif
 
 	// DisplayHelpTopic "Symbolic Paths"
