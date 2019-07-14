@@ -1016,33 +1016,17 @@ Function PLEMd2AtlasReload(strPLEM)
 	DFREF dfr = $strDataFolder
 
 	// create waves
-	Make/O/N=45/D dfr:atlasS1nm/WAVE=atlasS1nm
-	Make/O/N=45/D dfr:atlasS2nm/WAVE=atlasS2nm
-	Make/O/N=45/D dfr:atlasN/WAVE=atlasN
-	Make/O/N=45/D dfr:atlasM/WAVE=atlasM
+	Make/O/N=41/D dfr:atlasS1nm/WAVE=atlasS1nm
+	Make/O/N=41/D dfr:atlasS2nm/WAVE=atlasS2nm
+	Make/O/N=41/T dfr:atlasText/WAVE=atlasText
 
 	// fill waves with data
 	atlasS1nm[0]= {613.783,688.801,738.001,765.334,821.087,861.001,898.436,939.274,939.274,961.118,1008,1033.2,1078.12,1097.21,1107,1116.97,1148,1148,1169.66,1227.57,1227.57,1239.84,1239.84,1239.84,1278.19}
 	atlasS1nm[25]= {1291.5,1318.98,1347.65,1347.65,1347.65,1362.46,1377.6,1393.08,1441.68,1441.68,1441.68,1458.64,1458.64,1512,1549.8,1549.8}
 	atlasS2nm[0]= {568.735,510.223,613.783,596.078,480.559,576.671,688.801,497.928,659.49,563.564,639.094,729.319,712.553,582.085,642.405,548.603,789.708,708.481,784.71,629.361,779.775,720.838,666.582,607.766}
 	atlasS2nm[24]= {849.207,784.71,849.207,746.893,681.232,708.481,849.207,799.898,918.401,861.001,925.255,918.401,751.419,789.708,885.601,991.873,932.212}
-	atlasN[0]	= {6, 5, 8, 7, 5, 6, 9, 7, 8, 6, 7, 10,9, 8, 7, 9,12, 8,11,10,10,8,9,11,13,9,12,10,12,11,11,9,15,10,14,13,13,12,10,16,12}
-	atlasM[0]	= {1, 3, 0, 2, 4, 4, 1, 3, 3, 5, 5, 2, 4, 4, 6, 2, 1, 6, 3,3,5,7,5,1,2,7,4,6,2,4,6,8,1,8,3,5,3,5,9,2,7}
-End
-
-Function PLEMd2AtlasCreateNM(strPLEM)
-	String strPLEM
-	Struct PLEMd2stats stats
-	PLEMd2statsLoad(stats, strPLEM)
-
-	Variable i
-
-	WaveStats/Q/M=1 stats.wavChiralityn
-	Redimension/N=(V_npnts) stats.wavChiralitynm
-	for(i = 0; i < V_npnts; i += 1)
-		stats.wavChiralitynm[i]="("+num2str(stats.wavChiralityN[i])+", "+num2str(stats.wavChiralityM[i])+")"
-	endfor
-
+	atlasText[0] = {"(6,1)","(5,3)","(8,0)","(7,2)","(5,4)","(6,4)","(9,1)","(7,3)","(8,3)","(6,5)","(7,5)","(10,2)","(9,4)","(8,4)","(7,6)","(9,2)","(12,1)","(8,6)","(11,3)","(10,3)","(10,5)"}
+	atlasText[21]= {"(8,7)","(9,5)","(11,1)","(13,2)","(9,7)","(12,4)","(10,6)","(12,2)","(11,4)","(11,6)","(9,8)","(15,1)","(10,8)","(14,3)","(13,5)","(13,3)","(12,5)","(10,9)","(16,2)"}
 End
 
 Function PLEMd2AtlasRecalculate(strPLEM)
@@ -1077,15 +1061,13 @@ Function PLEMd2AtlasInit(strPLEM)
 	print xmin,xmax
 	print ymin,ymax
 
-    // search for all chiralities within current window
+	// search for all chiralities within current window
 	Duplicate/O stats.wavAtlasS1nm stats.wavEnergyS1
 	Duplicate/O stats.wavAtlasS2nm stats.wavEnergyS2
-	Duplicate/O stats.wavAtlasN    stats.wavchiralityn
-	Duplicate/O stats.wavAtlasM    stats.wavchiralitym
-    stats.wavEnergyS2   = 0
-    stats.wavEnergyS1   = 0
-    stats.wavchiralityn = 0
-    stats.wavchiralitym = 0
+	Redimension/N=(DimSize(stats.wavAtlasText, 0)) stats.wavChiralityText
+	stats.wavChiralityText = stats.wavAtlasText[p]
+	stats.wavEnergyS2   = NaN
+	stats.wavEnergyS1   = NaN
 
 	numChiralities = Dimsize(stats.wavAtlasS1nm, 0)
     j = 0
@@ -1093,30 +1075,24 @@ Function PLEMd2AtlasInit(strPLEM)
 		if((stats.wavAtlasS2nm[i] > (ymin - 10)) && (stats.wavAtlasS1nm[i] > (xmin - 10)) && (stats.wavAtlasS2nm[i] < (ymax + 10)) && (stats.wavAtlasS1nm[i] < (xmax + 10)))
             stats.wavEnergyS1[j]   = stats.wavAtlasS1nm[i]
             stats.wavEnergyS2[j]   = stats.wavAtlasS2nm[i]
-	        stats.wavchiralityn[j] = stats.wavAtlasN[i]
-	        stats.wavchiralitym[j] = stats.wavAtlasM[i]
+			stats.wavChiralityText[j] = stats.wavAtlasText[i]
             j += 1
         endif
 	endfor
-    Redimension/N=(j) stats.wavEnergyS1, stats.wavEnergyS2, stats.wavchiralitym, stats.wavchiralityn
+    Redimension/N=(j) stats.wavEnergyS1, stats.wavEnergyS2, stats.wavChiralityText
 
-    // overwrite reset point
-	Duplicate/O stats.wavEnergyS1 stats.wavAtlasS1nm
-	Duplicate/O stats.wavEnergyS2 stats.wavAtlasS2nm
-	Duplicate/O stats.wavchiralityn stats.wavAtlasN
-	Duplicate/O stats.wavchiralitym stats.wavAtlasM
-
-	// create waves of appropriate dimensions
-	Duplicate/O stats.wavchiralityn stats.wav2Dfit
-	Duplicate/O stats.wavchiralitym stats.wav1Dfit
-	stats.wav2Dfit = 0
-	stats.wav1Dfit = 0
+	// overwrite reset point.
+	Redimension/N=(j) stats.wavAtlasText, stats.wavAtlasS1nm, stats.wavAtlasS2nm, stats.wav2Dfit, stats.wav1Dfit
+	stats.wavAtlasText = stats.wavChiralityText[p]
+	stats.wavAtlasS1nm = stats.wavEnergyS1[p]
+	stats.wavAtlasS2nm = stats.wavEnergyS2[p]
+	stats.wav2Dfit = NaN
+	stats.wav1Dfit = NaN
 
 	stats.numS1offset = 0
 	stats.numS2offset = 0
 
 	PLEMd2statsSave(stats)
-	PLEMd2AtlasCreateNM(strPLEM)
 End
 
 Function PLEMd2AtlasEdit(strPLEM)
@@ -1134,7 +1110,7 @@ Function PLEMd2AtlasEdit(strPLEM)
 	winPLEMedit = PLEMd2getWindow(stats.strPLEM) + "_edit"
 	DoWindow/F $winPLEMedit
 	if(V_flag == 0)
-		Edit stats.wavchiralitynm, stats.wav2Dfit, stats.wav1Dfit, stats.wavEnergyS1, stats.wavEnergyS2, stats.wavChiralityn, stats.wavChiralityM
+		Edit stats.wavchiralityText, stats.wav2Dfit, stats.wav1Dfit, stats.wavEnergyS1, stats.wavEnergyS2
 		DoWindow/C/N/R $winPLEMedit
 	endif
 
@@ -1164,12 +1140,12 @@ Function PLEMd2AtlasClean(strPLEM)
 	StatsQuantiles/TM stats.wav2Dfit
 	threshold = V_Q25 / 4
 
-	numPoints = DimSize(stats.wavchiralitynm, 0)
+	numPoints = DimSize(stats.wavchiralityText, 0)
 	for(i = numPoints - 1; i >= 0; i -= 1)
 		if((stats.wav2Dfit[i] <= threshold) || (stats.wavEnergyS2[i] < ymin) || (stats.wavEnergyS2[i] > ymax) || (stats.wavEnergyS1[i] < xmin) || (stats.wavEnergyS1[i] > xmax))
-			print "deleting " + stats.wavchiralitynm[i]
+			print "deleting " + stats.wavchiralityText[i]
 			print (stats.wavEnergyS2[i]), (stats.wavEnergyS1[i])
-			DeletePoints i, 1, stats.wavchiralitynm, stats.wavchiralityn, stats.wavchiralitym
+			DeletePoints i, 1, stats.wavchiralityText
 			DeletePoints i, 1, stats.wav2Dfit, stats.wav1Dfit, stats.wavEnergyS1, stats.wavEnergyS2
 		endif
 	endfor
@@ -1276,9 +1252,9 @@ Function PLEMd2AtlasFit1D(strPLEM)
 
 		// save measurement data at current point
 		// check if energy is valid
-		numAtlas = DimSize(stats.wavAtlasN, 0)
+		numAtlas = DimSize(stats.wavAtlasText, 0)
 		for(j = 0; j < numAtlas; j += 1)
-			if((stats.wavAtlasN[j] == stats.wavChiralityn[i]) && (stats.wavAtlasM[j] == stats.wavChiralitym[i]))
+			if(!cmpstr(stats.wavAtlasText[j], stats.wavChiralityText[i]))
 				break
 			endif
 		endfor
@@ -1483,7 +1459,7 @@ Function PLEMd2AtlasShow(strPLEM)
 	PLEMd2statsLoad(stats, strPLEM)
 	PLEMd2Display(strPLEM)
 	PLEMd2AtlasHide(strPLEM) //prevent multiple traces
-	//wavEnergyS1, , wavChiralityn, wavChiralitym, wav2Dfit
+	//wavEnergyS1, , wavChiralityText, wav2Dfit
 	AppendToGraph stats.wavEnergyS2/TN=plem01 vs stats.wavEnergyS1
 	AppendToGraph stats.wavEnergyS2/TN=plem02 vs stats.wavEnergyS1
 	AppendToGraph stats.wavEnergyS2/TN=plem03 vs stats.wavEnergyS1
@@ -1494,7 +1470,7 @@ Function PLEMd2AtlasShow(strPLEM)
 
 	ModifyGraph mode(plem03)=3 //dots
 	ModifyGraph useMrkStrokeRGB(plem03)=1
-	ModifyGraph textMarker(plem03)={stats.wavChiralitynm, "default",0,0,5,0.00,10.00} //labels top
+	ModifyGraph textMarker(plem03)={stats.wavChiralityText, "default",0,0,5,0.00,10.00} //labels top
 	ModifyGraph rgb(plem03)=(65535,65535,65535)
 	ModifyGraph mrkStrokeRGB(plem03)=(65535,65535,65535)
 

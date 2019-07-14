@@ -27,9 +27,10 @@ Structure PLEMd2stats
 	// Switches for calculation
 	Variable booBackground, booPower, booPhoton, booGrating, booQuantumEfficiency, booNormalization, booFilter, booTime, booWavelengthPitch
 	// chirality waves
-	Wave/D wavAtlasS1nm, wavAtlasS2nm, wavAtlasN, wavAtlasM, wavAtlasNM
-	Wave/D wavEnergyS1, wavEnergyS2, wavChiralityn, wavChiralitym, wav2Dfit, wav1Dfit
-	Wave/T wavChiralitynm
+	Wave/D wavAtlasS1nm, wavAtlasS2nm
+	WAVE/T wavAtlasText
+	Wave/D wavEnergyS1, wavEnergyS2, wav2Dfit, wav1Dfit
+	WAVE/T wavChiralityText
 	Wave wavPLEMfit, wavPLEMfitSingle
 	// Variables for chirality offset
 	Variable 	numS1offset, numS2offset
@@ -70,13 +71,10 @@ Function PLEMd2statsLoad(stats, strMap)
 	DFREF dfrAtlas = returnMapChiralityFolder(strMap)
 	Wave/D stats.wavEnergyS1 		= createWave(dfrAtlas, "PLEMs1nm")
 	Wave/D stats.wavEnergyS2 		= createWave(dfrAtlas, "PLEMs2nm")
-	Wave/D stats.wavChiralityn 		= createWave(dfrAtlas, "PLEMchiralityn")
-	Wave/D stats.wavChiralitym 		= createWave(dfrAtlas, "PLEMchiralitym")
-	Wave/T stats.wavChiralitynm 	= createWave(dfrAtlas, "PLEMchirality", setWaveType = PLEMd2WaveTypeText)
+	Wave/T stats.wavChiralityText   = createWave(dfrAtlas, "PLEMchirality", setWaveType = PLEMd2WaveTypeText)
 	Wave/D stats.wavAtlasS1nm 		= createWave(dfrAtlas, "atlasS1nm")
 	Wave/D stats.wavAtlasS2nm 		= createWave(dfrAtlas, "atlasS2nm")
-	Wave/D stats.wavAtlasN 			= createWave(dfrAtlas, "atlasN")
-	Wave/D stats.wavAtlasM 			= createWave(dfrAtlas, "atlasM")
+	Wave/T stats.wavAtlasText       = createWave(dfrAtlas, "atlasText", setWaveType = PLEMd2WaveTypeText)
 	Wave/D stats.wav1Dfit 			= createWave(dfrAtlas, "fit1D")
 	Wave/D stats.wav2Dfit 			= createWave(dfrAtlas, "fit2D")
 	Wave/D stats.wavPLEMfit 		= createWave(dfrAtlas, "fitPLEM")
