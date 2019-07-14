@@ -146,6 +146,7 @@ Function PLEMd2Open([strFile, display])
 	String strFile
 	Variable display
 
+	Variable retry, err
 	String strFileName, strFileType, strPartialPath, strBasePath
 	String strWave, strPLEM
 
@@ -203,12 +204,20 @@ Function PLEMd2Open([strFile, display])
 			SetDataFolder dfrLoad
 			KillWaves/A
 			KillStrings/A
-			PathInfo PLEMbasePath
-			if(V_flag)
-				LoadWave/Q/N/O/P=PLEMbasePath strPartialPath
-			else
-				LoadWave/Q/N/O strFile
-			endif
+			do
+				PathInfo PLEMbasePath
+				try
+					if(V_flag)
+						LoadWave/Q/N/O/P=PLEMbasePath strPartialPath; AbortOnRTE
+					else
+						LoadWave/Q/N/O strFile; AbortOnRTE
+					endif
+				catch
+					err = GetRTError(1)
+					printf "failed %d time(s) at %s with error: %s", retry + 1, strFile, GetErrMessage(err)
+				endtry
+				retry += 1
+			while(!V_flag && retry < 3)
 			if(V_flag != 1)
 				KillWaves/A
 				SetDataFolder dfrSave
