@@ -1586,16 +1586,20 @@ Function/S PLEMd2PopUpChooseFile([strPrompt])
 	return strFileName
 End
 
+// @todo only use wave @c mapsAvailable here
+// @see PLEMd2getAllstrPLEM
 Function PLEMd2getMapsAvailable()
 	DFREF dfr = $cstrPLEMd2root
 	NVAR/Z numMaps = dfr:gnumMapsAvailable
 	if(!NVAR_EXISTS(numMaps))
-		return 0
+		return ItemsInList(PLEMd2getStrMapsAvailable())
 	endif
 
 	return numMaps
 End
 
+// @todo only use wave @c mapsAvailable here
+// @see PLEMd2getAllstrPLEM
 Function/S PLEMd2getStrMapsAvailable()
 	DFREF dfr = $cstrPLEMd2root
 	SVAR/Z strMaps = dfr:gstrMapsAvailable
