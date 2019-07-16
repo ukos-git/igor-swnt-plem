@@ -1041,27 +1041,41 @@ Function PLEMd2AtlasRecalculate(strPLEM)
 	stats.wavEnergyS2	= numPlank * numLight / (numPlank * numLight / stats.wavAtlasS2nm[p] - stats.numS2offset)
 End
 
-Function PLEMd2AtlasInit(strPLEM)
+Function PLEMd2AtlasInit(strPLEM, [init, initT])
 	String strPLEM
+	WAVE init
+	WAVE/T initT
+
 	Struct PLEMd2stats stats
+	STRUCT cntRange range
 	Variable i, numChiralities, j
 	Variable xmin, xmax, ymin, ymax
 	Variable chirality_start, chirality_end
+	Variable tolerance = 5 // nm
 
-	PLEMd2AtlasReload(strPLEM) // also populates wave references
-	PLEMd2statsLoad(stats, strPLEM)	// so we have to load afterwards
+	PLEMd2AtlasReload(strPLEM)
+	PLEMd2statsLoad(stats, strPLEM)
 
-	// get boundaries of current window
-	PLEMd2Display(strPLEM)
-	getAxis/Q left
-	ymin = V_min
-	ymax = V_max
-	getAxis/Q bottom
-	xmin = V_min
-	xmax = V_max
+	if(!ParamIsDefault(init))
+		if(DimSize(init, 1) < 2)
+			Abort "PLEMd2AtlasInit: Invalid init wave"
+		endif
+		Redimension/N=(DimSize(init, 0)) stats.wavAtlasS1nm, stats.wavAtlasS2nm, stats.wavAtlasText
+		stats.wavAtlasS2nm[] = init[p][0]
+		stats.wavAtlasS1nm[] = init[p][1]
+		if(!ParamIsDefault(initT))
+			stats.wavAtlasText = initT[p]
+		else
+			stats.wavAtlasText = ""
+		endif
+	endif
 
-	print xmin,xmax
-	print ymin,ymax
+	// get boundaries from PLEM
+	PLEMd2GetAcceptableRange(stats, range)
+	ymin = range.yMin - tolerance
+	ymax = range.yMax + tolerance
+	xmin = range.xMin - tolerance
+	xmax = range.xMax + tolerance
 
 	// search for all chiralities within current window
 	Duplicate/O stats.wavAtlasS1nm stats.wavEnergyS1
@@ -1074,7 +1088,7 @@ Function PLEMd2AtlasInit(strPLEM)
 	numChiralities = Dimsize(stats.wavAtlasS1nm, 0)
     j = 0
 	for(i = 0; i < numChiralities; i += 1)
-		if((stats.wavAtlasS2nm[i] > (ymin - 10)) && (stats.wavAtlasS1nm[i] > (xmin - 10)) && (stats.wavAtlasS2nm[i] < (ymax + 10)) && (stats.wavAtlasS1nm[i] < (xmax + 10)))
+		if((stats.wavAtlasS2nm[i] > ymin) && (stats.wavAtlasS1nm[i] > xmin) && (stats.wavAtlasS2nm[i] < ymax) && (stats.wavAtlasS1nm[i] < xmax))
             stats.wavEnergyS1[j]   = stats.wavAtlasS1nm[i]
             stats.wavEnergyS2[j]   = stats.wavAtlasS2nm[i]
 			stats.wavChiralityText[j] = stats.wavAtlasText[i]
@@ -1125,31 +1139,58 @@ Function PLEMd2AtlasClean(strPLEM)
 	Variable i, numPoints
 	Variable xmin, xmax, ymin, ymax
 	Variable threshold = 0
+	Variable tolerance = 50
 
+	STRUCT cntRange range
 	Struct PLEMd2stats stats
 	PLEMd2statsLoad(stats, strPLEM)
 
-	// get boundaries of current window
-	PLEMd2Display(strPLEM)
-	GetAxis/Q left
-	ymin = V_min
-	ymax = V_max
-	GetAxis/Q bottom
-	xmin = V_min
-	xmax = V_max
+	// get boundaries from PLEM
+	// get boundaries from PLEM
+	PLEMd2GetAcceptableRange(stats, range)
+	ymin = range.yMin - tolerance
+	ymax = range.yMax + tolerance
+	xmin = range.xMin - tolerance
+	xmax = range.xMax + tolerance
 
 	// define threshold
-	StatsQuantiles/TM stats.wav2Dfit
-	threshold = V_Q25 / 4
+	//StatsQuantiles/TM stats.wav2Dfit
+	//threshold = V_Q25
 
 	numPoints = DimSize(stats.wavchiralityText, 0)
 	for(i = numPoints - 1; i >= 0; i -= 1)
-		if((stats.wav2Dfit[i] <= threshold) || (stats.wavEnergyS2[i] < ymin) || (stats.wavEnergyS2[i] > ymax) || (stats.wavEnergyS1[i] < xmin) || (stats.wavEnergyS1[i] > xmax))
-			print "deleting " + stats.wavchiralityText[i]
-			print (stats.wavEnergyS2[i]), (stats.wavEnergyS1[i])
-			DeletePoints i, 1, stats.wavchiralityText
-			DeletePoints i, 1, stats.wav2Dfit, stats.wav1Dfit, stats.wavEnergyS1, stats.wavEnergyS2
+		if(stats.wav2Dfit[i] > threshold)
+			// value is greater than threshold
+			if((stats.wavEnergyS2[i] > ymin) && (stats.wavEnergyS2[i] < ymax))
+				// AND within y range
+				if((stats.wavEnergyS1[i] > xmin) && (stats.wavEnergyS1[i] < xmax))
+					// AND within x range
+					continue
+				endif
+			endif
 		endif
+		DeletePoints i, 1, stats.wavchiralityText, stats.wav2Dfit, stats.wav1Dfit, stats.wavEnergyS1, stats.wavEnergyS2
+	endfor
+
+	// Remove Duplicates
+	if(DimSize(stats.wavchiralityText, 0) < 2)
+		return 0
+	endif
+	FindDuplicates/FREE/INDX=indexS1/TOL=25 stats.wavEnergyS1
+	FindDuplicates/FREE/INDX=indexS2/TOL=25 stats.wavEnergyS2
+	Concatenate/FREE {indexS1, indexS2}, indices
+	if(DimSize(indices, 0) > 1)
+		FindDuplicates/FREE/DN=duplicates indices
+	else
+		Duplicate/FREE indices duplicates
+	endif
+	if(DimSize(duplicates, 0) == 0 || numtype(duplicates[0]) != 0)
+		return 0
+	endif
+	numPoints = DimSize(duplicates, 0)
+	Sort duplicates, duplicates
+	for(i = numPoints - 1; i >= 0; i -= 1)
+		DeletePoints duplicates[i], 1, stats.wavchiralityText, stats.wav2Dfit, stats.wav1Dfit, stats.wavEnergyS1, stats.wavEnergyS2
 	endfor
 End
 
@@ -1290,117 +1331,109 @@ Function PLEMd2AtlasFit1D(strPLEM)
 
 End
 
-Function PLEMd2AtlasFit3D(strPLEM)
+Function PLEMd2AtlasFit3D(strPLEM, [show])
 	String strPLEM
-	Struct PLEMd2stats stats
+	Variable show
 
-	Variable numS1,numS2
+	Variable i, numS1, numS2
 	Variable numDeltaS1left, numDeltaS1right, numDeltaS2bottom, numDeltaS2top
 	Variable rightXvalue, topYvalue
 	Variable err
-	Variable V_fitOptions=4 // used to suppress CurveFit dialog
-	String strChirality = ""
+	Variable s1FWHM, s2FWHM, s2emi, s1exc, distortion, intensity
 	String winPLEMfit, winPLEM
-	Variable i
-	Variable numDeltaS1 = 25, numDeltaS2 = 25
+	Struct PLEMd2stats stats
+
+	Variable V_fitOptions = 4 // used to suppress CurveFit dialog
+	Variable numDeltaS1 = 30
+	Variable numDeltaS2 = 40
+
+	show = ParamIsDefault(show) ? 0 : show
 
 	if(PLEMd2MapExists(strPLEM) == 0)
 		print "PLEMd2AtlasFit: Map does not exist properly"
-		return 0
+		return 1
 	endif
 
 	PLEMd2statsLoad(stats, strPLEM)
-	Redimension/N=(DimSize(stats.wavPLEM, 0), DimSize(stats.wavPLEM, 1), numpnts(stats.wavEnergyS1)) stats.wavPLEMfit
-	CopyScales stats.wavPLEM, stats.wavPLEMfit, stats.wavPLEMfitSingle
-	
+	WAVE PLEM = removeSpikes(PLEMd2NanotubeRangePLEM(stats))
+	Redimension/N=(DimSize(PLEM, 0), DimSize(PLEM, 1), numpnts(stats.wavEnergyS1)) stats.wavPLEMfit
+	CopyScales PLEM, stats.wavPLEMfit, stats.wavPLEMfitSingle
+
 	rightXvalue = stats.numPLEMleftX + stats.numPLEMTotalX * stats.numPLEMdeltaX
 	topYvalue = stats.numPLEMbottomY + stats.numPLEMTotalY * stats.numPLEMdeltaY
-	
+
 	// input
 	for(i = 0; i < numpnts(stats.wavEnergyS1); i += 1)
-		numS1 = stats.wavEnergyS1[i] //x
-		numS2 = stats.wavEnergyS2[i] //y
+		numS1 = stats.wavEnergyS1[i] // x
+		numS2 = stats.wavEnergyS2[i] // y
 
-		numDeltaS1left 	= numDeltaS1/2
-		numDeltaS1right 	= numDeltaS1/2
-		numDeltaS2bottom = numDeltaS2/2
-		numDeltaS2top 	= numDeltaS2/2
+		numDeltaS1left   = numS1 - numDeltaS1
+		numDeltaS1right  = numS1 + numDeltaS1
+		numDeltaS2bottom = numS2 - numDeltaS2
+		numDeltaS2top    = numS2 + numDeltaS2
 
-		if((numS1-numDeltaS1left) < stats.numPLEMleftX)
-			//print "chirality not in Map S1 Data Range"
-			numDeltaS1left = numS1 - stats.numPLEMleftX
-			if(numDeltaS1left<0)
-				numDeltaS1left = 0
-			endif
-		endif
-		if((numS1+numDeltaS1right) > rightXvalue)
-			//print "chirality not in Map S1Data Range"
-			numDeltaS1right = rightXvalue - numS1
-			if(numDeltaS1right<0)
-				numDeltaS1right = 0
-			endif
-		endif
-		if((numS2-numDeltaS2bottom) < stats.numPLEMbottomY)
-			//print "chirality not in Map S1Data Range"
-			numDeltaS2bottom = numS2 - stats.numPLEMbottomY
-			if(numDeltaS2bottom<0)
-				numDeltaS2bottom = 0
-			endif
-		endif
-		if((numS2+numDeltaS2top) > topYvalue)
-			//print "chirality not in Map S1Data Range"
-			numDeltaS2top = topYvalue - numS2
-			if(numDeltaS2top<0)
-				numDeltaS2top = 0
-			endif
-		endif
-		if((numDeltaS1 < 0) | (numDeltaS2 < 0))
-			stats.wavPLEMfit[][][i] = 0
-			stats.wav2Dfit[i] = 0
-		else
-			// @todo revisit to use custom 2d functions
-			//
-			// Make/O/T fitConstraints={"K6 = 0"}
-			// Make/FREE/O W_coef = {0,1,stats.wavEnergyS1[i], (sqrt(stats.wav2Dfit[i]/(2*pi))), stats.wavEnergyS2[i], (sqrt(stats.wav2Dfit[i]/(2*pi))), 0}
-			// gauss2d=K0+K1*exp((-1/(2*(1-K6^2)))*(((x-K2)/K3)^2 + ((y-K4)/K5)^2 - (2*K6*(x-K2)*(y-K4)/(K3*K5))))
-			// FuncFit/Q PLEMd2SimpleGaussian2D, W_coef stats.wavPLEM(numS1-numDeltaS1left,numS1+numDeltaS1right)(numS2-numDeltaS2bottom,numS2+numDeltaS2top)
-			// stats.wavPLEMfit[][][i] = PLEMd2SimpleGaussian2D(W_coef, x, y)
-			// stats.wavEnergyS1[i] = W_coef[2]
-			// stats.wavEnergyS2[i] = W_coef[4]
-			// stats.wav2Dfit[i] = W_coef[1]*2*pi* W_coef[3]* W_coef[5] // volume of simpleGaussian
+		// 2*sqrt(ln(2)) = 1.66511
+		Make/O/T/N=10 root:T_Constraints/WAVE=T_Constraints
+		T_Constraints[0] = "K2 > " + num2str(numDeltaS1left)
+		T_Constraints[1] = "K2 < " + num2str(numDeltaS1right)
+		T_Constraints[2] = "K4 > " + num2str(numDeltaS2bottom)
+		T_Constraints[3] = "K4 < " + num2str(numDeltaS2top)
+		T_Constraints[4] = "K3 > " + num2str(1   / 1.66511)
+		T_Constraints[5] = "K3 < " + num2str(20  / 1.66511)
+		T_Constraints[6] = "K5 > " + num2str(15  / 1.66511)
+		T_Constraints[7] = "K5 < " + num2str(100 / 1.66511)
+		T_Constraints[8] = "K6 > -0.1"
+		T_Constraints[9] = "K6 < 0.1"
 
-			try
-				CurveFit/Q gauss2D stats.wavPLEM(numS1-numDeltaS1left,numS1+numDeltaS1right)(numS2-numDeltaS2bottom,numS2+numDeltaS2top); AbortOnRTE
-				Wave W_coef
-				stats.wavPLEMfit[][][i] = Gauss2D(W_coef, x, y)
-				stats.wavEnergyS1[i] = W_coef[2]
-				stats.wavEnergyS2[i] = W_coef[4]
-				stats.wav2Dfit[i] = W_coef[1]*2*pi* W_coef[3]* W_coef[5]*sqrt(1-W_coef[6]^2) // volume of 2d gauss without baseline
-				stats.wav1Dfit[i] = W_coef[1]
-				WaveClear W_coef
-			catch
-				err = GetRTError(1)
-				stats.wavPLEMfit[][][i] = 0
-				stats.wav2Dfit[i] = 0
-			endtry
+		stats.wavPLEMfit[][][i] = 0
+		stats.wav2Dfit[i] = 0
 
-			// error checking
-			if((stats.wavEnergyS1[i] < 0) | (stats.wavEnergyS2[i] < 0) | (stats.wav2Dfit[i] < 0))
-				stats.wavPLEMfit[][][i] = 0
-				stats.wav2Dfit[i] = 0
-			endif
-			if((abs((numS1-stats.wavEnergyS1[i])/numS1) > 0.25 ) || (abs((numS2-stats.wavEnergyS2[i])/numS2) > 0.25 ))
-				stats.wavPLEMfit[][][i] = 0
-				stats.wav2Dfit[i] = 0
-			endif
+		try
+			CurveFit/Q gauss2D PLEM(numDeltaS1left, numDeltaS1right)(numDeltaS2bottom, numDeltaS2top)/T=T_Constraints; AbortOnRTE
+		catch
+			err = GetRTError(1)
+			continue
+		endtry
+
+		Wave W_coef
+		intensity = W_coef[1]
+		s1FWHM = W_coef[3] / 1.66511
+		s2FWHM = W_coef[5] / 1.66511
+		distortion = abs(W_coef[6])
+		s2emi = W_coef[4]
+		s1exc = W_coef[2]
+
+		// check if distorted gaussian
+		if(distortion > 0.25)
+			continue
 		endif
+		// check if fwhm is within a valid range
+		if((s1FWHM > 30) || (s1FWHM < 2) || (s2FWHM > 30) || (s2FWHM < 5))
+			continue
+		endif
+		// error checking
+		if((abs((numS1 - s1exc) / numS1) > 0.25 ) || (abs((numS2 - s2emi) / numS2) > 0.25 ))
+			continue
+		endif
+
+		stats.wavEnergyS1[i] = s1exc
+		stats.wavEnergyS2[i] = s2emi
+		stats.wav2Dfit[i] = W_coef[1]*2*pi* W_coef[3]* W_coef[5]*sqrt(1-W_coef[6]^2) // volume of 2d gauss without baseline
+		stats.wav1Dfit[i] = intensity
+		stats.wavPLEMfit[][][i] = Gauss2D(W_coef, x, y)
+		WaveClear W_coef
 	endfor
+
 	// add all maps to one map
-	PLEMd2AtlasMerge3d(stats.wavPLEMfit,stats.wavPLEMfitSingle)
+	PLEMd2AtlasMerge3d(stats.wavPLEMfit, stats.wavPLEMfitSingle)
+
+	if(!show)
+		return 0
+	endif
 
 	// check if window already exists
 	winPLEM = PLEMd2getWindow(stats.strPLEM)
-	DoWindow/F $winPLEM
+	DoWindow $winPLEM
 	// DoWindow sets the variable V_flag:
 	// 	1 window existed
 	// 	0 no such window
@@ -1408,10 +1441,10 @@ Function PLEMd2AtlasFit3D(strPLEM)
 	if(!!V_flag)
 		String listContour = ContourNameList("", ";")
 		for(i = 0; i < ItemsInList(listContour); i += 1)
-			RemoveContour $(StringFromList(i, listContour))
+			RemoveContour/W=$winPLEM $(StringFromList(i, listContour))
 		endfor
-		AppendMatrixContour stats.wavPLEMfitSingle
-		ModifyContour ''#0 labels=0,autoLevels={0,*,10}
+		AppendMatrixContour/W=$winPLEM stats.wavPLEMfitSingle
+		ModifyContour/W=$winPLEM ''#0 labels=0,autoLevels={0,*,10}
 	endif
 
 	// check if window already exists
@@ -1427,25 +1460,14 @@ Function PLEMd2AtlasFit3D(strPLEM)
 	endif
 End
 
-// define your own fit functions
-Function PLEMd2SimpleGaussian2D(w,x,y):Fitfunc
-    Wave w
-    variable x
-    variable y
+Function PLEMd2AtlasMerge3d(wave3d, wave2d)
+	Wave wave3d, wave2d
 
-    //w[0] = background
-    //w[1] = amplitude
-    //w[2] = x centre
-    //w[3] = peak width
-    //w[4] = y centre
-    return    w[0]+w[1]*exp(-( (x-w[2])^2/(2 * w[3]^2) - (y-w[4])/(2 * w[5]^2)   ))
-End
-
-Function PLEMd2AtlasMerge3d(wave3d,wave2d)
-	Wave wave3d,wave2d
 	Variable i
+
 	Duplicate/O/R=[][][0] wave3d wave2d
-	Redimension/N=(Dimsize(wave3d, 0),Dimsize(wave3d, 1)) wave2d
+	Redimension/N=(Dimsize(wave3d, 0), Dimsize(wave3d, 1)) wave2d
+
 	for(i = 1; i < Dimsize(wave3d, 2); i += 1)
 		wave2d += wave3d[p][q][i]
 	endfor
@@ -1904,18 +1926,42 @@ Function/WAVE PLEMd2getDetectors()
 	return wv
 End
 
-// return PLEM with measurement range (setup specific)
+// return PLEM with measurement range (setup specific to microscope with 830lp)
 Function/WAVE PLEMd2NanotubeRangePLEM(stats)
 	Struct PLEMd2stats &stats
 
-	if(stats.numDetector > 1)
-		Abort "Only for Newton and Idus"
-	endif
+	STRUCT cntRange range
+	PLEMd2GetAcceptableRange(stats, range)
+
+	Variable qMin, qMax
+	Variable pMin = ScaleToIndex(stats.wavPLEM, range.xMin, 0)
+	Variable pMax = ScaleToIndex(stats.wavPLEM, range.xMax, 0)
 
 	if(DimSize(stats.wavPLEM, 1) > 1)
-		Duplicate/FREE/R=[ScaleToIndex(stats.wavPLEM, stats.numDetector == PLEMd2detectorNewton ? 815 : 950, 0), ScaleToIndex(stats.wavPLEM, stats.numDetector == PLEMd2detectorNewton ? 1035 : 1280, 0)][ScaleToIndex(stats.wavPLEM, 540, 1), *] stats.wavPLEM, wv
+		qMin = ScaleToIndex(stats.wavPLEM, range.yMin, 1)
+		qMax = ScaleToIndex(stats.wavPLEM, range.yMax, 1)
+		Duplicate/FREE/R=[pMin, pMax][qMin, qMax] stats.wavPLEM, wv
 	else
-		Duplicate/FREE/R=[ScaleToIndex(stats.wavPLEM, stats.numDetector == PLEMd2detectorNewton ? 815 : 950, 0), ScaleToIndex(stats.wavPLEM, stats.numDetector == PLEMd2detectorNewton ? 1035 : 1280, 0)] stats.wavPLEM, wv
+		Duplicate/FREE/R=[pMin, pMax] stats.wavPLEM, wv
 	endif
 	return wv
+End
+
+Structure cntRange
+	Variable xMin, xMax
+	Variable yMin, yMax
+EndStructure
+
+Function PLEMd2GetAcceptableRange(stats, range)
+	STRUCT PLEMd2stats &stats
+	STRUCT cntRange &range
+
+	if(stats.numDetector > 1)
+		Abort "PLEMd2GetAcceptableRange: Only for Newton and Idus"
+	endif
+
+	range.xMin = stats.numDetector == PLEMd2detectorNewton ? 830 : 950
+	range.xMax = stats.numDetector == PLEMd2detectorNewton ? 1040 : 1280
+	range.yMin = 525
+	range.yMax = 760
 End

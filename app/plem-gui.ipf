@@ -287,7 +287,6 @@ Function ButtonProcAtlasShow(ba) : ButtonControl
 		case 2: // mouse up
 			String strPLEM
 			strPLEM = PLEMd2window2strPLEM(ba.win)
-			PLEMd2AtlasInit(strPLEM)
 			PLEMd2AtlasShow(strPLEM)
 			break
 		case -1: // control being killed
@@ -350,7 +349,7 @@ Function ButtonProcAtlasFit3D(ba) : ButtonControl
 		case 2: // mouse up
 			String strPLEM
 			strPLEM = PLEMd2window2strPLEM(ba.win)
-			PLEMd2AtlasFit3D(strPLEM)
+			PLEMd2AtlasFit3D(strPLEM, show = 1)
 			break
 		case -1: // control being killed
 			break
