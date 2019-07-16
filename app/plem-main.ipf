@@ -146,7 +146,7 @@ Function PLEMd2Open([strFile, display])
 	String strFile
 	Variable display
 
-	Variable retry, err
+	Variable retry, err, numLoaded
 	String strFileName, strFileType, strPartialPath, strBasePath
 	String strWave, strPLEM
 
@@ -213,18 +213,20 @@ Function PLEMd2Open([strFile, display])
 					else
 						LoadWave/Q/N/O strFile; AbortOnRTE
 					endif
+					numLoaded = V_flag
 				catch
 					err = GetRTError(1)
+					numLoaded = 0
 					printf "failed %d time(s) at %s with error: %s", retry + 1, strFile, GetErrMessage(err)
 				endtry
 				retry += 1
-			while(!V_flag && retry < 3)
-			if(V_flag != 1)
+			while(!numLoaded && retry < 3)
+			SetDataFolder dfrSave
+
+			if(numLoaded != 1)
 				KillWaves/A
-				SetDataFolder dfrSave
 				Abort "PLEMd2Open: Error Loaded more than one or no Wave from Igor Binary File"
 			endif
-			SetDataFolder dfrSave
 
 			// reference loaded wave and lock it.
 			WAVE/Z wavIBW = PLEMd2wavIBW(strPLEM)
