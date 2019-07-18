@@ -1,6 +1,8 @@
 ﻿#pragma TextEncoding = "UTF-8"
 #pragma rtGlobals=3
 
+#include "utilities-peakfind"
+
 static StrConstant cstrPLEMd2maps 	= ":maps"
 static StrConstant cstrPLEMd2info 	= ":INFO"
 static StrConstant cstrPLEMd2chirality = ":CHIRALITY"

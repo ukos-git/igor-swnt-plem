@@ -1194,141 +1194,111 @@ Function PLEMd2AtlasClean(strPLEM)
 	endfor
 End
 
-Function PLEMd2AtlasFit1D(strPLEM)
+Function PLEMd2AtlasFit2D(strPLEM)
 	String strPLEM
 
 	Variable i, j, numAtlas, numFits
-	Variable numDelta = 30, numAccuracy = 0
-	Variable fit_start, fit_end
-	Variable numEnergyS1, numEnergyS2
-	Variable numPlank = 4.135667516E-12 //meV s
-	Variable numLight = 299792458E9 //nm/s
+	Variable pStart, pEnd, qStart, qEnd, pAccuracy, qAccuracy, minpqAccuracy = 5
 	String strWavPLEMfitSingle, strWavPLEMfit
+	Variable s1FWHM, s2FWHM, s2nm, s1nm, intensity
 
+	Variable numDeltaS1 = 25 //nm
+	Variable numDeltaS2 = 25 //nm
 	Variable V_fitOptions = 4 // used to suppress CurveFit dialog
 	Variable err
 
 	Struct PLEMd2stats stats
 	PLEMd2statsLoad(stats, strPLEM)
 	WAVE PLEM = removeSpikes(stats.wavPLEM)
+	pAccuracy = max(minpqAccuracy, ceil(numDeltaS1 / DimDelta(PLEM, 0)))
+	qAccuracy = max(minpqAccuracy, ceil(numDeltaS2 / DimDelta(PLEM, 1)))
 
-	Make/O/T/N=2 root:T_Constraints/WAVE=T_Constraints = {"K3 > 100","K3 < 300"} // width constrainment
+	Make/O/T/N=5 root:T_Constraints/WAVE=T_Constraints
+	T_Constraints[0] = "K1 > 0"
 
 	numFits = numpnts(stats.wavEnergyS1)
 	for(i = 0; i < numFits; i += 1)
+		intensity = stats.wav1Dfit[i]
+		s1nm = stats.wavEnergyS1[i]
+		s2nm = stats.wavEnergyS2[i]
+		s1FWHM = NaN
+		s2FWHM = NaN
+
 		// fit Excitation
-		// find p,q
-		FindValue/T=2/V=(stats.wavEnergyS1[i] - numDelta) stats.wavWavelength
-		if(V_Value == -1)
-			fit_start = 0
-		else
-			fit_start = V_Value
-		endif
-		FindValue/T=2/V=(stats.wavEnergyS1[i] + numDelta) stats.wavWavelength
-		if(V_Value == -1)
-			fit_end = DimSize(stats.wavPLEM, 0) - 1
-		else
-			fit_end = V_Value
-		endif
-		do
-			fit_start -= 1
-			fit_end += 1
-		while(abs(fit_end - fit_start) < 10)
+		T_Constraints[1] = "K2 > " + num2str(s1nm - numDeltaS1 / 2)
+		T_Constraints[2] = "K2 < " + num2str(s1nm + numDeltaS1 / 2)
+		T_Constraints[3] = "K3 > " + num2str(05 / 1.66511) // 2*sqrt(ln(2)) = 1.66511
+		T_Constraints[4] = "K3 < " + num2str(30 / 1.66511) // 2*sqrt(ln(2)) = 1.66511
 
-		do
-			numAccuracy += 1
-			FindValue/T=(numAccuracy)/V=(stats.wavEnergyS2[i]) stats.wavExcitation
-		while(V_Value == -1)
+		[ pStart, pEnd ] = FindLevelWrapper(stats.wavWavelength, s1nm, accuracy = pAccuracy)
+		[ qStart, qEnd ] = FindLevelWrapper(stats.wavExcitation, s2nm, accuracy = qAccuracy)
 
-		Duplicate/FREE/R=[fit_start, fit_end][V_Value] PLEM fitme
-		Redimension/N=(-1, 0) fitme
-		Duplicate/FREE/R=[fit_start, fit_end] stats.wavWavelength xfitme
+		Duplicate/FREE/R=[pStart, pEnd][qStart, qEnd] PLEM dummy
+		MatrixOP/FREE fitme = sumRows(dummy)
+		Duplicate/FREE/R=[pStart, pEnd] stats.wavWavelength xfitme
 		try
-			// K0+K1*exp(-((x-K2)/K3)^2).
 			CurveFit/Q gauss fitme/X=xfitme/C=T_Constraints; AbortOnRTE
 			WAVE W_coef
-			print W_coef[3]
-			stats.wavEnergyS1[i] = W_coef[2]
+			s1FWHM = W_coef[3] / 1.66511 // 2*sqrt(ln(2)) = 1.66511
+			s1nm = W_coef[2]
+			WaveClear W_coef
 		catch
 			err = GetRTError(1)
-			stats.wavEnergyS1[i] = 0
 		endtry
 		WaveClear fitme, xfitme
+
+		stats.wavEnergyS1[i] = s1nm
 
 		// fit Emission
-		// find p,q
-		FindValue/T=2/V=(stats.wavEnergyS2[i] - numDelta) stats.wavExcitation
-		if(V_Value == -1)
-			fit_start = 0
-		else
-			fit_start = V_Value
-		endif
-		FindValue/T=2/V=(stats.wavEnergyS2[i] + numDelta) stats.wavExcitation
-		if(V_Value == -1)
-			fit_end = DimSize(stats.wavPLEM, 1) - 1
-		else
-			fit_end = V_Value
-		endif
-		do
-			fit_start -= 1
-			fit_end += 1
-		while(abs(fit_end - fit_start) < 5)
-		numAccuracy = 0
-		do
-			numAccuracy += 1
-			FindValue/T=(numAccuracy)/V=(stats.wavEnergyS1[i]) stats.wavWavelength
-		while(V_Value == -1)
+		T_Constraints[1] = "K2 > " + num2str(s2nm - numDeltaS2 / 2)
+		T_Constraints[2] = "K2 < " + num2str(s2nm + numDeltaS2 / 2)
+		T_Constraints[3] = "K3 > " + num2str(010 / 1.66511)
+		T_Constraints[4] = "K3 < " + num2str(100 / 1.66511)
 
-		Duplicate/FREE/R=[V_Value][fit_start, fit_end] PLEM fitme
-		Redimension/N=(DimSize(fitme, 1), 0)/E=1 fitme
-		Duplicate/FREE/R=[fit_start, fit_end] stats.wavExcitation xfitme
+		[ pStart, pEnd ] = FindLevelWrapper(stats.wavWavelength, s1nm, accuracy = pAccuracy)
+		[ qStart, qEnd ] = FindLevelWrapper(stats.wavExcitation, s2nm, accuracy = qAccuracy)
+
+		Duplicate/FREE/R=[pStart, pEnd][qStart, qEnd] PLEM dummy
+		MatrixOP/FREE fitme = sumCols(dummy)^t
+		Duplicate/FREE/R=[qStart, qEnd] stats.wavExcitation xfitme
 		try
-			// K0+K1*exp(-((x-K2)/K3)^2).
 			CurveFit/Q gauss fitme/X=xfitme/C=T_Constraints; AbortOnRTE
 			WAVE W_coef
-			print W_coef[3]
-			stats.wavEnergyS2[i] = W_coef[2]
+			s2FWHM = W_coef[3] / 1.66511 // 2*sqrt(ln(2)) = 1.66511
+			s2nm = W_coef[2]
+			WaveClear W_coef
 		catch
 			err = GetRTError(1)
 		endtry
 		WaveClear fitme, xfitme
 
-		// save measurement data at current point
-		// check if energy is valid
-		numAtlas = DimSize(stats.wavAtlasText, 0)
-		for(j = 0; j < numAtlas; j += 1)
-			if(!cmpstr(stats.wavAtlasText[j], stats.wavChiralityText[i]))
-				break
-			endif
-		endfor
-		if(j == numAtlas)
-			// not found. error.
-			stats.wav1Dfit[i] = 0
-			continue
-		endif
-		numEnergyS1	= numPlank * numLight / (numPlank * numLight / stats.wavAtlasS1nm[j] - stats.numS1offset)
-		numEnergyS2	= numPlank * numLight / (numPlank * numLight / stats.wavAtlasS2nm[j] - stats.numS2offset)
-		if((abs(stats.wavEnergyS1[i] - numEnergyS1) > 30) || (abs(stats.wavEnergyS2[i] - numEnergyS2) > 30))
-			print (stats.wavEnergyS2[i]), numEnergyS2
-			print (stats.wavEnergyS1[i]), numEnergyS1
-			stats.wav1Dfit[i] = 0
-		else
-			FindValue/T=2/V=(stats.wavEnergyS1[i]) stats.wavWavelength
-			if(V_Value == -1)
-				fit_start = 0
-			else
-				fit_start = V_Value
-			endif
-			FindValue/T=2/V=(stats.wavEnergyS2[i]) stats.wavExcitation
-			if(V_Value == -1)
-				fit_end = DimSize(stats.wavPLEM, 1) - 1
-			else
-				fit_end = V_Value
-			endif
-			stats.wav1Dfit[i] = stats.wavPLEM[fit_start][fit_end]
-		endif
-	endfor
+		stats.wavEnergyS2[i] = s2nm
 
+		// fit to get intensity
+		T_Constraints[1] = "K2 > " + num2str(s1nm - numDeltaS1 / 2)
+		T_Constraints[2] = "K2 < " + num2str(s1nm + numDeltaS1 / 2)
+		T_Constraints[3] = "K3 > " + num2str(05 / 1.66511) // 2*sqrt(ln(2)) = 1.66511
+		T_Constraints[4] = "K3 < " + num2str(15 / 1.66511) // 2*sqrt(ln(2)) = 1.66511
+
+		[ pStart, pEnd ] = FindLevelWrapper(stats.wavWavelength, s1nm, accuracy = pAccuracy * 4)
+		FindLevel/Q/P/T=(qAccuracy) stats.wavExcitation, s2nm
+		qStart = V_Flag ? 0 : min(DimSize(stats.wavExcitation, 0) - 1, max(0, round(V_levelX)))
+
+		Duplicate/FREE/R=[pStart, pEnd][qStart] PLEM fitme
+		Redimension/N=(-1, 0) fitme
+		Duplicate/FREE/R=[pStart, pEnd] stats.wavWavelength xfitme
+		try
+			CurveFit/Q gauss fitme/X=xfitme/C=T_Constraints; AbortOnRTE
+			WAVE W_coef
+			intensity = W_coef[1]
+			WaveClear W_coef
+		catch
+			err = GetRTError(1)
+		endtry
+		WaveClear fitme, xfitme
+
+		stats.wav1Dfit[i] = intensity
+	endfor
 End
 
 Function PLEMd2AtlasFit3D(strPLEM, [show])

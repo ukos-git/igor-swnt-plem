@@ -363,7 +363,7 @@ Function ButtonProcAtlasFit1D(ba) : ButtonControl
 		case 2: // mouse up
 			String strPLEM
 			strPLEM = PLEMd2window2strPLEM(ba.win)
-			PLEMd2AtlasFit1D(strPLEM)
+			PLEMd2AtlasFit2D(strPLEM)
 			break
 		case -1: // control being killed
 			break
