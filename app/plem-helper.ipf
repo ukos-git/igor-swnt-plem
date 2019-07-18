@@ -51,7 +51,7 @@ static Function/DF returnPackageRoot()
 End
 
 // Function returns DataFolder reference to base directory where maps are stored
-static Function/DF returnMapsFolder()
+Function/DF PLEMd2MapsFolder()
 	DFREF dfrPackage = returnPackageRoot()
 	DFREF dfrMaps = DataFolderReference(cstrPLEMd2root + cstrPLEMd2maps)
 	return dfrMaps
@@ -61,24 +61,14 @@ End
 Function/DF PLEMd2MapFolder(strMap)
 	String strMap
 
-	String strDataFolder
 	if(strlen(strMap) == 0)
 		Abort "Need a valid Map String"
 	endif
 
-	DFREF dfrMaps = returnMapsFolder()
-	DFREF dfrMap = DataFolderReference(PLEMd2mapFolderString(strMap))
+	DFREF dfrMaps = PLEMd2MapsFolder()
+	DFREF dfrMap = dfrMaps:$strMap
+
 	return dfrMap
-End
-
-Function/S PLEMd2mapFolderString(strMap)
-	String strMap
-
-	if(strlen(strMap) == 0)
-		Abort "Need a valid Map String"
-	endif
-
-	return cstrPLEMd2root + cstrPLEMd2maps + ":" + strMap
 End
 
 // Function returns DataFolder reference to current map's info folder where NVAR and SVAR are saved
@@ -313,12 +303,19 @@ Function setAtlasVariable(strMap, var, value)
 	setGvar(var, value, dfrAtlas)
 End
 
-// return the IBW file for the selected ple map
 Function/WAVE PLEMd2wavIBW(strPLEM)
 	String strPLEM
 
-	DFREF dfrPLEM = PLEMd2MapFolder(strPLEM)
-	DFREF dfr = dfrPLEM:ORIGINAL
+	DFREF dfr = PLEMd2MapFolder(strPLEM)
+	WAVE/Z wv = dfr:IBW
+
+	return wv
+End
+
+// @brief get the wave from the given datafolder
+Function/WAVE PLEMd2getWaveFromDFR(dfr)
+	DFREF dfr
+
 	if(DataFolderRefStatus(dfr) == 0)
 		return $""
 	endif
@@ -327,6 +324,5 @@ Function/WAVE PLEMd2wavIBW(strPLEM)
 		Abort "no or more than one wave in map's DataFolder!"
 	endif
 
-	WAVE wavIBW = dfr:$GetIndexedObjNameDFR(dfr, 1, 0)
-	return wavIBW
+	return dfr:$GetIndexedObjNameDFR(dfr, 1, 0)
 End

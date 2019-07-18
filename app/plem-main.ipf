@@ -186,32 +186,22 @@ Function PLEMd2Open([strFile, display])
 	strFileType = ParseFilePath(4, strFile, ":", 0, 0)
 	strPartialPath = ReplaceString(RemoveEnding(strBasePath, ":"), strFile, "", 0, 1)
 
-	// create dfr for loaded data
-	DFREF dfrPLEM = PLEMd2MapFolder(strPLEM)
-	NewDataFolder/O dfrPLEM:ORIGINAL
-	DFREF dfrLoad = dfrPLEM:ORIGINAL
-
 	// Loading Procedure (LoadWave is not dfr aware)
 	strswitch(strFileType)
 		case "ibw":
-			// remove lock
-			if(CountObjectsDFR(dfrLoad, 1) == 1)
-				WAVE wavIBW = dfrLoad:$GetIndexedObjNameDFR(dfrLoad, 1, 0)
-				SetWaveLock 0, wavIBW
-			endif
+			// create dfr for loaded data
+			DFREF dfrLoad = NewFreeDataFolder()
 
 			// load wave to dfrLoad using original name from IBW (overwrite)
 			DFREF dfrSave = GetDataFolderDFR()
 			SetDataFolder dfrLoad
-			KillWaves/A
-			KillStrings/A
 			do
 				PathInfo PLEMbasePath
 				try
 					if(V_flag)
-						LoadWave/Q/N/O/P=PLEMbasePath strPartialPath; AbortOnRTE
+						LoadWave/H/Q/N/O/P=PLEMbasePath strPartialPath; AbortOnRTE
 					else
-						LoadWave/Q/N/O strFile; AbortOnRTE
+						LoadWave/H/Q/N/O strFile; AbortOnRTE
 					endif
 					numLoaded = V_flag
 				catch
@@ -224,14 +214,17 @@ Function PLEMd2Open([strFile, display])
 			SetDataFolder dfrSave
 
 			if(numLoaded != 1)
-				KillWaves/A
+				KillDataFolder/Z dfrLoad
 				Abort "PLEMd2Open: Error Loaded more than one or no Wave from Igor Binary File"
 			endif
 
 			// reference loaded wave and lock it.
-			WAVE/Z wavIBW = PLEMd2wavIBW(strPLEM)
+			WAVE/Z wavIBW = PLEMd2getWaveFromDFR(dfrLoad)
+			SetWaveLock 0, wavIBW
+			Rename wavIBW IBW
 			SetWaveLock 1, wavIBW
-			String/G dfrLoad:$NameOfWave(wavIBW) = WaveHash(wavIBW, 1)
+			String/G dfrLoad:sha256 = WaveHash(wavIBW, 1)
+			SVAR sha256 = dfrLoad:sha256
 
 			break
 		default:
@@ -239,11 +232,30 @@ Function PLEMd2Open([strFile, display])
 		break
 	endswitch
 
-	// cleanup old IBW
-	WAVE/Z oldIBW = dfrPLEM:IBW
-	if(WaveExists(oldIBW))
-		SetWaveLock 0, oldIBW
-		KillWaves/Z oldIBW
+	// check if PLEM exists with calculated name and hash
+	DFREF dfrPLEM = PLEMd2MapFolder(strPLEM)
+	if(DataFolderRefStatus(dfrPLEM) != 0)
+		SVAR/Z savedSha = dfrPLEM:sha256
+		if(SVAR_EXISTS(savedSha) && !!cmpstr(savedSha,sha256))
+			strPLEM = CleanupName(sha256, 0) // name conflict
+		endif
+	endif
+
+	DFREF dfrPLEM = PLEMd2MapFolder(strPLEM)
+	DFREF dfrMaps = PLEMd2MapsFolder()
+	if(DataFolderRefStatus(dfrPLEM) == 0)
+		MoveDataFolder/O=1 dfrLoad dfrMaps
+		RenameDataFolder dfrLoad, $strPLEM
+	else
+		DuplicateDataFolder/Z/O=3 dfrLoad, dfrMaps:$strPLEM
+		if(V_flag)
+			DFREF dfrMap = PLEMd2MapFolder(strPLEM)
+			WAVE/Z wavIBW = dfrMap:IBW
+			if(!WaveExists(wavIBW) || !!cmpstr(sha256, WaveHash(wavIBW, 1)))
+				Abort "PLEMd2Open: Could not Save loaded IBW"
+			endif
+		endif
+		KillDataFolder/Z dfrLoad
 	endif
 
 	// init stats
@@ -1622,14 +1634,15 @@ Function PLEMd2KillMap(strMap)
 		gnumMapsAvailable = ItemsInList(gstrMapsAvailable)
 	endif
 
-	String strKillDataFolder = PLEMd2mapFolderString(strMap)
-	if(DataFolderExists(strKillDataFolder))
-		KillDataFolder/Z $strKillDataFolder
-		if(V_flag != 0)
-			// don't care if Folder could not be killed. Items might be in use.
-			print "PLEMd2KillMap: DataFolder could not be deleted."
+	DFREF dfrMap = PLEMd2MapFolder(strMap)
+	if(DataFolderRefStatus(dfrMap) != 0)
+		WAVE/Z wavIBW = dfrMap:IBW
+		SetWaveLock 0, wavIBW
+		WaveClear wavIBW
+		KillDataFolder/Z dfrMap
+		if(V_flag)
+			printf "PLEMd2KillMap: DataFolder %s could not be deleted.\r", strMap
 		endif
-
 	endif
 End
 
