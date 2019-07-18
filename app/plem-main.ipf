@@ -427,10 +427,6 @@ Function PLEMd2ExtractIBW(strPLEM, wavIBW)
 	corrections = PLEMd2getDetectorQEstring(stats.numDetector, stats.numCooling, PLEMd2getSystem(stats.strUser))
 	WAVE/Z qe = PLEMd2SetCorrection(corrections, stats.wavQE, stats.wavWavelength)
 
-	// excitation filter
-	corrections = PLEMd2getFilterExcString(PLEMd2getSystem(stats.strUser), stats.numDetector)
-	PLEMd2SetCorrection(corrections, stats.wavFilterExc, stats.wavExcitation)
-
 	// emission filter
 	corrections = PLEMd2getFilterEmiString(PLEMd2getSystem(stats.strUser), stats.numDetector)
 	PLEMd2SetCorrection(corrections, stats.wavFilterEmi, stats.wavWavelength)
@@ -490,6 +486,10 @@ Function PLEMd2ExtractIBW(strPLEM, wavIBW)
 			endif
 		endfor
 	endif
+
+	// excitation filter
+	corrections = PLEMd2getFilterExcString(PLEMd2getSystem(stats.strUser), stats.numDetector)
+	PLEMd2SetCorrection(corrections, stats.wavFilterExc, stats.wavExcitation)
 
 	// Power correction waves
 	// requires Excitation wave for Photon Energy
