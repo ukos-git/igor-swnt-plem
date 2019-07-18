@@ -1140,6 +1140,7 @@ Function PLEMd2AtlasClean(strPLEM)
 	Variable xmin, xmax, ymin, ymax
 	Variable threshold = 0
 	Variable tolerance = 50
+	Variable accuracy
 
 	STRUCT cntRange range
 	Struct PLEMd2stats stats
@@ -1192,6 +1193,25 @@ Function PLEMd2AtlasClean(strPLEM)
 	for(i = numPoints - 1; i >= 0; i -= 1)
 		DeletePoints duplicates[i], 1, stats.wavchiralityText, stats.wav2Dfit, stats.wav1Dfit, stats.wavEnergyS1, stats.wavEnergyS2
 	endfor
+
+	// find text labels in atlas wave
+	numPoints = DimSize(stats.wavchiralityText, 0)
+	for(i = 0; i < numPoints; i += 1)
+		accuracy = 1
+		do
+			Extract/FREE/INDX/U/I stats.wavAtlasText, index, \
+				((round(stats.wavAtlasS1nm[p] / accuracy) * accuracy == round(stats.wavEnergyS1[i] / accuracy) * accuracy) && \
+				(round(stats.wavAtlasS2nm[p] / accuracy) * accuracy == round(stats.wavEnergyS2[i] / accuracy) * accuracy))
+			accuracy += 0.5
+		while(DimSize(index, 0) < 1)
+		if(DimSize(index, 0) > 1)
+			Make/FREE/N=(DimSize(index, 0)) temp = stats.wavAtlasS1nm[index[p]]
+			Sort index, temp
+		endif
+		stats.wavchiralityText[i] = stats.wavAtlasText[index[0]]
+	endfor
+
+	Sort/A=1 stats.wavchiralityText, stats.wavchiralityText, stats.wav2Dfit, stats.wav1Dfit, stats.wavEnergyS1, stats.wavEnergyS2
 End
 
 Function PLEMd2AtlasFit2D(strPLEM)
