@@ -1404,7 +1404,7 @@ Function PLEMd2AtlasFit3D(strPLEM, [show])
 		s1exc = W_coef[2]
 
 		// check if distorted gaussian
-		if(distortion > 0.25)
+		if(distortion > 0.15)
 			continue
 		endif
 		// check if fwhm is within a valid range
