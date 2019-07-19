@@ -1145,18 +1145,20 @@ Function PLEMd2AtlasEdit(strPLEM)
 End
 
 // uses 2d fit result to clean
-Function PLEMd2AtlasClean(strPLEM)
+Function PLEMd2AtlasClean(strPLEM, [	threshold ])
 	String strPLEM
+	Variable threshold
 
 	Variable i, numPoints
 	Variable xmin, xmax, ymin, ymax
-	Variable threshold = 0
 	Variable tolerance = 50
 	Variable accuracy
 
 	STRUCT cntRange range
 	Struct PLEMd2stats stats
 	PLEMd2statsLoad(stats, strPLEM)
+
+	threshold = ParamIsDefault(threshold) ? 0 : threshold
 
 	// get boundaries from PLEM
 	// get boundaries from PLEM
@@ -1165,10 +1167,6 @@ Function PLEMd2AtlasClean(strPLEM)
 	ymax = range.yMax + tolerance
 	xmin = range.xMin - tolerance
 	xmax = range.xMax + tolerance
-
-	// define threshold
-	//StatsQuantiles/TM stats.wav2Dfit
-	//threshold = V_Q25
 
 	numPoints = DimSize(stats.wavchiralityText, 0)
 	for(i = numPoints - 1; i >= 0; i -= 1)
