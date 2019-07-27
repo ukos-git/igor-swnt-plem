@@ -2,33 +2,10 @@
 #pragma rtGlobals=3
 
 Menu "PLEM", dynamic //create menu bar entry
-//	SubMenu "Displayer1"
-//		"Init", PLEMd2d1Init()
-//		"Open", PLEMd2d1Open()
-//		"-"
-//		"Open depricated", PLEMapDisplayer()
-//		"Import: Maps", PLEMd2d1Import(0)
-//		"-"
-//		"Kill: Maps and Import", PLEMd2d1Import(1)
-//		"-"
-//		"Kill: CorrectionWaves", PLEMd2d1Kill("waves")
-//		"Kill: Variables", PLEMd2d1Kill("variables")
-//		"Kill: Strings", PLEMd2d1Kill("strings")
-//		"-"
-//		"Kill: All", PLEMd2d1Kill("all")
-//	End
-//	SubMenu "Displayer2"
-		PLEMd2MenuInit() + "Init", /q, PLEMd2initialize()
-		"Open", PLEMd2open()
-		"Info", PLEMd2Panel()
-		"-"
-		"Clean", PLEMd2Clean()
-		"Reset", PLEMd2reset()
-		"Set Paths", PLEMd2SetPaths()
-		"-"
-		"Atlas", PLEMd2PanelAtlas()
-
-//	End
+	PLEMd2MenuInit() + "Init", /q, PLEMd2initialize()
+	"Set Paths", PLEMd2SetPaths()
+	"Open", PLEMd2open()
+	"-"
 	SubMenu "Display"
 	//List all available Maps in current project (max 30)
 		PLEMd2Menu(0), PLEMd2DisplayByNum(0)
@@ -62,6 +39,10 @@ Menu "PLEM", dynamic //create menu bar entry
 		PLEMd2Menu(28), PLEMd2DisplayByNum(28)
 		PLEMd2Menu(29), PLEMd2DisplayByNum(29)
 	End
+
+	"Info", PLEMd2Panel()
+	"Atlas", PLEMd2PanelAtlas()
+	"-"
 	SubMenu "Duplicate"
 		PLEMd2Menu(0), PLEMd2DuplicateByNum(0)
 		PLEMd2Menu(1), PLEMd2DuplicateByNum(1)
