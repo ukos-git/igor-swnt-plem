@@ -1107,7 +1107,7 @@ Function PLEMd2AtlasInit(strPLEM, [init, initT])
             j += 1
         endif
 	endfor
-    Redimension/N=(j) stats.wavEnergyS1, stats.wavEnergyS2, stats.wavChiralityText
+	Redimension/N=(j) stats.wavEnergyS1, stats.wavEnergyS2, stats.wavChiralityText, stats.wavFWHMS1, stats.wavFWHMS2
 
 	// overwrite reset point.
 	Redimension/N=(j) stats.wavAtlasText, stats.wavAtlasS1nm, stats.wavAtlasS2nm, stats.wav2Dfit, stats.wav1Dfit
@@ -1138,14 +1138,14 @@ Function PLEMd2AtlasEdit(strPLEM)
 	winPLEMedit = PLEMd2getWindow(stats.strPLEM) + "_edit"
 	DoWindow/F $winPLEMedit
 	if(V_flag == 0)
-		Edit stats.wavchiralityText, stats.wav2Dfit, stats.wav1Dfit, stats.wavEnergyS1, stats.wavEnergyS2
+		Edit stats.wavchiralityText, stats.wav2Dfit, stats.wav1Dfit, stats.wavEnergyS1, stats.wavEnergyS2, stats.wavFWHMS1, stats.wavFWHMS2
 		DoWindow/C/N/R $winPLEMedit
 	endif
 
 End
 
 // uses 2d fit result to clean
-Function PLEMd2AtlasClean(strPLEM, [	threshold ])
+Function PLEMd2AtlasClean(strPLEM, [ threshold ])
 	String strPLEM
 	Variable threshold
 
@@ -1180,7 +1180,7 @@ Function PLEMd2AtlasClean(strPLEM, [	threshold ])
 				endif
 			endif
 		endif
-		DeletePoints i, 1, stats.wavchiralityText, stats.wav2Dfit, stats.wav1Dfit, stats.wavEnergyS1, stats.wavEnergyS2
+		DeletePoints i, 1, stats.wavchiralityText, stats.wav2Dfit, stats.wav1Dfit, stats.wavEnergyS1, stats.wavEnergyS2, stats.wavFWHMS1, stats.wavFWHMS2
 	endfor
 
 	// Remove Duplicates
@@ -1201,7 +1201,7 @@ Function PLEMd2AtlasClean(strPLEM, [	threshold ])
 	numPoints = DimSize(duplicates, 0)
 	Sort duplicates, duplicates
 	for(i = numPoints - 1; i >= 0; i -= 1)
-		DeletePoints duplicates[i], 1, stats.wavchiralityText, stats.wav2Dfit, stats.wav1Dfit, stats.wavEnergyS1, stats.wavEnergyS2
+		DeletePoints duplicates[i], 1, stats.wavchiralityText, stats.wav2Dfit, stats.wav1Dfit, stats.wavEnergyS1, stats.wavEnergyS2, stats.wavFWHMS1, stats.wavFWHMS2
 	endfor
 
 	// find text labels in atlas wave
@@ -1221,8 +1221,13 @@ Function PLEMd2AtlasClean(strPLEM, [	threshold ])
 		stats.wavchiralityText[i] = stats.wavAtlasText[index[0]]
 	endfor
 
-	Sort/A=1 stats.wavchiralityText, stats.wavchiralityText, stats.wav2Dfit, stats.wav1Dfit, stats.wavEnergyS1, stats.wavEnergyS2
+	Sort/A=1 stats.wavchiralityText, stats.wavchiralityText, stats.wav2Dfit, stats.wav1Dfit, stats.wavEnergyS1, stats.wavEnergyS2, stats.wavFWHMS1, stats.wavFWHMS2
 End
+
+static Constant cminS1fwhm = 3
+static Constant cmaxS1fwhm = 30
+static Constant cminS2fwhm = 10
+static Constant cmaxS2fwhm = 150
 
 Function PLEMd2AtlasFit2D(strPLEM)
 	String strPLEM
@@ -1251,14 +1256,14 @@ Function PLEMd2AtlasFit2D(strPLEM)
 		intensity = stats.wav1Dfit[i]
 		s1nm = stats.wavEnergyS1[i]
 		s2nm = stats.wavEnergyS2[i]
-		s1FWHM = NaN
-		s2FWHM = NaN
+		s1FWHM = stats.wavFWHMS1[i]
+		s2FWHM = stats.wavFWHMS2[i]
 
-		// fit Excitation
+		// fit emission wavelength to get center wavelength for excitation fit
 		T_Constraints[1] = "K2 > " + num2str(s1nm - numDeltaS1 / 2)
 		T_Constraints[2] = "K2 < " + num2str(s1nm + numDeltaS1 / 2)
-		T_Constraints[3] = "K3 > " + num2str(05 / 1.66511) // 2*sqrt(ln(2)) = 1.66511
-		T_Constraints[4] = "K3 < " + num2str(30 / 1.66511) // 2*sqrt(ln(2)) = 1.66511
+		T_Constraints[3] = "K3 > " + num2str(cminS1fwhm / 1.66511) // 2*sqrt(ln(2)) = 1.66511
+		T_Constraints[4] = "K3 < " + num2str(cmaxS1fwhm / 1.66511) // 2*sqrt(ln(2)) = 1.66511
 
 		[ pStart, pEnd ] = FindLevelWrapper(stats.wavWavelength, s1nm, accuracy = pAccuracy)
 		[ qStart, qEnd ] = FindLevelWrapper(stats.wavExcitation, s2nm, accuracy = qAccuracy)
@@ -1269,7 +1274,7 @@ Function PLEMd2AtlasFit2D(strPLEM)
 		try
 			CurveFit/Q gauss fitme/X=xfitme/C=T_Constraints; AbortOnRTE
 			WAVE W_coef
-			s1FWHM = W_coef[3] / 1.66511 // 2*sqrt(ln(2)) = 1.66511
+			s1FWHM = W_coef[3] * 1.66511 // 2*sqrt(ln(2)) = 1.66511 @see GaussPeakParams
 			s1nm = W_coef[2]
 			WaveClear W_coef
 		catch
@@ -1277,13 +1282,11 @@ Function PLEMd2AtlasFit2D(strPLEM)
 		endtry
 		WaveClear fitme, xfitme
 
-		stats.wavEnergyS1[i] = s1nm
-
-		// fit Emission
+		// fit excitation wavelength
 		T_Constraints[1] = "K2 > " + num2str(s2nm - numDeltaS2 / 2)
 		T_Constraints[2] = "K2 < " + num2str(s2nm + numDeltaS2 / 2)
-		T_Constraints[3] = "K3 > " + num2str(010 / 1.66511)
-		T_Constraints[4] = "K3 < " + num2str(100 / 1.66511)
+		T_Constraints[3] = "K3 > " + num2str(cminS2fwhm / 1.66511)
+		T_Constraints[4] = "K3 < " + num2str(cmaxS2fwhm / 1.66511)
 
 		[ pStart, pEnd ] = FindLevelWrapper(stats.wavWavelength, s1nm, accuracy = pAccuracy)
 		[ qStart, qEnd ] = FindLevelWrapper(stats.wavExcitation, s2nm, accuracy = qAccuracy)
@@ -1294,7 +1297,7 @@ Function PLEMd2AtlasFit2D(strPLEM)
 		try
 			CurveFit/Q gauss fitme/X=xfitme/C=T_Constraints; AbortOnRTE
 			WAVE W_coef
-			s2FWHM = W_coef[3] / 1.66511 // 2*sqrt(ln(2)) = 1.66511
+			s2FWHM = W_coef[3] * 1.66511 // 2*sqrt(ln(2)) = 1.66511 @see GaussPeakParams
 			s2nm = W_coef[2]
 			WaveClear W_coef
 		catch
@@ -1303,12 +1306,13 @@ Function PLEMd2AtlasFit2D(strPLEM)
 		WaveClear fitme, xfitme
 
 		stats.wavEnergyS2[i] = s2nm
+		stats.wavFWHMS2[i] = s2FWHM
 
-		// fit to get intensity
+		// fit emission to get max intensity
 		T_Constraints[1] = "K2 > " + num2str(s1nm - numDeltaS1 / 2)
 		T_Constraints[2] = "K2 < " + num2str(s1nm + numDeltaS1 / 2)
-		T_Constraints[3] = "K3 > " + num2str(05 / 1.66511) // 2*sqrt(ln(2)) = 1.66511
-		T_Constraints[4] = "K3 < " + num2str(15 / 1.66511) // 2*sqrt(ln(2)) = 1.66511
+		T_Constraints[3] = "K3 > " + num2str(cminS1fwhm / 1.66511) // 2*sqrt(ln(2)) = 1.66511
+		T_Constraints[4] = "K3 < " + num2str(cmaxS1fwhm / 1.66511) // 2*sqrt(ln(2)) = 1.66511
 
 		[ pStart, pEnd ] = FindLevelWrapper(stats.wavWavelength, s1nm, accuracy = pAccuracy * 4)
 		FindLevel/Q/P/T=(qAccuracy) stats.wavExcitation, s2nm
@@ -1321,6 +1325,8 @@ Function PLEMd2AtlasFit2D(strPLEM)
 			CurveFit/Q gauss fitme/X=xfitme/C=T_Constraints; AbortOnRTE
 			WAVE W_coef
 			intensity = W_coef[1]
+			s1FWHM = W_coef[3] * 1.66511 // 2*sqrt(ln(2)) = 1.66511 @see GaussPeakParams
+			s1nm = W_coef[2]
 			WaveClear W_coef
 		catch
 			err = GetRTError(1)
@@ -1328,6 +1334,8 @@ Function PLEMd2AtlasFit2D(strPLEM)
 		WaveClear fitme, xfitme
 
 		stats.wav1Dfit[i] = intensity
+		stats.wavEnergyS1[i] = s1nm
+		stats.wavFWHMS1[i] = s1FWHM
 	endfor
 End
 
@@ -1345,7 +1353,7 @@ Function PLEMd2AtlasFit3D(strPLEM, [show])
 
 	Variable V_fitOptions = 4 // used to suppress CurveFit dialog
 	Variable numDeltaS1 = 30
-	Variable numDeltaS2 = 40
+	Variable numDeltaS2 = 30
 
 	show = ParamIsDefault(show) ? 0 : show
 
@@ -1372,16 +1380,16 @@ Function PLEMd2AtlasFit3D(strPLEM, [show])
 		numDeltaS2bottom = numS2 - numDeltaS2
 		numDeltaS2top    = numS2 + numDeltaS2
 
-		// 2*sqrt(ln(2)) = 1.66511
+		// 2*sqrt(ln(2)) = 1.66511 @see GaussPeakParams
 		Make/O/T/N=10 root:T_Constraints/WAVE=T_Constraints
 		T_Constraints[0] = "K2 > " + num2str(numDeltaS1left)
 		T_Constraints[1] = "K2 < " + num2str(numDeltaS1right)
 		T_Constraints[2] = "K4 > " + num2str(numDeltaS2bottom)
 		T_Constraints[3] = "K4 < " + num2str(numDeltaS2top)
-		T_Constraints[4] = "K3 > " + num2str(1   / 1.66511)
-		T_Constraints[5] = "K3 < " + num2str(20  / 1.66511)
-		T_Constraints[6] = "K5 > " + num2str(15  / 1.66511)
-		T_Constraints[7] = "K5 < " + num2str(100 / 1.66511)
+		T_Constraints[4] = "K3 > " + num2str(cminS1fwhm / 1.66511)
+		T_Constraints[5] = "K3 < " + num2str(cmaxS1fwhm / 1.66511)
+		T_Constraints[6] = "K5 > " + num2str(cminS2fwhm / 1.66511)
+		T_Constraints[7] = "K5 < " + num2str(cmaxS2fwhm / 1.66511)
 		T_Constraints[8] = "K6 > -0.1"
 		T_Constraints[9] = "K6 < 0.1"
 
@@ -1397,18 +1405,18 @@ Function PLEMd2AtlasFit3D(strPLEM, [show])
 
 		Wave W_coef
 		intensity = W_coef[1]
-		s1FWHM = W_coef[3] / 1.66511
-		s2FWHM = W_coef[5] / 1.66511
+		s1FWHM = W_coef[3] * 1.66511
+		s2FWHM = W_coef[5] * 1.66511
 		distortion = abs(W_coef[6])
 		s2emi = W_coef[4]
 		s1exc = W_coef[2]
 
 		// check if distorted gaussian
-		if(distortion > 0.15)
+		if(distortion > 0.5)
 			continue
 		endif
-		// check if fwhm is within a valid range
-		if((s1FWHM > 30) || (s1FWHM < 2) || (s2FWHM > 30) || (s2FWHM < 5))
+		// check if fwhm is within a valid range s2 is typically 15nm and s1 5nm
+		if((s1FWHM > cmaxS1fwhm * 2) || (s1FWHM < cminS1fwhm / 2) || (s2FWHM > cmaxS2fwhm * 2) || (s2FWHM < cminS2fwhm / 2))
 			continue
 		endif
 		// error checking
@@ -1418,6 +1426,8 @@ Function PLEMd2AtlasFit3D(strPLEM, [show])
 
 		stats.wavEnergyS1[i] = s1exc
 		stats.wavEnergyS2[i] = s2emi
+		stats.wavFWHMS1[i] = s1FWHM
+		stats.wavFWHMS2[i] = s2FWHM
 		stats.wav2Dfit[i] = W_coef[1]*2*pi* W_coef[3]* W_coef[5]*sqrt(1-W_coef[6]^2) // volume of 2d gauss without baseline
 		stats.wav1Dfit[i] = intensity
 		stats.wavPLEMfit[][][i] = Gauss2D(W_coef, x, y)
@@ -1483,7 +1493,7 @@ Function PLEMd2AtlasShow(strPLEM)
 	PLEMd2statsLoad(stats, strPLEM)
 	PLEMd2Display(strPLEM)
 	PLEMd2AtlasHide(strPLEM) //prevent multiple traces
-	//wavEnergyS1, , wavChiralityText, wav2Dfit
+
 	AppendToGraph stats.wavEnergyS2/TN=plem01 vs stats.wavEnergyS1
 	AppendToGraph stats.wavEnergyS2/TN=plem02 vs stats.wavEnergyS1
 	AppendToGraph stats.wavEnergyS2/TN=plem03 vs stats.wavEnergyS1
@@ -1961,7 +1971,7 @@ Function PLEMd2GetAcceptableRange(stats, range)
 		Abort "PLEMd2GetAcceptableRange: Only for Newton and Idus"
 	endif
 
-	range.xMin = stats.numDetector == PLEMd2detectorNewton ? 830 : 950
+	range.xMin = stats.numDetector == PLEMd2detectorNewton ? 830 : 1000
 	range.xMax = stats.numDetector == PLEMd2detectorNewton ? 1040 : 1280
 	range.yMin = 525
 	range.yMax = 760

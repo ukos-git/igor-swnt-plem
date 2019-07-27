@@ -29,7 +29,8 @@ Structure PLEMd2stats
 	// chirality waves
 	Wave/D wavAtlasS1nm, wavAtlasS2nm
 	WAVE/T wavAtlasText
-	Wave/D wavEnergyS1, wavEnergyS2, wav2Dfit, wav1Dfit
+	Wave/D wavEnergyS1, wavEnergyS2, wav2Dfit, wav1Dfit, wavFWHMS1, wavFWHMS2
+	
 	WAVE/T wavChiralityText
 	Wave wavPLEMfit, wavPLEMfitSingle
 	// Variables for chirality offset
@@ -74,6 +75,8 @@ Function PLEMd2statsLoad(stats, strMap)
 	Wave/T stats.wavChiralityText   = createWave(dfrAtlas, "PLEMchirality", setWaveType = PLEMd2WaveTypeText)
 	Wave/D stats.wavAtlasS1nm 		= createWave(dfrAtlas, "atlasS1nm")
 	Wave/D stats.wavAtlasS2nm 		= createWave(dfrAtlas, "atlasS2nm")
+	Wave/D stats.wavFWHMS1 = createWave(dfrAtlas, "atlasS1FWHMnm")
+	Wave/D stats.wavFWHMS2 = createWave(dfrAtlas, "atlasS2FWHMnm")
 	Wave/T stats.wavAtlasText       = createWave(dfrAtlas, "atlasText", setWaveType = PLEMd2WaveTypeText)
 	Wave/D stats.wav1Dfit 			= createWave(dfrAtlas, "fit1D")
 	Wave/D stats.wav2Dfit 			= createWave(dfrAtlas, "fit2D")
