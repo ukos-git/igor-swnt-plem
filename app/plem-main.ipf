@@ -1170,10 +1170,20 @@ Function PLEMd2AtlasClean(strPLEM, [ threshold ])
 
 	numPoints = DimSize(stats.wavchiralityText, 0)
 	for(i = numPoints - 1; i >= 0; i -= 1)
-		if(stats.wav2Dfit[i] > threshold)
-			// value is greater than threshold
-			if((stats.wavEnergyS2[i] > ymin) && (stats.wavEnergyS2[i] < ymax))
-				// AND within y range
+		if(DimSize(stats.wavPLEM, 1) > 1)
+			if(stats.wav2Dfit[i] > threshold)
+				// value is greater than threshold
+				if((stats.wavEnergyS2[i] > ymin) && (stats.wavEnergyS2[i] < ymax))
+					// AND within y range
+					if((stats.wavEnergyS1[i] > xmin) && (stats.wavEnergyS1[i] < xmax))
+						// AND within x range
+						continue
+					endif
+				endif
+			endif
+		else
+			if(stats.wav1Dfit[i] > threshold)
+				// value is greater than threshold
 				if((stats.wavEnergyS1[i] > xmin) && (stats.wavEnergyS1[i] < xmax))
 					// AND within x range
 					continue

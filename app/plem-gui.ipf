@@ -243,8 +243,7 @@ Function PLEMd2PanelAtlas([strWinPLEM])
 		strTraces = TraceNameList(strWinPLEM, ";",1)
 		if(ItemsInList(strTraces) == 1)
 			wave wavPLEM = TraceNameToWaveRef(strWinPLEM,StringFromList(0,strTraces))
-			Print "PLEMd2Atlas: Traces not yet handled"
-			return 0
+			Print "PLEMd2Atlas: Traces are experimental"
 		else
 			Print "PLEMd2Atlas: No Image found. More than one or no trace found in top graph."
 			return 0
