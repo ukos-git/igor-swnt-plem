@@ -667,7 +667,7 @@ Function PLEMd2BuildMaps(strPLEM)
 	endif
 
 	if(stats.booWavelengthPitch)
-		Multithread wavPLEM[][] /= p > 0 ? stats.wavWavelength[p] - stats.wavWavelength[p - 1] : stats.wavWavelength[1] - stats.wavWavelength[0]
+		Multithread wavPLEM[][] /= p > 0 ? abs(stats.wavWavelength[p] - stats.wavWavelength[p - 1]) : abs(stats.wavWavelength[1] - stats.wavWavelength[0])
 	endif
 
 	if(stats.numDetector == PLEMd2cameraClara || stats.numDetector == plemd2cameraXeva)
