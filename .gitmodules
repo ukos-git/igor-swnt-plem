@@ -1,0 +1,3 @@
+[submodule "vendor/utilities"]
+	path = vendor/utilities
+	url = https://github.com/ukos-git/igor-common-utilities.git
